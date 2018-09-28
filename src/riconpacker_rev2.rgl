@@ -1,0 +1,27 @@
+#
+# rgl text file (v1.0) - raygui layout text file generated using rGuiLayout
+#
+# Total number of controls:     12
+# Anchor info:   a <id> <posx> <posy> <enabled>
+# Control info:  c <id> <type> <name> <rectangle> <anchor_id> <text>
+#
+a 000 0 0 1
+a 001 50 50 1
+a 002 0 0 0
+a 003 0 0 0
+a 004 0 0 0
+a 005 0 0 0
+a 006 0 0 0
+a 007 0 0 0
+c 000 10 platform 10 -25 115 25 1 
+c 001 18 size 10 45 115 305 1 
+c 002 20 iconPanel 135 10 256 256 1 256
+c 003 5 GenIconImage 220 275 85 25 1 Generate
+c 004 2 line 135 310 255 10 1 
+c 005 5 ExportIcon 135 325 125 25 1 Export Icon
+c 006 5 ExportImage 265 325 126 25 1 Export Image
+c 007 17 iconStatus 0 360 400 25 1 SAMPLE TEXT
+c 008 5 Button008 135 275 80 25 1 Remove
+c 009 9 ComboBox009 10 10 115 25 1 
+c 010 17 StatusBar010 135 395 265 25 1 SAMPLE TEXT
+c 011 5 Button011 310 275 80 25 1 Load
