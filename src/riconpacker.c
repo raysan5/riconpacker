@@ -52,7 +52,7 @@
 //----------------------------------------------------------------------------------
 #define TOOL_VERSION_TEXT       "1.0"   // Tool version string
 
-//#define ENABLE_PRO_FEATURES             // Enable PRO version features
+#define ENABLE_PRO_FEATURES             // Enable PRO version features
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
