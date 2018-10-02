@@ -54,6 +54,8 @@
 
 #define ENABLE_PRO_FEATURES             // Enable PRO version features
 
+#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
@@ -82,8 +84,7 @@ typedef struct {
 // NOTE: All image data referenced by entries in the image directory proceed directly after the image directory. 
 // It is customary practice to store them in the same order as defined in the image directory.
 
-
-
+#if 0
 //PNG file-format: https://en.wikipedia.org/wiki/Portable_Network_Graphics#File_format
 
 // PNG Signature
@@ -109,7 +110,21 @@ typedef struct {
     unsigned char filter;       // Filter method: 0 (default)
     unsigned char interlace;    // Interlace scheme (optional): 0 (none)
 } IHDRChunkData;
+#endif
 
+#if defined(SUPPORT_RTOOL_GENERATION)
+// rTool icon generation
+typedef struct {
+    int size;
+    int borderSize;
+    char text[4];
+    int textSize;
+    Rectangle textRec;
+    bool proVersion;
+    Color color;
+    Color *textPixels;      // In case text is not enough... useful for 32x32, 24x24, 16x16
+} rToolIcon;
+#endif
 
 // One image entry for ico
 typedef struct {
@@ -142,7 +157,7 @@ static IconPackEntry *icoPack;              // Icon images array
 
 static int sizeListActive = 0;              // Current list text entry
 static int sizeListCount = 0;               // Number of list text entries
-char **sizeTextList = NULL;           // Pointer to list text arrays
+char **sizeTextList = NULL;                 // Pointer to list text arrays
 static int *icoSizesPlatform = NULL;        // Pointer to selected platform icon sizes
 
 static int validCount = 0;                  // Valid ico images counter
@@ -346,6 +361,25 @@ int main(int argc, char *argv[])
     // Initialize icon pack by platform
     InitIconPack(ICON_PLATFORM_WINDOWS);
     
+#if defined(SUPPORT_RTOOL_GENERATION)
+    // Initialize rTool icons for drawing
+    rToolIcon rToolPack[8];
+    
+    for (int i = 0; i < 8; i++)
+    {
+        rToolPack[i].size = icoSizesWindows[i];
+        rToolPack[i].borderSize = (int)ceil((float)rToolPack[i].size/16.0f);
+        strcpy(rToolPack[i].text, "rIP\0");
+        rToolPack[i].textSize = 50/(i + 1);         // TODO: Find a working formula > 50, 30, 20, 20, 10, 10, 10, 6?
+        rToolPack[i].textRec.width = MeasureText(rToolPack[i].text, rToolPack[i].textSize);
+        rToolPack[i].textRec.height = rToolPack[i].textSize;
+        rToolPack[i].textRec.x = rToolPack[i].size - 2*rToolPack[i].borderSize - rToolPack[i].textRec.width;
+        rToolPack[i].textRec.y = rToolPack[i].size - 2*rToolPack[i].borderSize - rToolPack[i].textRec.height;
+        rToolPack[i].proVersion = false;
+        rToolPack[i].color = DARKGRAY;
+    }
+#endif
+    
     // raygui: controls initialization
     //----------------------------------------------------------------------------------
     Vector2 anchor01 = { 0, 0 };
@@ -447,6 +481,33 @@ int main(int argc, char *argv[])
             ClearDroppedFiles();
         }
         
+        if (IsKeyPressed(KEY_DELETE))
+        {
+            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
+            else RemoveIconPack(sizeListActive - 1);    // Delete one image
+        }
+        
+        // Calculate valid images 
+        validCount = 0;
+        for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
+        
+        
+#if defined(SUPPORT_RTOOL_GENERATION)
+        // Edit selected rTool icon text position and size
+        if (sizeListActive > 0)
+        {
+            if (IsKeyPressed(KEY_RIGHT)) rToolPack[sizeListActive - 1].textRec.x++;
+            else if (IsKeyPressed(KEY_LEFT)) rToolPack[sizeListActive - 1].textRec.x--;
+            else if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textRec.y--;
+            else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textRec.y++;
+            
+            if (IsKeyDown(KEY_LEFT_CONTROL))
+            {
+                if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textSize++;
+                else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textSize--;
+            }
+        }
+    
         if (IsKeyPressed(KEY_SPACE))
         {
             /*
@@ -472,16 +533,7 @@ int main(int argc, char *argv[])
         {
             ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4);     // One char bit every 4 image bytes
         }
-        
-        if (IsKeyPressed(KEY_DELETE))
-        {
-            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
-            else RemoveIconPack(sizeListActive - 1);    // Delete one image
-        }
-        
-        // Calculate valid images 
-        validCount = 0;
-        for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
+#endif
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -516,11 +568,28 @@ int main(int argc, char *argv[])
             }
             else
             {
+#if defined(SUPPORT_RTOOL_GENERATION)
+                // Draw rTool generated icon
+                DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                              anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                              rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size, RAYWHITE);
+                DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                  anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                  rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size }, 
+                                     rToolPack[sizeListActive - 1].borderSize, rToolPack[sizeListActive - 1].color);
+                DrawText(rToolPack[sizeListActive - 1].text, 
+                         anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.x, 
+                         anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y, 
+                         rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
+                
+                DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
+#else
                 DrawTexture(icoPack[sizeListActive - 1].texture, 
                             anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2, 
                             anchor01.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
+#endif
             }
-            
+
             //GuiLabel((Rectangle){ anchor01.x + 135, anchor01.y + 270, 126, 25 }, "Scale algorythm:");
             //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, scaleAlgorythmTextList, 2, scaleAlgorythmActive);
             
@@ -707,8 +776,13 @@ static void InitIconPack(int platform)
     }
     
     // Unload previous sizes text list
-    for (int i = 0; i < sizeListCount; i++) free(sizeTextList[i]);
-    free(sizeTextList);
+    if ((sizeTextList != NULL) && (sizeListCount > 0))
+    {
+        printf("free(sizeTextList)\n");
+        
+        for (int i = 0; i < sizeListCount; i++) free(sizeTextList[i]);
+        free(sizeTextList);
+    }
     
     // Generate size text list using provided icon sizes
     sizeListCount = icoPlatformCount + 1;
@@ -722,13 +796,19 @@ static void InitIconPack(int platform)
     }
 
     // Unload previous icon pack
-    for (int i = 0; i < icoPackCount; i++)
+    if ((icoPack != NULL) && (icoPackCount > 0))
     {
-        UnloadImage(icoPack[i].image);
-        UnloadTexture(icoPack[i].texture);
+        printf("free(icoPack)\n");
+        
+        for (int i = 0; i < icoPackCount; i++)
+        {
+            UnloadImage(icoPack[i].image);
+            UnloadTexture(icoPack[i].texture);
+        }
+        
+        free(icoPack);
     }
     
-    free(icoPack);
     icoPackCount = icoPlatformCount;
     icoPack = (IconPackEntry *)malloc(icoPackCount*sizeof(IconPackEntry));
 
