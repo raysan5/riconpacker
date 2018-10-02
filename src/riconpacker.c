@@ -363,7 +363,7 @@ int main(int argc, char *argv[])
     
 #if defined(SUPPORT_RTOOL_GENERATION)
     // Initialize rTool icons for drawing
-    rToolIcon rToolPack[8];
+    rToolIcon rToolPack[8] = { 0 };
     
     for (int i = 0; i < 8; i++)
     {
@@ -377,7 +377,23 @@ int main(int argc, char *argv[])
         rToolPack[i].textRec.y = rToolPack[i].size - 2*rToolPack[i].borderSize - rToolPack[i].textRec.height;
         rToolPack[i].proVersion = false;
         rToolPack[i].color = DARKGRAY;
+        
+        // In case icon is smaller than 32x32 pixels, 
+        // we generate a color array to fill
+        if (rToolPack[i].size <= 32) 
+        {
+            rToolPack[i].textPixels = (Color *)malloc(rToolPack[i].size*rToolPack[i].size*sizeof(Color));
+            for (int p = 0; p < rToolPack[i].size*rToolPack[i].size; p++) rToolPack[i].textPixels[p] = BLANK;
+        }
     }
+    
+    bool pixelEditMode = false;
+    
+    RenderTexture2D iconTarget = LoadRenderTexture(256, 256);     // To draw icon and retrieve it?
+    SetTextureFilter(iconTarget.texture, FILTER_POINT);
+    
+    //Image icon = GetTextureData(iconTarget.texture);
+    //UpdateTexture(iconTarget.texture, const void *pixels);  
 #endif
     
     // raygui: controls initialization
@@ -507,7 +523,10 @@ int main(int argc, char *argv[])
                 else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textSize--;
             }
         }
-    
+
+        // TODO: Pixel edit mode should be better redesigned (requires zoom and more!)
+        if (IsKeyPressed(KEY_E)) pixelEditMode = !pixelEditMode;
+        
         if (IsKeyPressed(KEY_SPACE))
         {
             /*
@@ -566,7 +585,7 @@ int main(int argc, char *argv[])
             {
                 for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchor01.x + 135, anchor01.y + 10, WHITE);
             }
-            else
+            else if (sizeListActive > 0)
             {
 #if defined(SUPPORT_RTOOL_GENERATION)
                 // Draw rTool generated icon
@@ -583,6 +602,17 @@ int main(int argc, char *argv[])
                          rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
                 
                 DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
+                
+                if (pixelEditMode && rToolPack[sizeListActive - 1].size <= 32)
+                {
+                    int size = rToolPack[sizeListActive - 1].size*8;
+                    Vector2 cell = GuiGrid((Rectangle){ anchor01.x + 135 + 128 - size/2, anchor01.y + 10 + 128 - size/2, size, size }, 8, 1);
+                    
+                    if ((cell.x >= 0) && (cell.y >= 0))
+                    {
+                        DrawRectangleLines((int)(anchor01.x + 135 + 128 - size/2 + cell.x*8), (int)(anchor01.y + 10 + 128 - size/2 + cell.y*8), 8, 8, RED);
+                    }
+                }
 #else
                 DrawTexture(icoPack[sizeListActive - 1].texture, 
                             anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2, 
@@ -703,6 +733,10 @@ int main(int argc, char *argv[])
         UnloadImage(icoPack[i].image);
         UnloadTexture(icoPack[i].texture);
     }
+    
+#if defined(SUPPORT_RTOOL_GENERATION)
+    for (int i = 0; i < 8; i++) if (rToolPack[i].size <= 32) free(rToolPack[i].textPixels);
+#endif
     
     free(icoPack);
     
