@@ -54,7 +54,7 @@
 
 #define ENABLE_PRO_FEATURES             // Enable PRO version features
 
-#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+//#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -473,6 +473,10 @@ int main(int argc, char *argv[])
 
                     if (index >= 0)
                     {
+                        // Force image to be RGBA, most icons could come as RGB
+                        // TODO: Support RGB icon format
+                        ImageFormat(&image, UNCOMPRESSED_R8G8B8A8);
+                        
                         // Re-load image from ico pack
                         UnloadImage(icoPack[index].image);
                         icoPack[index].image = ImageCopy(image);
@@ -976,10 +980,23 @@ static Image *LoadICO(const char *fileName, int *count)
 
 // Icon saver
 static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
-{
+{   
+    for (int i = 0; i < packCount; i++)
+    {
+        if (icoPack[i].valid)
+        {
+            printf("SaveICO(): icoPac[%i].size = %i\n", i, icoPack[i].size);
+            printf("SaveICO(): icoPac[%i].image.width = %i\n", i, icoPack[i].image.width);
+            printf("SaveICO(): icoPac[%i].image.height = %i\n", i, icoPack[i].image.height);
+            printf("SaveICO(): icoPac[%i].image.format = %i\n", i, icoPack[i].image.format);
+        }
+    }
+    
     // Check icon pack for valid images
     int validCount = 0;
     for (int i = 0; i < packCount; i++) if (icoPack[i].valid) validCount++;
+    
+    printf("SaveICO(): validCount = %i\n", validCount);
     
     IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .icoPackCount = validCount };
     IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
@@ -995,6 +1012,7 @@ static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
             int size = 0;     // Store generated png file size
             
             // Compress images data into PNG file data streams
+            // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
             icoData[i] = stbi_write_png_to_mem((unsigned char *)icoPack[i].image.data, icoPack[i].image.width*4, icoPack[i].image.width, icoPack[i].image.height, 4, &size);
             
             // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
