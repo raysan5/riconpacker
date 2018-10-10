@@ -50,9 +50,10 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-#define TOOL_VERSION_TEXT       "1.0"   // Tool version string
-
 #define ENABLE_PRO_FEATURES             // Enable PRO version features
+
+#define TOOL_VERSION_TEXT       "1.0"   // Tool version string
+#define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
 
 //#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
 
@@ -195,146 +196,37 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding);
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-    #define MAX_ICONS               8       // Number of icon images for embedding
-    
+    char inFileName[256] = { 0 };       // Input file name (required in case of drag & drop over executable)
+
     // Command-line usage mode
     //--------------------------------------------------------------------------------------
     if (argc > 1)
     {
-#define ICO_DATA_READER
-
-#if defined(ICO_DATA_READER)
-        if (IsFileExtension(argv[1], ".ico"))
+        if (argc == 2)  // One file dropped over the executable or just one argument
         {
-            // Icon data reader
-            FILE *icoFile = fopen(argv[1], "rb");
-            
-            // NOTE: raylib.ico, in the way it was generated, 256x256 PNG is embedded directly while the
-            // resto of image sizes seem to be embedded in an uncompressed form (BMP?)
-            
-            if (icoFile == NULL) return -1;
-
-            // Load .ico information
-            IcoHeader icoHeader = { 0 };
-            fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
-
-            printf("icoHeader.imageType: %i\n", icoHeader.imageType);
-            printf("icoHeader.icoPackCount: %i\n", icoHeader.icoPackCount);
-            
-            IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
-            unsigned char *icoData[icoHeader.icoPackCount];
-
-            for (int i = 0; i < icoHeader.icoPackCount; i++)
+            // Check if it is a supported image file for simple viewing
+            if (IsFileExtension(argv[1], ".avi") || 
+                IsFileExtension(argv[1], ".png") || 
+                IsFileExtension(argv[1], ".tga") || 
+                IsFileExtension(argv[1], ".jpg") || 
+                IsFileExtension(argv[1], ".dds"))
             {
-                fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
-                
-                printf("%ix%i@%i - %i - %i\n", icoDirEntry[i].width, icoDirEntry[i].height, 
-                       icoDirEntry[i].bpp, icoDirEntry[i].size, icoDirEntry[i].offset);
+                strcpy(inFileName, argv[1]);
             }
-            
-            for (int i = 0; i < icoHeader.icoPackCount; i++)
+            else 
             {
-                icoData[i] = (unsigned char *)malloc(icoDirEntry[i].size);
-                fread(icoData[i], icoDirEntry[i].size, 1, icoFile);         // Read icon png data
-
-                Image image = { 0 };
-                
-                // Reading png data from memory buffer
-                int channels;
-                image.data = stbi_load_from_memory(icoData[i], icoDirEntry[i].size, &image.width, &image.height, &channels, 0);
-                
-                printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", image.width, image.height, channels*8);
-                               
-                image.mipmaps =  1;
-                
-                if (channels == 1) image.format = UNCOMPRESSED_GRAYSCALE;
-                else if (channels == 2) image.format = UNCOMPRESSED_GRAY_ALPHA;
-                else if (channels == 3) image.format = UNCOMPRESSED_R8G8B8;
-                else if (channels == 4) image.format = UNCOMPRESSED_R8G8B8A8;
-                else printf("WARNING: Number of data channels not supported");
-                
-                // TODO: Extract icon name from dropped file
-
-                ExportImage(image, FormatText("icon_%ix%i.png", image.width, image.height));
-                
-                UnloadImage(image);
-            }
-
-            fclose(icoFile);
-            
-            for (int i = 0; i < icoHeader.icoPackCount; i++) 
-            {
-                free(icoDirEntry);
-                free(icoData[i]);
+                ShowUsageInfo();
+                return 0;
             }
         }
-        else ShowUsageInfo();
-#endif
-
-#if defined(ICO_DATA_WRITTER)
-        // Generate ICO file manually
-        char *icoFileNames[MAX_ICONS];
-
-        // Generate file names to load from expected sizes
-        for (int i = 0; i < MAX_ICONS; i++)
+#if defined(ENABLE_PRO_FEATURES)
+        else
         {
-            icoFileNames[i] = (char *)calloc(128, 1);   
-            sprintf(icoFileNames[i], "%s_%ix%i.png", argv[1], icoSizesPlatform[i], icoSizesPlatform[i]);
-        }
+
         
-        FILE *icoFile = fopen(FormatText("%s.ico", argv[1]), "wb");
-        
-        IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .icoPackCount = MAX_ICONS };
-        fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
-        
-        IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
-        unsigned char *icoData[icoHeader.icoPackCount];
-        int offset = 6 + 16*icoHeader.icoPackCount;
-        
-        for (int i = 0; i < icoHeader.icoPackCount; i++)
-        {
-            printf("Reading file: %s\n", icoFileNames[i]);
-            FILE *pngFile = fopen(icoFileNames[i], "rb");
-            
-            fseek(pngFile, 0, SEEK_END);        // Move file pointer to end of file
-            int size = (int)ftell(pngFile);     // Get file size
-            fseek(pngFile, 0, SEEK_SET);        // Reset file pointer
-
-            printf("File size: %i\n\n", size);
-            
-            icoData[i] = (unsigned char *)malloc(size);
-            fread(icoData[i], size, 1, pngFile);   // Read fulll file data
-            fclose(pngFile);
-
-            icoDirEntry[i].width = (icoSizesPlatform[i] == 256) ? 0 : icoSizesPlatform[i];
-            icoDirEntry[i].height = (icoSizesPlatform[i] == 256) ? 0 : icoSizesPlatform[i];
-            icoDirEntry[i].bpp = 32;
-            icoDirEntry[i].size = size;
-            icoDirEntry[i].offset = offset;
-            
-            offset += size;
-        }
-
-        for (int i = 0; i < icoHeader.icoPackCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
-
-        for (int i = 0; i < icoHeader.icoPackCount; i++) 
-        {
-            fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
-            printf("Data written: %i\n", icoDirEntry[i].size);
-        }
-
-        fclose(icoFile);
-
-        for (int i = 0; i < MAX_ICONS; i++) free(icoFileNames[i]);
-        
-        for (int i = 0; i < icoHeader.icoPackCount; i++) 
-        {
-            free(icoDirEntry);
-            free(icoData[i]);
+            return 0;
         }
 #endif
-        
-        return 0;
     }
     
     // GUI usage mode - Initialization
@@ -342,8 +234,9 @@ int main(int argc, char *argv[])
     const int screenWidth = 400;
     const int screenHeight = 380;
     
-    //SetConfigFlags(FLAG_WINDOW_UNDECORATED);
-    InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s", TOOL_VERSION_TEXT));
+    SetTraceLog(0);                             // Disable trace log messsages
+    //SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
+    InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s - A simple and easy-to-use icons packer", TOOL_VERSION_TEXT));
     //SetExitKey(0);
     
     // General pourpose variables
@@ -1130,3 +1023,135 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding)
         }
     }
 }
+
+/*
+#define ICO_DATA_READER
+#if defined(ICO_DATA_READER)
+    if (IsFileExtension(argv[1], ".ico"))
+    {
+        // Icon data reader
+        FILE *icoFile = fopen(argv[1], "rb");
+        
+        // NOTE: raylib.ico, in the way it was generated, 256x256 PNG is embedded directly while the
+        // resto of image sizes seem to be embedded in an uncompressed form (BMP?)
+        
+        if (icoFile == NULL) return -1;
+
+        // Load .ico information
+        IcoHeader icoHeader = { 0 };
+        fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+
+        printf("icoHeader.imageType: %i\n", icoHeader.imageType);
+        printf("icoHeader.icoPackCount: %i\n", icoHeader.icoPackCount);
+        
+        IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
+        unsigned char *icoData[icoHeader.icoPackCount];
+
+        for (int i = 0; i < icoHeader.icoPackCount; i++)
+        {
+            fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+            
+            printf("%ix%i@%i - %i - %i\n", icoDirEntry[i].width, icoDirEntry[i].height, 
+                   icoDirEntry[i].bpp, icoDirEntry[i].size, icoDirEntry[i].offset);
+        }
+        
+        for (int i = 0; i < icoHeader.icoPackCount; i++)
+        {
+            icoData[i] = (unsigned char *)malloc(icoDirEntry[i].size);
+            fread(icoData[i], icoDirEntry[i].size, 1, icoFile);         // Read icon png data
+
+            Image image = { 0 };
+            
+            // Reading png data from memory buffer
+            int channels;
+            image.data = stbi_load_from_memory(icoData[i], icoDirEntry[i].size, &image.width, &image.height, &channels, 0);
+            
+            printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", image.width, image.height, channels*8);
+                           
+            image.mipmaps =  1;
+            
+            if (channels == 1) image.format = UNCOMPRESSED_GRAYSCALE;
+            else if (channels == 2) image.format = UNCOMPRESSED_GRAY_ALPHA;
+            else if (channels == 3) image.format = UNCOMPRESSED_R8G8B8;
+            else if (channels == 4) image.format = UNCOMPRESSED_R8G8B8A8;
+            else printf("WARNING: Number of data channels not supported");
+            
+            // TODO: Extract icon name from dropped file
+
+            ExportImage(image, FormatText("icon_%ix%i.png", image.width, image.height));
+            
+            UnloadImage(image);
+        }
+
+        fclose(icoFile);
+        
+        for (int i = 0; i < icoHeader.icoPackCount; i++) 
+        {
+            free(icoDirEntry);
+            free(icoData[i]);
+        }
+    }
+#endif
+
+#if defined(ICO_DATA_WRITTER)
+    // Generate ICO file manually
+    char *icoFileNames[MAX_DEFAULT_ICONS];
+
+    // Generate file names to load from expected sizes
+    for (int i = 0; i < MAX_DEFAULT_ICONS; i++)
+    {
+        icoFileNames[i] = (char *)calloc(128, 1);   
+        sprintf(icoFileNames[i], "%s_%ix%i.png", argv[1], icoSizesPlatform[i], icoSizesPlatform[i]);
+    }
+    
+    FILE *icoFile = fopen(FormatText("%s.ico", argv[1]), "wb");
+    
+    IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .icoPackCount = MAX_DEFAULT_ICONS };
+    fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+    
+    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
+    unsigned char *icoData[icoHeader.icoPackCount];
+    int offset = 6 + 16*icoHeader.icoPackCount;
+    
+    for (int i = 0; i < icoHeader.icoPackCount; i++)
+    {
+        printf("Reading file: %s\n", icoFileNames[i]);
+        FILE *pngFile = fopen(icoFileNames[i], "rb");
+        
+        fseek(pngFile, 0, SEEK_END);        // Move file pointer to end of file
+        int size = (int)ftell(pngFile);     // Get file size
+        fseek(pngFile, 0, SEEK_SET);        // Reset file pointer
+
+        printf("File size: %i\n\n", size);
+        
+        icoData[i] = (unsigned char *)malloc(size);
+        fread(icoData[i], size, 1, pngFile);   // Read fulll file data
+        fclose(pngFile);
+
+        icoDirEntry[i].width = (icoSizesPlatform[i] == 256) ? 0 : icoSizesPlatform[i];
+        icoDirEntry[i].height = (icoSizesPlatform[i] == 256) ? 0 : icoSizesPlatform[i];
+        icoDirEntry[i].bpp = 32;
+        icoDirEntry[i].size = size;
+        icoDirEntry[i].offset = offset;
+        
+        offset += size;
+    }
+
+    for (int i = 0; i < icoHeader.icoPackCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+
+    for (int i = 0; i < icoHeader.icoPackCount; i++) 
+    {
+        fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
+        printf("Data written: %i\n", icoDirEntry[i].size);
+    }
+
+    fclose(icoFile);
+
+    for (int i = 0; i < MAX_DEFAULT_ICONS; i++) free(icoFileNames[i]);
+    
+    for (int i = 0; i < icoHeader.icoPackCount; i++) 
+    {
+        free(icoDirEntry);
+        free(icoData[i]);
+    }
+*/
