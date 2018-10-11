@@ -662,11 +662,10 @@ static void ShowUsageInfo(void)
     printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
 
     printf("USAGE:\n\n");
-    printf("    > riconpacker [--version] [--help] --input <filename.ext> [--output <filename.ext>]\n");
+    printf("    > riconpacker [--help] --input <filename.ext> [--output <filename.ext>]\n");
     printf("                  [--format <sample_rate> <sample_size> <channels>] [--play]\n");
     
     printf("\nOPTIONS:\n\n");
-    printf("    -v, --version                   : Show tool version and command line usage help\n");
     printf("    -h, --help                      : Show tool version and command line usage help\n");
     printf("    -i, --input <filename.ext>      : Define input file.\n");
     printf("                                      Supported extensions: .rfx, .sfs, .wav\n");
