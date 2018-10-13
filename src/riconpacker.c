@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.0 - A simple and easy-to-use icon packer
+*   rIconPacker v1.0 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -55,7 +55,11 @@
 #define TOOL_VERSION_TEXT       "1.0"   // Tool version string
 #define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
 
-//#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+
+// Define png to memory write function
+// NOTE: This function is internal to stb_image_write.h but not exposed by default
+unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, int x, int y, int n, int *out_len);
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -168,28 +172,27 @@ static int validCount = 0;                  // Valid ico images counter
 //----------------------------------------------------------------------------------
 static void ShowUsageInfo(void);            // Show command line usage info
 
-static void InitIconPack(int platform);     // Initialize icon pack for an specific platform
-static void RemoveIconPack(int num);        // Remove one icon from the pack
+// Load/Save/Export data functions
+static void LoadIconPack(const char *fileName);     // Load icon file into icoPack
 
-static void BtnExportIcon(IconPackEntry *icoPack, int count);
-static void BtnExportImage(Image image);
-
+static void DialogLoadIcon(void);                   // Show dialog: load input file
+static void DialogExportIcon(IconPackEntry *icoPack, int count);  // Show dialog: export icon file
+static void DialogExportImage(Image image);         // Show dialog: export image file
 
 static Image *LoadICO(const char *fileName, int *count);                // Load icon data
 static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName);  // Save icon data
 
-// Check if provided image size has a valid index for current sizes scheme
-static int CheckImageSize(int width, int height);
+// Icon pack management functions
+static void InitIconPack(int platform);     // Initialize icon pack for an specific platform
+static void RemoveIconPack(int num);        // Remove one icon from the pack
 
-// Define png to memory write fuction
-// NOTE: This function is internal to stb_image_write.h but not exposed by default
-unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, int x, int y, int n, int *out_len);
+// Auxiliar functions
+static int CheckImageSize(int width, int height);   // Check if provided image size has a valid index for current sizes scheme
 
-// Process image data to add raylib PRO version triangle
-static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize);
-
-// Process image to add stegano-message embedded
-static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding);
+#if defined(SUPPORT_RTOOL_GENERATION)
+static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize);  // Process image data to add raylib PRO version triangle
+static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, int offset);    // Process image to add stegano-message embedded
+#endif
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -202,14 +205,16 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     if (argc > 1)
     {
+        // CLI required variables
+        bool showUsageInfo = false;     // Toggle command line usage info
+        
+        char outFileName[256] = { 0 };  // Output file name
+        int outputFormat = 0;           // Supported output formats
+
         if (argc == 2)  // One file dropped over the executable or just one argument
         {
-            // Check if it is a supported image file for simple viewing
-            if (IsFileExtension(argv[1], ".avi") || 
-                IsFileExtension(argv[1], ".png") || 
-                IsFileExtension(argv[1], ".tga") || 
-                IsFileExtension(argv[1], ".jpg") || 
-                IsFileExtension(argv[1], ".dds"))
+            // Check if it is a supported icon file for simple viewing
+            if (IsFileExtension(argv[1], ".ico"))
             {
                 strcpy(inFileName, argv[1]);
             }
@@ -222,11 +227,62 @@ int main(int argc, char *argv[])
 #if defined(ENABLE_PRO_FEATURES)
         else
         {
+            // Process command line arguments
+            for (int i = 1; i < argc; i++)
+            {
+                if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
+                {
+                    showUsageInfo = true;
+                }
+                else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
+                {                   
+                    // Verify an image is provided with a supported extension
+                    // Check that no "--" is comming after --input
+                    if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
+                        (IsFileExtension(argv[i + 1], ".xx1") || 
+                         IsFileExtension(argv[i + 1], ".xx2")))
+                    {
+                        strcpy(inFileName, argv[i + 1]);    // Read input filename
+                        i++;
+                    }
+                    else printf("WARNING: Input file extension not recognized.\n");
+                }
+                else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
+                {
+                    if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
+                        (IsFileExtension(argv[i + 1], ".o1") || 
+                         IsFileExtension(argv[i + 1], ".h"))) 
+                    {
+                        strcpy(outFileName, argv[i + 1]);   // Read output filename
+                        i++;
+                    }
+                    else printf("WARNING: Output file extension not recognized.\n");
+                }
+                else if ((strcmp(argv[i], "-f") == 0) || (strcmp(argv[i], "--format") == 0))
+                {
+                    if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+                    {
+                        // TODO: Read provided values
+                    }
+                    else printf("WARNING: Format parameters provided not valid\n");
+                }
+            }
+            
+            // Process input file if provided
+            if (inFileName[0] != '\0')
+            {
+                if (outFileName[0] == '\0') strcpy(outFileName, "output.o1");  // Set a default name for output in case not provided
+                
+                printf("\nInput file:       %s", inFileName);
+                printf("\nOutput file:      %s", outFileName);
+                printf("\nOutput format:    %i\n\n", 0);
+            }
 
-        
+            if (showUsageInfo) ShowUsageInfo();
+            
             return 0;
         }
-#endif
+#endif      // ENABLE_PRO_FEATURES
     }
     
     // GUI usage mode - Initialization
@@ -237,16 +293,13 @@ int main(int argc, char *argv[])
     SetTraceLog(0);                             // Disable trace log messsages
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
     InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s - A simple and easy-to-use icons packer", TOOL_VERSION_TEXT));
+    //SetWindowMinSize(400, 380);
     //SetExitKey(0);
     
     // General pourpose variables
     Vector2 mousePoint = { 0.0f, 0.0f };
     int framesCounter = 0;
 
-    // File drop variables
-    int dropsCount = 0;
-    char **droppedFiles;
-    
     // Exit variables
     bool exitWindow = false;
     bool closingWindowActive = false;
@@ -280,13 +333,14 @@ int main(int argc, char *argv[])
         }
     }
     
-    bool pixelEditMode = false;
+    int textEditMode = 0;       // 0 - Move/Scale text, 1 - Text pixels edit mode
+    Vector2 cell = { -1, -1 };  // Grid cell mouse position
     
     RenderTexture2D iconTarget = LoadRenderTexture(256, 256);     // To draw icon and retrieve it?
     SetTextureFilter(iconTarget.texture, FILTER_POINT);
     
     //Image icon = GetTextureData(iconTarget.texture);
-    //UpdateTexture(iconTarget.texture, const void *pixels);  
+    //UpdateTexture(iconTarget.texture, const void *pixels);
 #endif
     
     // raygui: controls initialization
@@ -304,6 +358,9 @@ int main(int argc, char *argv[])
     //----------------------------------------------------------------------------------
     
     GuiSetStyleProperty(LISTVIEW_ELEMENTS_HEIGHT, 25);
+    
+    // Check if an icon input file has been provided on command line
+    if (inFileName[0] != '\0') LoadIconPack(inFileName);
 
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
@@ -311,15 +368,8 @@ int main(int argc, char *argv[])
     // Main game loop
     while (!exitWindow)    // Detect window close button or ESC key
     {
-        // Update
+        // Dropped files logic
         //----------------------------------------------------------------------------------
-        framesCounter++;
-
-        mousePoint = GetMousePosition();
-
-        if (WindowShouldClose()) exitWindow = true;
-        
-        // Check for dropped files
         if (IsFileDropped())
         {
             int dropsCount = 0;   
@@ -329,33 +379,8 @@ int main(int argc, char *argv[])
             {
                 if (IsFileExtension(droppedFiles[i], ".ico"))
                 {
-                    // Load all ICO available images
-                    int imCount = 0;
-                    Image *images = LoadICO(droppedFiles[i], &imCount);
-                    
-                    for (int i = 0; i < imCount; i++)
-                    {
-                        // Validate loaded images to fit in available size slots
-                        int index = CheckImageSize(images[i].width, images[i].height);
-                        
-                        if (index >= 0)     // Valid index image
-                        {
-                            // Re-load image from ico pack
-                            UnloadImage(icoPack[index].image);
-                            icoPack[index].image = ImageCopy(images[i]);
-                            
-                            UnloadTexture(icoPack[index].texture);
-                            icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
-                            
-                            //icoPack[index].size = icoSizesPlatform[index];      // Not required
-                            icoPack[index].valid = true;
-                        }
-                        else printf("WARNING: ICO contains not supported image size (%i x %i).", images[i].width, images[i].height);
-                        
-                        UnloadImage(images[i]);
-                    }
-                    
-                    free(images);
+                    // Load icon images into IconPack
+                    LoadIconPack(droppedFiles[i]);
                 }
                 else if (IsFileExtension(droppedFiles[i], ".png"))
                 {
@@ -393,19 +418,50 @@ int main(int argc, char *argv[])
 
             ClearDroppedFiles();
         }
+        //----------------------------------------------------------------------------------
         
+        // Keyboard shortcuts
+        //------------------------------------------------------------------------------------
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) DialogLoadIcon();         // Show dialog: load input file (.ico, .png)
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) DialogExportIcon(icoPack, icoPackCount);  // Show dialog: save icon file (.ico)
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) 
+        {
+            if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image); // Show dialog: export tool data (.ex1)
+        }
+#if defined(ENABLE_PRO_FEATURES)
+        //if (IsKeyPressed(KEY_ONE)) GuiLoadStylePalette(paletteStyleLight);              // Load style color palette: light
+        //if (IsKeyPressed(KEY_TWO)) GuiLoadStylePalette(paletteStyleDark);               // Load style color palette: dark
+        //if (IsKeyPressed(KEY_THREE)) GuiLoadStylePalette(paletteStyleCandy);            // Load style color palette: candy
+#endif
         if (IsKeyPressed(KEY_DELETE))
         {
-            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
-            else RemoveIconPack(sizeListActive - 1);    // Delete one image
+            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);  // Delete all images in the series
+            else RemoveIconPack(sizeListActive - 1);                                            // Delete one image
         }
+        //----------------------------------------------------------------------------------
+
+        // Basic program flow logic
+        //----------------------------------------------------------------------------------
+        framesCounter++;                    // General usage frames counter
+        mousePoint = GetMousePosition();    // Get mouse position each frame
+        if (WindowShouldClose()) exitWindow = true;
         
+        // Show closing window on ESC
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            // TODO: Define KEY_ESCAPE custom logic (i.e. Show save dialog)
+            exitWindow = true;
+        }
+        //----------------------------------------------------------------------------------     
+
         // Calculate valid images 
         validCount = 0;
         for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
         
-        
 #if defined(SUPPORT_RTOOL_GENERATION)
+        // Choose text edit mode, edit text or edit pixels
+        if (IsKeyPressed(KEY_E)) textEditMode = !textEditMode;
+
         // Edit selected rTool icon text position and size
         if (sizeListActive > 0)
         {
@@ -421,9 +477,27 @@ int main(int argc, char *argv[])
             }
         }
 
-        // TODO: Pixel edit mode should be better redesigned (requires zoom and more!)
-        if (IsKeyPressed(KEY_E)) pixelEditMode = !pixelEditMode;
-        
+        if (textEditMode == 1)
+        {
+            // Pixels edit mode
+            if ((rToolPack[sizeListActive - 1].size <= 32) && (cell.x >= 0) && (cell.y >= 0))
+            {
+                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                {
+                    rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = rToolPack[sizeListActive - 1].color;
+                }
+                else if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON))
+                {
+                    rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = BLANK;
+                }
+                
+                // TODO: Update icon texture...
+                // ISSUE: We are not drawing textures now, icon is just draw with basic shapes!
+                //if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) UpdateTexture(texIcon, rToolPack[sizeListActive - 1].textPixels);
+            }
+        }
+
+        // Add rTool ONE version triangle
         if (IsKeyPressed(KEY_SPACE))
         {
             /*
@@ -445,9 +519,10 @@ int main(int argc, char *argv[])
             icoPack[0].texture = LoadTextureFromImage(icoPack[0].image);
         }
         
+        // Add stegano-message to the icon image
         if (IsKeyPressed(KEY_K)) 
         {
-            ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4);     // One char bit every 4 image bytes
+            ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4, 0);     // One char bit every 4 image bytes, no offset
         }
 #endif
         //----------------------------------------------------------------------------------
@@ -463,6 +538,7 @@ int main(int argc, char *argv[])
 #if !defined(ENABLE_PRO_FEATURES)
             GuiDisable();
 #endif
+                // Icon platform scheme selector
                 platformActive = GuiComboBox((Rectangle){ anchor01.x + 10, anchor01.y + 10, 115, 25 }, platformTextList, 4, platformActive);
                 
                 if (platformActive != prevPlatformActive)
@@ -478,44 +554,79 @@ int main(int argc, char *argv[])
             GuiDummyRec((Rectangle){ anchor01.x + 135, anchor01.y + 10, 256, 256 }, "");
             DrawRectangleLines(anchor01.x + 135, anchor01.y + 10, 256, 256, Fade(GRAY, 0.6f));
             
+#if defined(SUPPORT_RTOOL_GENERATION)
+            if (sizeListActive == 0)
+            {
+                // NOTE: On custom rTool icon edit mode, we don't need all icons drawn...
+            }
+            else if (sizeListActive > 0)
+            {
+                if ((textEditMode == 0) || (rToolPack[sizeListActive - 1].size > 32))       // Edit text position
+                {
+                    // Draw rTool generated icon
+                    DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                  anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                  rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size, RAYWHITE);
+                    DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                      anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                      rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size }, 
+                                         rToolPack[sizeListActive - 1].borderSize, rToolPack[sizeListActive - 1].color);
+                    DrawText(rToolPack[sizeListActive - 1].text, 
+                             anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.x, 
+                             anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y, 
+                             rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
+                }
+                else if (textEditMode == 1)     // Edit text pixels painting
+                {
+                    // NOTE: Only small sizes supported for now
+                    if (rToolPack[sizeListActive - 1].size <= 32)
+                    {
+                        int size = rToolPack[sizeListActive - 1].size;
+                        int scaledSize = size*8;
+                        
+                        // Draw icon scaled for painting
+                        DrawRectangle(anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize, RAYWHITE);
+                        DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize }, 
+                                             rToolPack[sizeListActive - 1].borderSize*8, rToolPack[sizeListActive - 1].color);
+                                             
+                        DrawText(rToolPack[sizeListActive - 1].text, 
+                             anchor01.x + 135 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.x*8, 
+                             anchor01.y + 10 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.y*8, 
+                             rToolPack[sizeListActive - 1].textSize*10, Fade(rToolPack[sizeListActive - 1].color, 0.4f));
+                        
+                        // Draw grid (returns selected cell)
+                        cell = GuiGrid((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize }, 8, 1);
+                        
+                        // Draw selected cell lines
+                        if ((cell.x >= 0) && (cell.y >= 0)) DrawRectangleLines((int)(anchor01.x + 135 + 128 - scaledSize/2 + cell.x*8), (int)(anchor01.y + 10 + 128 - scaledSize/2 + cell.y*8), 8, 8, RED);
+                        
+                        // Draw pixel rectangles
+                        for (int y = 0; y < size; y++)
+                        {
+                            for (int x = 0; x < size; x++)
+                            {
+                                DrawRectangle((int)(anchor01.x + 135 + 128 - scaledSize/2 + x*8), 
+                                              (int)(anchor01.y + 10 + 128 - scaledSize/2 + y*8), 8, 8, 
+                                              rToolPack[sizeListActive - 1].textPixels[y*size + x]);
+                            }
+                        }
+                    }
+                }
+                
+                DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
+            }
+#else
             if (sizeListActive == 0)
             {
                 for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchor01.x + 135, anchor01.y + 10, WHITE);
             }
             else if (sizeListActive > 0)
             {
-#if defined(SUPPORT_RTOOL_GENERATION)
-                // Draw rTool generated icon
-                DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
-                              anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
-                              rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size, RAYWHITE);
-                DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                                  anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                                  rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size }, 
-                                     rToolPack[sizeListActive - 1].borderSize, rToolPack[sizeListActive - 1].color);
-                DrawText(rToolPack[sizeListActive - 1].text, 
-                         anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.x, 
-                         anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y, 
-                         rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
-                
-                DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
-                
-                if (pixelEditMode && rToolPack[sizeListActive - 1].size <= 32)
-                {
-                    int size = rToolPack[sizeListActive - 1].size*8;
-                    Vector2 cell = GuiGrid((Rectangle){ anchor01.x + 135 + 128 - size/2, anchor01.y + 10 + 128 - size/2, size, size }, 8, 1);
-                    
-                    if ((cell.x >= 0) && (cell.y >= 0))
-                    {
-                        DrawRectangleLines((int)(anchor01.x + 135 + 128 - size/2 + cell.x*8), (int)(anchor01.y + 10 + 128 - size/2 + cell.y*8), 8, 8, RED);
-                    }
-                }
-#else
                 DrawTexture(icoPack[sizeListActive - 1].texture, 
                             anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2, 
                             anchor01.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
-#endif
             }
+#endif
 
             //GuiLabel((Rectangle){ anchor01.x + 135, anchor01.y + 270, 126, 25 }, "Scale algorythm:");
             //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, scaleAlgorythmTextList, 2, scaleAlgorythmActive);
@@ -590,12 +701,12 @@ int main(int argc, char *argv[])
                 // Export all available valid images
                 //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
                 
-                if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) BtnExportImage(icoPack[sizeListActive - 1].image);
+                if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
             }
             GuiEnable();
             
             if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchor01.x + 265, anchor01.y + 320, 126, 25 }, "Export Icon")) BtnExportIcon(icoPack, icoPackCount);
+            if (GuiButton((Rectangle){ anchor01.x + 265, anchor01.y + 320, 126, 25 }, "Export Icon")) DialogExportIcon(icoPack, icoPackCount);
             GuiEnable();
 
             // Draw status bar info
@@ -688,6 +799,94 @@ static void ShowUsageInfo(void)
     printf("        Plays <sound.rfx>, wave data is generated internally but not saved\n\n");
 }
 
+//--------------------------------------------------------------------------------------------
+// Load/Save/Export functions
+//--------------------------------------------------------------------------------------------
+
+// Load icon file into an image array
+// NOTE: Operates on global variable: icoPack
+static void LoadIconPack(const char *fileName)
+{
+    // Load all ICO available images
+    int imCount = 0;
+    Image *images = LoadICO(fileName, &imCount);
+    
+    for (int i = 0; i < imCount; i++)
+    {
+        // Validate loaded images to fit in available size slots
+        int index = CheckImageSize(images[i].width, images[i].height);
+        
+        if (index >= 0)     // Valid index image
+        {
+            // Re-load image from ico pack
+            UnloadImage(icoPack[index].image);
+            icoPack[index].image = ImageCopy(images[i]);
+            
+            UnloadTexture(icoPack[index].texture);
+            icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
+            
+            //icoPack[index].size = icoSizesPlatform[index];      // Not required
+            icoPack[index].valid = true;
+        }
+        else printf("WARNING: ICO contains not supported image size (%i x %i).", images[i].width, images[i].height);
+        
+        UnloadImage(images[i]);
+    }
+    
+    free(images);
+}
+
+// Show dialog: load input file
+static void DialogLoadIcon(void)
+{
+    // Open file dialog
+    const char *filters[] = { "*.ico", "*.png" };
+    const char *fileName = tinyfd_openFileDialog("Load icon or image file", "", 2, filters, "Sound Icon Files (*.ico, *.png)", 0);
+
+    if (fileName != NULL)
+    {
+        // TODO: Load input file
+    }
+}
+
+// Show dialog: save icon file
+static void DialogExportIcon(IconPackEntry *icoPack, int count)
+{
+    // Save file dialog
+    const char *filters[] = { "*.ico" };
+    const char *fileName = tinyfd_saveFileDialog("Save icon file", "icon.ico", 1, filters, "Icon File (*.ico)");
+
+    if (fileName != NULL)
+    {
+        char outFileName[128] = { 0 };
+        strcpy(outFileName, fileName);
+        
+        // Check for valid extension and make sure it is
+        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+        
+        SaveICO(icoPack, count, outFileName); 
+    }
+}
+
+// Show dialog: export image file
+static void DialogExportImage(Image image)
+{
+    // Save file dialog
+    const char *filters[] = { "*.png" };
+    const char *fileName = tinyfd_saveFileDialog("Save image file", FormatText("icon_%ix%i.png", image.width, image.height), 1, filters, "Image File (*.png)");
+
+    if (fileName != NULL)
+    {
+        char outFileName[128] = { 0 };
+        strcpy(outFileName, fileName);
+        
+        // Check for valid extension and make sure it is
+        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+        
+        ExportImage(image, outFileName);
+    }
+}
+
 // Initialize icon pack for an specific platform
 static void InitIconPack(int platform)
 {
@@ -770,40 +969,6 @@ static void RemoveIconPack(int num)
         icoPack[num].texture = LoadTextureFromImage(icoPack[num].image);
         icoPack[num].valid = false;
     }
-}
-
-// Export icon, show proper save dialog
-static void BtnExportIcon(IconPackEntry *icoPack, int count)
-{
-    char currentPathFile[256];
-
-    // Add sample file name to currentPath
-    strcpy(currentPathFile, GetWorkingDirectory());
-    strcat(currentPathFile, "\\icon.ico\0");
-
-    // Save file dialog
-    const char *filters[] = { "*.ico" };
-#if defined(_WIN32)
-    const char *fileName = tinyfd_saveFileDialog("Save sound parameters file", currentPathFile, 1, filters, "Icon Files (*.ico)");
-#elif defined(__linux__)
-    const char *fileName = tinyfd_saveFileDialog("Save sound parameters file", "icon.ico", 1, filters, "Icon Files (*.ico)");
-#endif
-
-    if (fileName != NULL)
-    {
-        char outFileName[128] = { 0 };
-        strcpy(outFileName, fileName);
-        
-        if (GetExtension(outFileName) == NULL) strcat(outFileName, ".ico\0");     // No extension provided
-        if (outFileName != NULL) SaveICO(icoPack, count, outFileName); 
-    }
-}
-
-static void BtnExportImage(Image image)
-{
-    // TODO: Get image filename
-
-    ExportImage(image, FormatText("icon_%ix%i.png", image.width, image.height));
 }
 
 // Icon data loader
@@ -957,6 +1122,7 @@ static int CheckImageSize(int width, int height)
     return index;
 }
 
+#if defined(SUPPORT_RTOOL_GENERATION)
 // Process image data to add raylib PRO version triangle
 // NOTE: Image should be squared
 static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize)
@@ -981,7 +1147,7 @@ static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize
 // So, every 8x bytePadding, one character of the message is codified... 
 // For a 64x64@32 image with a bytePadding = 4 (every pixel), you can embed: 64x64/8 = 512 characters
 // NOTE: Only supports 8-bit per channel data: GRAYSCALE, GRAY+ALPHA, R8G8B8, R8G8B8A8
-static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding)
+static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, int offset)
 {
     #define BIT_SET(a,b) ((a) |= (1<<(b)))
     #define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
@@ -1022,6 +1188,7 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding)
         }
     }
 }
+#endif
 
 /*
 #define ICO_DATA_READER
