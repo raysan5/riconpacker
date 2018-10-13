@@ -235,43 +235,55 @@ int main(int argc, char *argv[])
                     showUsageInfo = true;
                 }
                 else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
-                {                   
-                    // Verify an image is provided with a supported extension
-                    // Check that no "--" is comming after --input
-                    if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
-                        (IsFileExtension(argv[i + 1], ".xx1") || 
-                         IsFileExtension(argv[i + 1], ".xx2")))
+                {
+                    // Check for valid argumment
+                    if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
                     {
-                        strcpy(inFileName, argv[i + 1]);    // Read input filename
+                        int numInputFiles = 0;
+                        char **inputFiles = StringSplit(argv[i + 1], ',', &numInputFiles);
+                        
+                        for (int f = 0; f < numInputFiles; f++)
+                        {
+                            if (IsFileExtension(inputFiles[i], ".ico") ||
+                                IsFileExtension(inputFiles[i], ".png"))
+                            {
+                                // TODO: Load input file?
+                            }
+                            else printf("WARNING: Input file extension not recognized: %s\n", inputFiles[i]);
+                        }
+                        
+                        // Free input files strings memory
+                        for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
+                        if (inputFiles != NULL) free(inputFiles);
+                        
                         i++;
                     }
-                    else printf("WARNING: Input file extension not recognized.\n");
                 }
                 else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
                 {
                     if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
-                        (IsFileExtension(argv[i + 1], ".o1") || 
-                         IsFileExtension(argv[i + 1], ".h"))) 
+                        (IsFileExtension(argv[i + 1], ".ico") || 
+                         IsFileExtension(argv[i + 1], ".png"))) 
                     {
                         strcpy(outFileName, argv[i + 1]);   // Read output filename
                         i++;
                     }
                     else printf("WARNING: Output file extension not recognized.\n");
                 }
-                else if ((strcmp(argv[i], "-f") == 0) || (strcmp(argv[i], "--format") == 0))
+                else if ((strcmp(argv[i], "-p") == 0) || (strcmp(argv[i], "--platform") == 0))
                 {
                     if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
                     {
-                        // TODO: Read provided values
+                        // TODO: Read provided platform value
                     }
-                    else printf("WARNING: Format parameters provided not valid\n");
+                    else printf("WARNING: Platform provided not valid\n");
                 }
             }
             
-            // Process input file if provided
+            // Process input files if provided
             if (inFileName[0] != '\0')
             {
-                if (outFileName[0] == '\0') strcpy(outFileName, "output.o1");  // Set a default name for output in case not provided
+                if (outFileName[0] == '\0') strcpy(outFileName, "output.ico");  // Set a default name for output in case not provided
                 
                 printf("\nInput file:       %s", inFileName);
                 printf("\nOutput file:      %s", outFileName);
