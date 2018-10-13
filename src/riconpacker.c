@@ -155,7 +155,7 @@ typedef enum {
 static int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
 static int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
 static int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
-static int icoSizesiOS7[9] = { 152, 120, 80, 76, 58, 44, 40, 29, 22 };             // iOS7 App/Settings/Others icons, missing: 25, 50, 512
+static int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
 
 static int icoPackCount = 0;                // Icon images array counter
 static IconPackEntry *icoPack;              // Icon images array
@@ -765,7 +765,7 @@ static void ShowUsageInfo(void)
     printf("\n//////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                              //\n");
     printf("// rIconPacker v%s - A simple and easy-to-use icons packer                     //\n", TOOL_VERSION_TEXT);
-    printf("// powered by raylib v2.0 (www.raylib.com) and raygui v2.0                      //\n");
+    printf("// powered by raylib v2.1 (www.raylib.com) and raygui v2.1                      //\n");
     printf("// more info and bugs-report: ray[at]raylibtech.com                             //\n");
     printf("//                                                                              //\n");
     printf("// Copyright (c) 2018 raylib technologies (@raylibtech)                         //\n");
@@ -773,29 +773,40 @@ static void ShowUsageInfo(void)
     printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
 
     printf("USAGE:\n\n");
-    printf("    > riconpacker [--help] --input <filename.ext> [--output <filename.ext>]\n");
-    printf("                  [--format <sample_rate> <sample_size> <channels>] [--play]\n");
+    printf("    > riconpacker [--help] --input <file01.ext>,[file02.ext],... [--output <filename.ico>]\n");
+    printf("                  [--platform <value>] [--generate <size01>,[size02],...]\n");
     
     printf("\nOPTIONS:\n\n");
     printf("    -h, --help                      : Show tool version and command line usage help\n");
-    printf("    -i, --input <filename.ext>      : Define input file.\n");
-    printf("                                      Supported extensions: .rfx, .sfs, .wav\n");
-    printf("    -o, --output <filename.ext>     : Define output file.\n");
-    printf("                                      Supported extensions: .wav, .h\n");
+    printf("    -i, --input <file01.ext>,[file02.ext],...\n");
+    printf("                                    : Define input file(s). Comma separated for multiple files.\n");
+    printf("                                      Supported extensions: .ico, .png\n");
+    printf("    -o, --output <filename.ico>     : Define output file.\n");
+    printf("                                      Supported extensions: .ico\n");
     printf("                                      NOTE: If not specified, defaults to: output.wav\n\n");
-    printf("    -f, --format <valu>             : Format output file.\n");
+    printf("    -p, --platform <value>          : Define platform sizes scheme to support.\n");
     printf("                                      Supported values:\n");
-    printf("                                          Sample rate:      22050, 44100\n");
-    printf("                                          Sample size:      8, 16, 32\n");
-    printf("                                          Channels:         1 (mono), 2 (stereo)\n");
-    printf("                                      NOTE: If not specified, defaults to: 44100, 16, 1\n\n");
+    printf("                                          0 - Windows (Sizes: 256, 128, 96, 64, 48, 32, 24, 16)\n");          
+    printf("                                          1 - Favicon (Sizes: 228, 152, 144, 120, 96, 72, 64, 32, 24, 16)\n");    
+    printf("                                          2 - Android (Sizes: 192, 144, 96, 72, 64, 48, 36, 32, 24, 16)\n");
+    printf("                                          3 - iOS (Sizes: 180, 152, 120, 87, 80, 76, 58, 40, 29)\n");
+    printf("                                      NOTE: If not specified, any icon size can be generated\n\n");
+    printf("    -g, --generate <size01>,[size02],...\n");
+    printf("                                    : Define icon sizes to generate using input (bigger size available).\n");
+    printf("                                      Comma separated for multiple generation sizes.\n");
+    printf("                                      NOTE 1: Generated icons are always squared.\n\n");
+    printf("                                      NOTE 2: If size is 0, generates all platform scheme missing sizes.\n\n");
+    printf("    -s, --scale-algorythm <value>   : Define the algorythm used to scale images.\n");
+    printf("                                      Supported values:\n");
+    printf("                                          0 - Bicubic scaling algorythm (default)\n");          
+    printf("                                          1 - Nearest-Neighbor scaling algorythm\n");
     
     printf("\nEXAMPLES:\n\n");
-    printf("    > rtoolname --input sound.rfx --output jump.wav\n");
+    printf("    > riconpacker --input sound.rfx --output jump.wav\n");
     printf("        Process <sound.rfx> to generate <sound.wav> at 44100 Hz, 32 bit, Mono\n\n");
-    printf("    > rtoolname --input sound.rfx --output jump.wav --format 22050 16 2\n");
+    printf("    > riconpacker --input sound.rfx --output jump.wav --format 22050 16 2\n");
     printf("        Process <sound.rfx> to generate <jump.wav> at 22050 Hz, 16 bit, Stereo\n\n");
-    printf("    > rtoolname --input sound.rfx --play\n");
+    printf("    > riconpacker --input sound.rfx --play\n");
     printf("        Plays <sound.rfx>, wave data is generated internally but not saved\n\n");
 }
 
@@ -900,7 +911,7 @@ static void InitIconPack(int platform)
         case ICON_PLATFORM_WINDOWS: icoPlatformCount = 8; icoSizesPlatform = icoSizesWindows; break;
         case ICON_PLATFORM_FAVICON: icoPlatformCount = 10; icoSizesPlatform = icoSizesFavicon; break;
         case ICON_PLATFORM_ANDROID: icoPlatformCount = 10; icoSizesPlatform = icoSizesAndroid; break;
-        case ICON_PLATFORM_IOS7: icoPlatformCount = 9; icoSizesPlatform = icoSizesiOS7; break;
+        case ICON_PLATFORM_IOS7: icoPlatformCount = 9; icoSizesPlatform = icoSizesiOS; break;
         default: return;
     }
     
