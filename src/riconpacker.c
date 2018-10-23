@@ -55,7 +55,7 @@
 #define TOOL_VERSION_TEXT       "1.0"   // Tool version string
 #define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
 
-#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+//#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
 
 // Define png to memory write function
 // NOTE: This function is internal to stb_image_write.h but not exposed by default
@@ -170,17 +170,19 @@ static int validCount = 0;                  // Valid ico images counter
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
-static void ShowUsageInfo(void);            // Show command line usage info
+#if defined(ENABLE_PRO_FEATURES)
+static void ShowCommandLineInfo(void);                      // Show command line usage info
+static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
+#endif
 
 // Load/Save/Export data functions
 static void LoadIconPack(const char *fileName);     // Load icon file into icoPack
+static Image *LoadICO(const char *fileName, int *count);    // Load icon data
+static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName);  // Save icon data
 
 static void DialogLoadIcon(void);                   // Show dialog: load input file
 static void DialogExportIcon(IconPackEntry *icoPack, int count);  // Show dialog: export icon file
 static void DialogExportImage(Image image);         // Show dialog: export image file
-
-static Image *LoadICO(const char *fileName, int *count);                // Load icon data
-static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName);  // Save icon data
 
 // Icon pack management functions
 static void InitIconPack(int platform);     // Initialize icon pack for an specific platform
@@ -205,93 +207,20 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     if (argc > 1)
     {
-        // CLI required variables
-        bool showUsageInfo = false;     // Toggle command line usage info
-        
-        char outFileName[256] = { 0 };  // Output file name
-        int outputFormat = 0;           // Supported output formats
-
-        if (argc == 2)  // One file dropped over the executable or just one argument
+        if ((argc == 2) &&  
+            (strcmp(argv[1], "-h") != 0) && 
+            (strcmp(argv[1], "--help") != 0))       // One argument (file dropped over executable?)
         {
-            // Check if it is a supported icon file for simple viewing
             if (IsFileExtension(argv[1], ".ico"))
             {
-                strcpy(inFileName, argv[1]);
-            }
-            else 
-            {
-                ShowUsageInfo();
-                return 0;
+                // Open file with graphic interface
+                strcpy(inFileName, argv[1]);        // Read input filename
             }
         }
 #if defined(ENABLE_PRO_FEATURES)
-        else
+        else 
         {
-            // Process command line arguments
-            for (int i = 1; i < argc; i++)
-            {
-                if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
-                {
-                    showUsageInfo = true;
-                }
-                else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
-                {
-                    // Check for valid argumment
-                    if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
-                    {
-                        int numInputFiles = 0;
-                        char **inputFiles = StringSplit(argv[i + 1], ',', &numInputFiles);
-                        
-                        for (int f = 0; f < numInputFiles; f++)
-                        {
-                            if (IsFileExtension(inputFiles[i], ".ico") ||
-                                IsFileExtension(inputFiles[i], ".png"))
-                            {
-                                // TODO: Load input file?
-                            }
-                            else printf("WARNING: Input file extension not recognized: %s\n", inputFiles[i]);
-                        }
-                        
-                        // Free input files strings memory
-                        for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
-                        if (inputFiles != NULL) free(inputFiles);
-                        
-                        i++;
-                    }
-                }
-                else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
-                {
-                    if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
-                        (IsFileExtension(argv[i + 1], ".ico") || 
-                         IsFileExtension(argv[i + 1], ".png"))) 
-                    {
-                        strcpy(outFileName, argv[i + 1]);   // Read output filename
-                        i++;
-                    }
-                    else printf("WARNING: Output file extension not recognized.\n");
-                }
-                else if ((strcmp(argv[i], "-p") == 0) || (strcmp(argv[i], "--platform") == 0))
-                {
-                    if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
-                    {
-                        // TODO: Read provided platform value
-                    }
-                    else printf("WARNING: Platform provided not valid\n");
-                }
-            }
-            
-            // Process input files if provided
-            if (inFileName[0] != '\0')
-            {
-                if (outFileName[0] == '\0') strcpy(outFileName, "output.ico");  // Set a default name for output in case not provided
-                
-                printf("\nInput file:       %s", inFileName);
-                printf("\nOutput file:      %s", outFileName);
-                printf("\nOutput format:    %i\n\n", 0);
-            }
-
-            if (showUsageInfo) ShowUsageInfo();
-            
+            ProcessCommandLine(argc, argv);
             return 0;
         }
 #endif      // ENABLE_PRO_FEATURES
@@ -771,8 +700,9 @@ int main(int argc, char *argv[])
 // Module functions
 //--------------------------------------------------------------------------------------------
 
+#if defined(ENABLE_PRO_FEATURES)
 // Show command line usage info
-static void ShowUsageInfo(void)
+static void ShowCommandLineInfo(void)
 {
     printf("\n//////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                              //\n");
@@ -821,6 +751,85 @@ static void ShowUsageInfo(void)
     printf("    > riconpacker --input sound.rfx --play\n");
     printf("        Plays <sound.rfx>, wave data is generated internally but not saved\n\n");
 }
+
+// Process command line input
+static void ProcessCommandLine(int argc, char *argv[])
+{
+    // CLI required variables
+    bool showUsageInfo = false;     // Toggle command line usage info
+    
+    char inFileName[256] = { 0 };   // Input file name
+    char outFileName[256] = { 0 };  // Output file name
+    int outputFormat = 0;           // Supported output formats
+
+    // Process command line arguments
+    for (int i = 1; i < argc; i++)
+    {
+        if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
+        {
+            showUsageInfo = true;
+        }
+        else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
+        {
+            // Check for valid argumment
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                int numInputFiles = 0;
+                char **inputFiles = SplitText(argv[i + 1], ',', &numInputFiles);
+                
+                for (int f = 0; f < numInputFiles; f++)
+                {
+                    if (IsFileExtension(inputFiles[i], ".ico") ||
+                        IsFileExtension(inputFiles[i], ".png"))
+                    {
+                        // TODO: Load input file?
+                    }
+                    else printf("WARNING: Input file extension not recognized: %s\n", inputFiles[i]);
+                }
+                
+                // Free input files strings memory
+                for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
+                if (inputFiles != NULL) free(inputFiles);
+                
+                i++;
+            }
+        }
+        else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-') && 
+                (IsFileExtension(argv[i + 1], ".ico") || 
+                 IsFileExtension(argv[i + 1], ".png"))) 
+            {
+                strcpy(outFileName, argv[i + 1]);   // Read output filename
+                i++;
+            }
+            else printf("WARNING: Output file extension not recognized.\n");
+        }
+        else if ((strcmp(argv[i], "-p") == 0) || (strcmp(argv[i], "--platform") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                // TODO: Read provided platform value
+            }
+            else printf("WARNING: Platform provided not valid\n");
+        }
+    }
+    
+    // Process input files if provided
+    if (inFileName[0] != '\0')
+    {
+        if (outFileName[0] == '\0') strcpy(outFileName, "output.ico");  // Set a default name for output in case not provided
+        
+        printf("\nInput file:       %s", inFileName);
+        printf("\nOutput file:      %s", outFileName);
+        printf("\nOutput format:    %i\n\n", 0);
+        
+        // TODO: Process input ---> output
+    }
+
+    if (showUsageInfo) ShowCommandLineInfo();
+}
+#endif      // ENABLE_PRO_FEATURES
 
 //--------------------------------------------------------------------------------------------
 // Load/Save/Export functions
