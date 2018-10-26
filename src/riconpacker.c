@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
 
     int platformActive = 0;
     int prevPlatformActive = 0;
-    const char *platformTextList[4] = { "Windows", "Favicon", "Android", "iOS 7" };
+    const char *platformTextList[4] = { "Windows", "Favicon", "Android", "iOS" };
     
     // NOTE: GuiListView() variables need to be global
 
