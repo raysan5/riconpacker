@@ -213,8 +213,7 @@ int main(int argc, char *argv[])
         {
             if (IsFileExtension(argv[1], ".ico"))
             {
-                // Open file with graphic interface
-                strcpy(inFileName, argv[1]);        // Read input filename
+                strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
             }
         }
 #if defined(ENABLE_PRO_FEATURES)
