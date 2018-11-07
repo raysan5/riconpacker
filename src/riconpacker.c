@@ -978,7 +978,7 @@ static void InitIconPack(int platform)
         icoPack[i].size = icoSizesPlatform[i];
 
         icoPack[i].image = GenImageColor(icoPack[i].size, icoPack[i].size, DARKGRAY);
-        ImageDrawRectangle(&icoPack[i].image, (Vector2){ 1, 1 }, (Rectangle){ 0, 0, icoPack[i].size - 2, icoPack[i].size - 2 }, GRAY);
+        ImageDrawRectangle(&icoPack[i].image, (Rectangle){ 1, 1, icoPack[i].size - 2, icoPack[i].size - 2 }, GRAY);
 
         icoPack[i].texture = LoadTextureFromImage(icoPack[i].image);
         icoPack[i].valid = false;
@@ -995,7 +995,7 @@ static void RemoveIconPack(int num)
         UnloadTexture(icoPack[num].texture);
 
         icoPack[num].image = GenImageColor(icoPack[num].size, icoPack[num].size, DARKGRAY);
-        ImageDrawRectangle(&icoPack[num].image, (Vector2){ 1, 1 }, (Rectangle){ 0, 0, icoPack[num].size - 2, icoPack[num].size - 2 }, GRAY);
+        ImageDrawRectangle(&icoPack[num].image, (Rectangle){ 1, 1, icoPack[num].size - 2, icoPack[num].size - 2 }, GRAY);
 
         icoPack[num].texture = LoadTextureFromImage(icoPack[num].image);
         icoPack[num].valid = false;
