@@ -118,15 +118,20 @@ typedef struct {
 #endif
 
 #if defined(SUPPORT_RTOOL_GENERATION)
-// rTool icon generation
+// rTool icon generation parameters
 typedef struct {
+    bool proVersion;
+    
     int size;
     int borderSize;
+    
     char text[4];
     int textSize;
     Rectangle textRec;
-    bool proVersion;
+
     Color color;
+    
+    bool useTextPixels;     // Required if we ant to serialize this structure to file
     Color *textPixels;      // In case text is not enough... useful for 32x32, 24x24, 16x16
 } rToolIcon;
 #endif
@@ -1136,6 +1141,11 @@ static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
     }
 }
 
+static void SaveRID(IconPackEntry *icoPack, const char *fileName)
+{
+    
+}
+
 // Check if provided image size has a valid index for current sizes scheme
 static int CheckImageSize(int width, int height)
 {
@@ -1220,6 +1230,53 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, 
     }
 }
 #endif
+
+// Converts an image to bits array considering only no-alpha-pixel vs alpha-pixel
+// Very useful to store 1bit color images in an efficient (and quite secure) way
+// NOTE: Image size MUST be multiple of 8 for correct fit
+static unsigned char *ImageToBits(Image image)
+{
+    Color *pixels = GetImageData(image);
+    
+    // Calculate number of bytes required
+    int size = image.width*image.height/8;
+    
+    unsigned char *bytes = (unsigned char *)calloc(size, sizeof(unsigned char));
+    
+    for (int i = 0; i < size; i++)
+    {
+        for (int k = 0; k < 8; k++)
+        {
+            if (ColorToInt(pixels[i]) >= 0x000000ff) BIT_SET(bytes[i + k], k);
+        }
+    }
+    
+    free(pixels);
+    
+    return bytes;
+}
+
+// Generate color-alpha image from and array of bits, stored in bytes
+static Image ImageFromBits(unsigned char *bytes, int width, int height, Color color)
+{
+    Image image = { 0 };
+    
+    image.width = width;
+    image.height = height;
+    image.mipmaps = 1;
+    image.format = UNCOMPRESSED_R8G8B8A8;
+    image.data = (Color *)calloc(image.width*image.height, sizeof(Color));
+
+    for (int i = 0; i < width*height/8; i++)
+    {
+        for (int k = 0; k < 8; k++)
+        {
+            if (BIT_CHECK(bytes[i], k)) ((Color *)image.data)[i + k] = color;
+        }
+    }
+    
+    return image;
+}
 
 /*
 #define ICO_DATA_READER
