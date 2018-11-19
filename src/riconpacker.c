@@ -4,7 +4,7 @@
 *
 *   CONFIGURATION:
 *
-*   #define ENABLE_PRO_FEATURES
+*   #define VERSION_ONE
 *       Enable PRO features for the tool. Usually command-line and export options related.
 *
 *   DEPENDENCIES:
@@ -50,7 +50,7 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-#define ENABLE_PRO_FEATURES             // Enable PRO version features
+#define VERSION_ONE             // Enable PRO version features
 
 #define TOOL_VERSION_TEXT       "1.0"   // Tool version string
 #define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
@@ -175,7 +175,7 @@ static int validCount = 0;                  // Valid ico images counter
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
-#if defined(ENABLE_PRO_FEATURES)
+#if defined(VERSION_ONE)
 static void ShowCommandLineInfo(void);                      // Show command line usage info
 static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
 #endif
@@ -221,13 +221,13 @@ int main(int argc, char *argv[])
                 strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
             }
         }
-#if defined(ENABLE_PRO_FEATURES)
+#if defined(VERSION_ONE)
         else
         {
             ProcessCommandLine(argc, argv);
             return 0;
         }
-#endif      // ENABLE_PRO_FEATURES
+#endif      // VERSION_ONE
     }
 
     // GUI usage mode - Initialization
@@ -373,7 +373,7 @@ int main(int argc, char *argv[])
         {
             if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image); // Show dialog: export tool data (.ex1)
         }
-#if defined(ENABLE_PRO_FEATURES)
+#if defined(VERSION_ONE)
         //if (IsKeyPressed(KEY_ONE)) GuiLoadStylePalette(paletteStyleLight);              // Load style color palette: light
         //if (IsKeyPressed(KEY_TWO)) GuiLoadStylePalette(paletteStyleDark);               // Load style color palette: dark
         //if (IsKeyPressed(KEY_THREE)) GuiLoadStylePalette(paletteStyleCandy);            // Load style color palette: candy
@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
 
             // raygui: controls drawing
             //----------------------------------------------------------------------------------
-#if !defined(ENABLE_PRO_FEATURES)
+#if !defined(VERSION_ONE)
             GuiDisable();
 #endif
                 // Icon platform scheme selector
@@ -704,7 +704,7 @@ int main(int argc, char *argv[])
 // Module functions
 //--------------------------------------------------------------------------------------------
 
-#if defined(ENABLE_PRO_FEATURES)
+#if defined(VERSION_ONE)
 // Show command line usage info
 static void ShowCommandLineInfo(void)
 {
@@ -833,7 +833,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
     if (showUsageInfo) ShowCommandLineInfo();
 }
-#endif      // ENABLE_PRO_FEATURES
+#endif      // VERSION_ONE
 
 //--------------------------------------------------------------------------------------------
 // Load/Save/Export functions
