@@ -55,6 +55,11 @@
 #define TOOL_VERSION_TEXT       "1.0"   // Tool version string
 #define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
 
+#define BIT_SET(a,b) ((a) |= (1<<(b)))
+#define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
+#define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
+#define BIT_CHECK(a,b) ((a) & (1<<(b)))
+
 //#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
 
 // Define png to memory write function
@@ -167,7 +172,7 @@ static IconPackEntry *icoPack;              // Icon images array
 
 static int sizeListActive = 0;              // Current list text entry
 static int sizeListCount = 0;               // Number of list text entries
-char **sizeTextList = NULL;                 // Pointer to list text arrays
+static char **sizeTextList = NULL;          // Pointer to list text arrays
 static int *icoSizesPlatform = NULL;        // Pointer to selected platform icon sizes
 
 static int validCount = 0;                  // Valid ico images counter
@@ -302,7 +307,7 @@ int main(int argc, char *argv[])
     const char *scaleAlgorythmTextList[2] = { "NearestN", "Bicubic" };
     //----------------------------------------------------------------------------------
 
-    GuiSetStyleProperty(LISTVIEW_ELEMENTS_HEIGHT, 25);
+    GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 25);
 
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIconPack(inFileName);
@@ -493,7 +498,7 @@ int main(int argc, char *argv[])
                 }
             GuiEnable();
 
-            sizeListActive = GuiListView((Rectangle){ anchor01.x + 10, anchor01.y + 45, 115, 300 }, sizeTextList, sizeListCount, sizeListActive);
+            GuiListView((Rectangle){ anchor01.x + 10, anchor01.y + 45, 115, 300 }, sizeTextList, sizeListCount, NULL, &sizeListActive, true);
 
             // Draw dummy panel and border lines
             GuiDummyRec((Rectangle){ anchor01.x + 135, anchor01.y + 10, 256, 256 }, "");
@@ -1190,11 +1195,6 @@ static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize
 // NOTE: Only supports 8-bit per channel data: GRAYSCALE, GRAY+ALPHA, R8G8B8, R8G8B8A8
 static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, int offset)
 {
-    #define BIT_SET(a,b) ((a) |= (1<<(b)))
-    #define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
-    #define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
-    #define BIT_CHECK(a,b) ((a) & (1<<(b)))
-
     int bpp = 0;
 
     switch (image->format)
