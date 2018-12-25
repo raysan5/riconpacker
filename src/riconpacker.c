@@ -126,16 +126,16 @@ typedef struct {
 // rTool icon generation parameters
 typedef struct {
     bool proVersion;
-    
+
     int size;
     int borderSize;
-    
+
     char text[4];
     int textSize;
     Rectangle textRec;
 
     Color color;
-    
+
     bool useTextPixels;     // Required if we ant to serialize this structure to file
     Color *textPixels;      // In case text is not enough... useful for 32x32, 24x24, 16x16
 } rToolIcon;
@@ -489,7 +489,7 @@ int main(int argc, char *argv[])
             GuiDisable();
 #endif
                 // Icon platform scheme selector
-                platformActive = GuiComboBox((Rectangle){ anchor01.x + 10, anchor01.y + 10, 115, 25 }, platformTextList, 4, platformActive);
+                platformActive = GuiComboBox((Rectangle){ anchor01.x + 10, anchor01.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
 
                 if (platformActive != prevPlatformActive)
                 {
@@ -579,7 +579,7 @@ int main(int argc, char *argv[])
 #endif
 
             //GuiLabel((Rectangle){ anchor01.x + 135, anchor01.y + 270, 126, 25 }, "Scale algorythm:");
-            //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, scaleAlgorythmTextList, 2, scaleAlgorythmActive);
+            //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, "NearestN;Bicubic", scaleAlgorythmActive);
 
             if ((sizeListActive < 0) || (validCount == 0)) GuiDisable();
 
@@ -1148,7 +1148,7 @@ static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
 
 static void SaveRID(IconPackEntry *icoPack, const char *fileName)
 {
-    
+
 }
 
 // Check if provided image size has a valid index for current sizes scheme
@@ -1237,12 +1237,12 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, 
 static unsigned char *ImageToBits(Image image)
 {
     Color *pixels = GetImageData(image);
-    
+
     // Calculate number of bytes required
     int size = image.width*image.height/8;
-    
+
     unsigned char *bytes = (unsigned char *)calloc(size, sizeof(unsigned char));
-    
+
     for (int i = 0; i < size; i++)
     {
         for (int k = 0; k < 8; k++)
@@ -1250,9 +1250,9 @@ static unsigned char *ImageToBits(Image image)
             if (ColorToInt(pixels[i]) >= 0x000000ff) BIT_SET(bytes[i + k], k);
         }
     }
-    
+
     free(pixels);
-    
+
     return bytes;
 }
 
@@ -1260,7 +1260,7 @@ static unsigned char *ImageToBits(Image image)
 static Image ImageFromBits(unsigned char *bytes, int width, int height, Color color)
 {
     Image image = { 0 };
-    
+
     image.width = width;
     image.height = height;
     image.mipmaps = 1;
@@ -1274,7 +1274,7 @@ static Image ImageFromBits(unsigned char *bytes, int width, int height, Color co
             if (BIT_CHECK(bytes[i], k)) ((Color *)image.data)[i + k] = color;
         }
     }
-    
+
     return image;
 }
 
