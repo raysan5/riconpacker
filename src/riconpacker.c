@@ -784,7 +784,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 int numInputFiles = 0;
-                char **inputFiles = SplitText(argv[i + 1], ',', &numInputFiles);
+                char **inputFiles = TextSplit(argv[i + 1], ',', &numInputFiles);
 
                 for (int f = 0; f < numInputFiles; f++)
                 {
