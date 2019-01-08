@@ -94,34 +94,6 @@ typedef struct {
 // NOTE: All image data referenced by entries in the image directory proceed directly after the image directory.
 // It is customary practice to store them in the same order as defined in the image directory.
 
-#if 0
-//PNG file-format: https://en.wikipedia.org/wiki/Portable_Network_Graphics#File_format
-
-// PNG Signature
-unsigned char pngSign[8] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
-
-// After signature we have a series of chunks, every chunck has the same structure:
-typedef struct {
-    unsigned int length;    // Big endian!
-    unsigned char type[4];  // Chunck type: IDHR, PLTE, IDAT, IEND  /  gAMA, sRGB, tEXt, tIME...
-    unsigned char *data;    // Chunck data
-    unsigned int crc;       // 32bit CRC (computed over type and data)
-} PNGChunk;
-
-// A minimal PNG only requires: pngSign | PNGChunk(IHDR) | PNGChunk(IDAT) | PNGChunk(IEND)
-
-// IHDR mandatory chunck: image info (13 bytes)
-typedef struct {
-    unsigned int width;         // Image width
-    unsigned int height;        // Image width
-    unsigned char bitDepth;     // Bit depth
-    unsigned char colorType;    // Pixel format: 0 - Grayscale, 2 - RGB, 3 - Indexed, 4 - GrayAlpha, 6 - RGBA
-    unsigned char compression;  // Compression method: 0
-    unsigned char filter;       // Filter method: 0 (default)
-    unsigned char interlace;    // Interlace scheme (optional): 0 (none)
-} IHDRChunkData;
-#endif
-
 #if defined(SUPPORT_RTOOL_GENERATION)
 // rTool icon generation parameters
 typedef struct {
@@ -143,10 +115,10 @@ typedef struct {
 
 // One image entry for ico
 typedef struct {
-    int size;
-    int valid;
-    Image image;
-    Texture texture;
+    int size;               // Icon size (squared)
+    int valid;              // Icon valid image generated/loaded
+    Image image;            // Icon image
+    Texture texture;        // Icon texture
 } IconPackEntry;
 
 // Icon platform type
@@ -186,7 +158,7 @@ static void ProcessCommandLine(int argc, char *argv[]);     // Process command l
 #endif
 
 // Load/Save/Export data functions
-static void LoadIconPack(const char *fileName);     // Load icon file into icoPack
+static void LoadIconPack(const char *fileName);             // Load icon file into icoPack
 static Image *LoadICO(const char *fileName, int *count);    // Load icon data
 static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName);  // Save icon data
 
@@ -1170,7 +1142,7 @@ static int CheckImageSize(int width, int height)
 
 #if defined(SUPPORT_RTOOL_GENERATION)
 // Process image data to add raylib PRO version triangle
-// NOTE: Image should be squared
+// NOTE: Image should be squared, returned image is RGBA
 static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize)
 {
     Color *pixels = GetImageData(*image);
@@ -1408,4 +1380,5 @@ static Image ImageFromBits(unsigned char *bytes, int width, int height, Color co
         free(icoDirEntry);
         free(icoData[i]);
     }
+#endif
 */
