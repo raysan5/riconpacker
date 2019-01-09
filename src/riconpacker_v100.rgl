@@ -1,10 +1,11 @@
 #
-# rgl text file (v1.0) - raygui layout text file generated using rGuiLayout
+# rgl text file (v2.0) - raygui layout text file generated using rGuiLayout
 #
-# Total number of controls:     10
-# Anchor info:   a <id> <posx> <posy> <enabled>
+# Total number of controls:     9
+# Anchor info:   a <id> <name> <posx> <posy> <enabled>
 # Control info:  c <id> <type> <name> <rectangle> <anchor_id> <text>
 #
+r 0 0 -1 -1
 a 000 anchor00 0 0 1
 a 001 anchor00 50 50 1
 a 002 anchor00 0 0 0
@@ -13,13 +14,12 @@ a 004 anchor00 0 0 0
 a 005 anchor00 0 0 0
 a 006 anchor00 0 0 0
 a 007 anchor00 0 0 0
-c 000 10 platform 10 10 115 25 1 
-c 001 18 size 10 45 115 300 1 
-c 002 20 iconPanel 135 10 256 256 1 256
+c 000 12 platform 10 10 115 25 1 WINDOWS;WEB;ANDROID;iOS
+c 001 22 size 10 45 115 300 1 
+c 002 24 iconPanel 135 10 256 256 1 256
 c 003 5 GenIconImage 265 275 126 25 1 Generate
 c 004 2 line 135 305 255 10 1 
 c 005 5 ExportIcon 135 320 125 25 1 Export Icon
 c 006 5 ExportImage 265 320 126 25 1 Export Image
-c 007 17 iconStatus 0 355 400 25 1 SAMPLE TEXT
+c 007 20 iconStatus 0 355 400 25 1 STATUS
 c 008 5 Button008 135 275 126 25 1 Remove
-c 009 9 ComboBox009 10 200 115 25 1 
