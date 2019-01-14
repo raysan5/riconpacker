@@ -46,6 +46,7 @@
 #include <stdio.h>                      // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                     // Required for: malloc(), free()
 #include <string.h>                     // Required for: strcmp(), strlen()
+#include <math.h>                       // Required for: ceil()
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -60,7 +61,7 @@
 #define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
 #define BIT_CHECK(a,b) ((a) & (1<<(b)))
 
-//#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
+#define SUPPORT_RTOOL_GENERATION        // Support rTool icon generation
 
 // Define png to memory write function
 // NOTE: This function is internal to stb_image_write.h but not exposed by default
@@ -74,7 +75,7 @@ unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, in
 typedef struct {
     unsigned short reserved;    // Must always be 0.
     unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
-    unsigned short icoPackCount;  // Specifies number of images in the file.
+    unsigned short imageCount;  // Specifies number of images in the file.
 } IcoHeader;
 
 // Icon Entry info (16 bytes)
@@ -97,33 +98,31 @@ typedef struct {
 #if defined(SUPPORT_RTOOL_GENERATION)
 // rTool icon generation parameters
 typedef struct {
-    bool proVersion;
+    int size;                   // Icon size (squared)
+    int borderSize;             // Icon border size, usually size/16
+    bool proVersion;            // Icon style, add corner triangle or not
+    Color color;                // Icon base color
+    
+    char text[4];               // Icon text, max 4 characters, usually 3: rXX
+    int textSize;               // Icon text height
+    Rectangle textRec;          // Icon text position and size
 
-    int size;
-    int borderSize;
-
-    char text[4];
-    int textSize;
-    Rectangle textRec;
-
-    Color color;
-
-    bool useTextPixels;     // Required if we ant to serialize this structure to file
-    Color *textPixels;      // In case text is not enough... useful for 32x32, 24x24, 16x16
+    bool useTextPixels;         // Use icon text as pixels instead of text
+    Color *textPixels;          // In case text is not enough... useful for 32x32, 24x24, 16x16
 } rToolIcon;
 #endif
 
 // One image entry for ico
 typedef struct {
-    int size;               // Icon size (squared)
-    int valid;              // Icon valid image generated/loaded
-    Image image;            // Icon image
-    Texture texture;        // Icon texture
+    int size;                   // Icon size (squared)
+    int valid;                  // Icon valid image generated/loaded
+    Image image;                // Icon image
+    Texture texture;            // Icon texture
 } IconPackEntry;
 
 // Icon platform type
 typedef enum {
-    ICON_PLATFORM_WINDOWS = 0,
+    ICON_PLATFORM_WINDOWS = 0,  
     ICON_PLATFORM_FAVICON,
     ICON_PLATFORM_ANDROID,
     ICON_PLATFORM_IOS7,
@@ -160,21 +159,21 @@ static void ProcessCommandLine(int argc, char *argv[]);     // Process command l
 // Load/Save/Export data functions
 static void LoadIconPack(const char *fileName);             // Load icon file into icoPack
 static Image *LoadICO(const char *fileName, int *count);    // Load icon data
-static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName);  // Save icon data
+static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
 
 static void DialogLoadIcon(void);                   // Show dialog: load input file
 static void DialogExportIcon(IconPackEntry *icoPack, int count);  // Show dialog: export icon file
 static void DialogExportImage(Image image);         // Show dialog: export image file
 
 // Icon pack management functions
-static void InitIconPack(int platform);     // Initialize icon pack for an specific platform
-static void RemoveIconPack(int num);        // Remove one icon from the pack
+static void InitIconPack(int platform);             // Initialize icon pack for a specific platform
+static void RemoveIconPack(int num);                // Remove one icon from the pack
 
 // Auxiliar functions
 static int CheckImageSize(int width, int height);   // Check if provided image size has a valid index for current sizes scheme
 
 #if defined(SUPPORT_RTOOL_GENERATION)
-static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize);  // Process image data to add raylib PRO version triangle
+static void ImageTriangleONE(Image *image, int offsetX, int offsetY, int triSize);              // Process image data to add raylib PRO version triangle
 static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, int offset);    // Process image to add stegano-message embedded
 #endif
 
@@ -246,20 +245,18 @@ int main(int argc, char *argv[])
         rToolPack[i].proVersion = false;
         rToolPack[i].color = DARKGRAY;
 
-        // In case icon is smaller than 32x32 pixels,
-        // we generate a color array to fill
-        if (rToolPack[i].size <= 32)
-        {
-            rToolPack[i].textPixels = (Color *)malloc(rToolPack[i].size*rToolPack[i].size*sizeof(Color));
-            for (int p = 0; p < rToolPack[i].size*rToolPack[i].size; p++) rToolPack[i].textPixels[p] = BLANK;
-        }
+        // Color array to fill
+        rToolPack[i].textPixels = (Color *)malloc(rToolPack[i].size*rToolPack[i].size*sizeof(Color));
+        for (int p = 0; p < rToolPack[i].size*rToolPack[i].size; p++) rToolPack[i].textPixels[p] = BLANK;
     }
 
-    int textEditMode = 0;       // 0 - Move/Scale text, 1 - Text pixels edit mode
-    Vector2 cell = { -1, -1 };  // Grid cell mouse position
+    int textEditMode = 0;           // 0 - Move/Scale text, 1 - Text pixels edit mode
+    bool iconEditMode = false;      // Icon pixel edition mode
 
-    RenderTexture2D iconTarget = LoadRenderTexture(256, 256);     // To draw icon and retrieve it?
-    SetTextureFilter(iconTarget.texture, FILTER_POINT);
+    Vector2 cell = { -1, -1 };      // Grid cell mouse position
+
+    //RenderTexture2D iconTarget = LoadRenderTexture(256, 256);     // To draw icon and retrieve it?
+    //SetTextureFilter(iconTarget.texture, FILTER_POINT);
 
     //Image icon = GetTextureData(iconTarget.texture);
     //UpdateTexture(iconTarget.texture, const void *pixels);
@@ -271,12 +268,9 @@ int main(int argc, char *argv[])
 
     int platformActive = 0;
     int prevPlatformActive = 0;
-    const char *platformTextList[4] = { "Windows", "Favicon", "Android", "iOS" };
-
-    // NOTE: GuiListView() variables need to be global
-
     int scaleAlgorythmActive = 1;
-    const char *scaleAlgorythmTextList[2] = { "NearestN", "Bicubic" };
+    
+    // NOTE: GuiListView() variables need to be global
     //----------------------------------------------------------------------------------
 
     GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 25);
@@ -317,14 +311,13 @@ int main(int argc, char *argv[])
                         // TODO: Support RGB icon format
                         ImageFormat(&image, UNCOMPRESSED_R8G8B8A8);
 
-                        // Re-load image from ico pack
+                        // Re-load image/texture from ico pack
                         UnloadImage(icoPack[index].image);
-                        icoPack[index].image = ImageCopy(image);
-
                         UnloadTexture(icoPack[index].texture);
+                        
+                        icoPack[index].image = ImageCopy(image);
                         icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
-
-                        //icoPack[index].size = icoSizesPlatform[index];    // Not required
+                        icoPack[index].size = icoSizesPlatform[index];
                         icoPack[index].valid = true;
                     }
                     else
@@ -332,6 +325,7 @@ int main(int argc, char *argv[])
                         printf("WARNING: PNG contains not supported image size (%i x %i).", image.width, image.height);
 
                         // TODO: Re-scale image to the closer supported ico size
+                        //ImageResize(&image, newWidth, newHeight);
                     }
 
                     UnloadImage(image);
@@ -350,11 +344,7 @@ int main(int argc, char *argv[])
         {
             if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image); // Show dialog: export tool data (.ex1)
         }
-#if defined(VERSION_ONE)
-        //if (IsKeyPressed(KEY_ONE)) GuiLoadStylePalette(paletteStyleLight);              // Load style color palette: light
-        //if (IsKeyPressed(KEY_TWO)) GuiLoadStylePalette(paletteStyleDark);               // Load style color palette: dark
-        //if (IsKeyPressed(KEY_THREE)) GuiLoadStylePalette(paletteStyleCandy);            // Load style color palette: candy
-#endif
+
         if (IsKeyPressed(KEY_DELETE))
         {
             if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);  // Delete all images in the series
@@ -381,70 +371,65 @@ int main(int argc, char *argv[])
         for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
 
 #if defined(SUPPORT_RTOOL_GENERATION)
-        // Choose text edit mode, edit text or edit pixels
-        if (IsKeyPressed(KEY_E)) textEditMode = !textEditMode;
+        if (IsKeyPressed(KEY_SPACE)) iconEditMode = !iconEditMode;
 
-        // Edit selected rTool icon text position and size
-        if (sizeListActive > 0)
+        if (iconEditMode)
         {
-            if (IsKeyPressed(KEY_RIGHT)) rToolPack[sizeListActive - 1].textRec.x++;
-            else if (IsKeyPressed(KEY_LEFT)) rToolPack[sizeListActive - 1].textRec.x--;
-            else if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textRec.y--;
-            else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textRec.y++;
+            // Choose text edit mode, edit text or edit pixels
+            if (IsKeyPressed(KEY_E)) textEditMode = !textEditMode;
 
-            if (IsKeyDown(KEY_LEFT_CONTROL))
+            // Edit selected rTool icon text position and size
+            if (sizeListActive > 0)
             {
-                if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textSize++;
-                else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textSize--;
-            }
-        }
+                if (IsKeyPressed(KEY_RIGHT)) rToolPack[sizeListActive - 1].textRec.x++;
+                else if (IsKeyPressed(KEY_LEFT)) rToolPack[sizeListActive - 1].textRec.x--;
+                else if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textRec.y--;
+                else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textRec.y++;
 
-        if (textEditMode == 1)
-        {
-            // Pixels edit mode
-            if ((rToolPack[sizeListActive - 1].size <= 32) && (cell.x >= 0) && (cell.y >= 0))
+                if (IsKeyDown(KEY_LEFT_CONTROL))
+                {
+                    if (IsKeyPressed(KEY_UP)) rToolPack[sizeListActive - 1].textSize++;
+                    else if (IsKeyPressed(KEY_DOWN)) rToolPack[sizeListActive - 1].textSize--;
+                }
+            }
+
+            if (textEditMode == 1)
             {
-                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                // Pixels edit mode
+                if ((cell.x >= 0) && (cell.y >= 0))
                 {
-                    rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = rToolPack[sizeListActive - 1].color;
-                }
-                else if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON))
-                {
-                    rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = BLANK;
-                }
+                    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                    {
+                        rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = rToolPack[sizeListActive - 1].color;
+                    }
+                    else if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON))
+                    {
+                        rToolPack[sizeListActive - 1].textPixels[(int)cell.x + (int)cell.y*rToolPack[sizeListActive - 1].size] = BLANK;
+                    }
 
-                // TODO: Update icon texture...
-                // ISSUE: We are not drawing textures now, icon is just draw with basic shapes!
-                //if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) UpdateTexture(texIcon, rToolPack[sizeListActive - 1].textPixels);
+                    // TODO: Update icon texture...
+                    // ISSUE: We are not drawing textures now, icon is just draw with basic shapes!
+                    //if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) UpdateTexture(texIcon, rToolPack[sizeListActive - 1].textPixels);
+                }
             }
-        }
 
-        // Add rTool ONE version triangle
-        if (IsKeyPressed(KEY_SPACE))
-        {
-            /*
-            width -> border
-            256 -> 16 -> ok
-            128 -> 8  -> ok
-            96  -> 6  -> ok
-            64  -> 4  -> ok
-            48  -> 3  -> ok
-            32  -> 2  -> ok
-            24  -> 2  -> 1.5    !
-            16  -> 2  -> 1      !
-            */
-            int triSize = icoPack[0].image.width/4;
-            int borderWidth = (int)ceil((float)icoPack[0].image.width/16.0f);
-            ImageTrianglePRO(&icoPack[0].image, icoPack[0].image.width - borderWidth*2 - triSize, borderWidth*2, triSize);
+            // Add rTool ONE version triangle
+            if (IsKeyPressed(KEY_T))
+            {
+                // NOTE: borderSize -> image.width/16, exception: 16 -> 2
+                int triSize = icoPack[0].image.width/4;
+                int borderWidth = (int)ceil((float)icoPack[0].image.width/16.0f);
+                ImageTriangleONE(&icoPack[0].image, icoPack[0].image.width - borderWidth*2 - triSize, borderWidth*2, triSize);
 
-            UnloadTexture(icoPack[0].texture);
-            icoPack[0].texture = LoadTextureFromImage(icoPack[0].image);
-        }
+                UnloadTexture(icoPack[0].texture);
+                icoPack[0].texture = LoadTextureFromImage(icoPack[0].image);
+            }
 
-        // Add stegano-message to the icon image
-        if (IsKeyPressed(KEY_K))
-        {
-            ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4, 0);     // One char bit every 4 image bytes, no offset
+            // Add stegano-message to the icon image
+            if (IsKeyPressed(KEY_K))
+            {
+                ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4, 0);     // One char bit every 4 image bytes, no offset
+            }
         }
 #endif
         //----------------------------------------------------------------------------------
@@ -477,78 +462,100 @@ int main(int argc, char *argv[])
             DrawRectangleLines(anchor01.x + 135, anchor01.y + 10, 256, 256, Fade(GRAY, 0.6f));
 
 #if defined(SUPPORT_RTOOL_GENERATION)
-            if (sizeListActive == 0)
+            if (iconEditMode)
             {
-                // NOTE: On custom rTool icon edit mode, we don't need all icons drawn...
-            }
-            else if (sizeListActive > 0)
-            {
-                if ((textEditMode == 0) || (rToolPack[sizeListActive - 1].size > 32))       // Edit text position
+                if (sizeListActive == 0)
                 {
-                    // Draw rTool generated icon
-                    DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                  anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                  rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size, RAYWHITE);
-                    DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                                      anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
-                                                      rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size },
-                                         rToolPack[sizeListActive - 1].borderSize, rToolPack[sizeListActive - 1].color);
-                    DrawText(rToolPack[sizeListActive - 1].text,
-                             anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.x,
-                             anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y,
-                             rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
+                    // NOTE: On custom rTool icon edit mode, we don't need all icons drawn...
                 }
-                else if (textEditMode == 1)     // Edit text pixels painting
+                else if (sizeListActive > 0)
                 {
-                    // NOTE: Only small sizes supported for now
-                    if (rToolPack[sizeListActive - 1].size <= 32)
+                    if (textEditMode == 0)       // Edit text position
+                    {
+                        // Draw rTool generated icon
+                        DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                      anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                      rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size, RAYWHITE);
+                        DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                          anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2,
+                                                          rToolPack[sizeListActive - 1].size, rToolPack[sizeListActive - 1].size },
+                                             rToolPack[sizeListActive - 1].borderSize, rToolPack[sizeListActive - 1].color);
+                        DrawText(rToolPack[sizeListActive - 1].text,
+                                 anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.x,
+                                 anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y,
+                                 rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
+                    }
+                    else if (textEditMode == 1)     // Edit text pixels painting
                     {
                         int size = rToolPack[sizeListActive - 1].size;
-                        int scaledSize = size*8;
+                        float scaleFactor = 1.0f;
+
+                        switch (size)
+                        {
+                            case 16:
+                            case 24:
+                            case 32: scaleFactor = 8.0f; break;
+                            case 48: scaleFactor = 5.0f; break;
+                            case 64: scaleFactor = 4.0f; break;
+                            case 96: scaleFactor = 2.0f; break;
+                            case 128: scaleFactor = 2.0f; break;
+                            case 256: break;
+                            default: break;
+                        }
+                        
+                        float scaledSize = size*scaleFactor;
+                        
+                        BeginScissorMode(anchor01.x + 135, anchor01.y + 10, 256, 256);
 
                         // Draw icon scaled for painting
                         DrawRectangle(anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize, RAYWHITE);
                         DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize },
-                                             rToolPack[sizeListActive - 1].borderSize*8, rToolPack[sizeListActive - 1].color);
+                                             rToolPack[sizeListActive - 1].borderSize*scaleFactor, rToolPack[sizeListActive - 1].color);
 
                         DrawText(rToolPack[sizeListActive - 1].text,
-                             anchor01.x + 135 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.x*8,
-                             anchor01.y + 10 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.y*8,
+                             anchor01.x + 135 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.x*scaleFactor,
+                             anchor01.y + 10 + 128 - scaledSize/2 + rToolPack[sizeListActive - 1].textRec.y*scaleFactor,
                              rToolPack[sizeListActive - 1].textSize*10, Fade(rToolPack[sizeListActive - 1].color, 0.4f));
 
                         // Draw grid (returns selected cell)
-                        cell = GuiGrid((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize }, 8, 1);
+                        cell = GuiGrid((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2, anchor01.y + 10 + 128 - scaledSize/2, scaledSize, scaledSize }, scaleFactor, 1);
 
                         // Draw selected cell lines
-                        if ((cell.x >= 0) && (cell.y >= 0)) DrawRectangleLines((int)(anchor01.x + 135 + 128 - scaledSize/2 + cell.x*8), (int)(anchor01.y + 10 + 128 - scaledSize/2 + cell.y*8), 8, 8, RED);
+                        if ((cell.x >= 0) && (cell.y >= 0)) DrawRectangleLinesEx((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2 + cell.x*scaleFactor, 
+                                                                                              anchor01.y + 10 + 128 - scaledSize/2 + cell.y*scaleFactor, 
+                                                                                              scaleFactor, scaleFactor }, 1, RED);
 
                         // Draw pixel rectangles
                         for (int y = 0; y < size; y++)
                         {
                             for (int x = 0; x < size; x++)
                             {
-                                DrawRectangle((int)(anchor01.x + 135 + 128 - scaledSize/2 + x*8),
-                                              (int)(anchor01.y + 10 + 128 - scaledSize/2 + y*8), 8, 8,
-                                              rToolPack[sizeListActive - 1].textPixels[y*size + x]);
+                                DrawRectangleRec((Rectangle){ anchor01.x + 135 + 128 - scaledSize/2 + x*scaleFactor,
+                                                              anchor01.y + 10 + 128 - scaledSize/2 + y*scaleFactor, 
+                                                              scaleFactor, scaleFactor }, rToolPack[sizeListActive - 1].textPixels[y*size + x]);
                             }
                         }
+                        
+                        EndScissorMode();
                     }
-                }
 
-                DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
+                    DrawText(FormatText("%i", rToolPack[sizeListActive - 1].textSize), GetScreenWidth() - 50, 35, 10, RED);
+                }
             }
-#else
-            if (sizeListActive == 0)
+            else
+#endif      // !SUPPORT_RTOOL_GENERATION
             {
-                for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchor01.x + 135, anchor01.y + 10, WHITE);
+                if (sizeListActive == 0)
+                {
+                    for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchor01.x + 135, anchor01.y + 10, WHITE);
+                }
+                else if (sizeListActive > 0)
+                {
+                    DrawTexture(icoPack[sizeListActive - 1].texture,
+                                anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2,
+                                anchor01.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
+                }
             }
-            else if (sizeListActive > 0)
-            {
-                DrawTexture(icoPack[sizeListActive - 1].texture,
-                            anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2,
-                            anchor01.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
-            }
-#endif
 
             //GuiLabel((Rectangle){ anchor01.x + 135, anchor01.y + 270, 126, 25 }, "Scale algorythm:");
             //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, "NearestN;Bicubic", scaleAlgorythmActive);
@@ -642,7 +649,10 @@ int main(int argc, char *argv[])
             {
                 GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, (sizeListActive < 0) ? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid), 10);
             }
-
+            
+#if defined(SUPPORT_RTOOL_GENERATION)
+            if (iconEditMode) DrawText("ICON EDIT MODE", GetScreenWidth() - 98, GetScreenHeight() - 18, 10, DARKGRAY);
+#endif
             GuiEnable();
             //----------------------------------------------------------------------------------
 
@@ -703,10 +713,10 @@ static void ShowCommandLineInfo(void)
     printf("    -h, --help                      : Show tool version and command line usage help\n");
     printf("    -i, --input <file01.ext>,[file02.ext],...\n");
     printf("                                    : Define input file(s). Comma separated for multiple files.\n");
-    printf("                                      Supported extensions: .ico, .png\n");
+    printf("                                      Supported extensions: .png\n");
     printf("    -o, --output <filename.ico>     : Define output file.\n");
     printf("                                      Supported extensions: .ico\n");
-    printf("                                      NOTE: If not specified, defaults to: output.wav\n\n");
+    printf("                                      NOTE: If not specified, defaults to: output.ico\n\n");
     printf("    -p, --platform <value>          : Define platform sizes scheme to support.\n");
     printf("                                      Supported values:\n");
     printf("                                          0 - Windows (Sizes: 256, 128, 96, 64, 48, 32, 24, 16)\n");
@@ -722,7 +732,8 @@ static void ShowCommandLineInfo(void)
     printf("    -s, --scale-algorythm <value>   : Define the algorythm used to scale images.\n");
     printf("                                      Supported values:\n");
     printf("                                          0 - Bicubic scaling algorythm (default)\n");
-    printf("                                          1 - Nearest-Neighbor scaling algorythm\n");
+    printf("    -x, --extract <file01.ico>      : Extract individual images from icon.\n");
+    printf("                                      NOTE: Exported images naming: file01_{size}.png.\n\n");
 
     printf("\nEXAMPLES:\n\n");
     printf("    > riconpacker --input sound.rfx --output jump.wav\n");
@@ -742,6 +753,8 @@ static void ProcessCommandLine(int argc, char *argv[])
     char inFileName[256] = { 0 };   // Input file name
     char outFileName[256] = { 0 };  // Output file name
     int outputFormat = 0;           // Supported output formats
+    
+    bool makeOne = false;           // Add ONE version triangle on corner
 
     // Process command line arguments
     for (int i = 1; i < argc; i++)
@@ -755,13 +768,16 @@ static void ProcessCommandLine(int argc, char *argv[])
             // Check for valid argumment
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
+                if (IsFileExtension(argv[i + 1], ".ico")) strcpy(inFileName, argv[i + 1]);
+
+                // WARNING: TextSplit() does not work!
+                /*
                 int numInputFiles = 0;
                 char **inputFiles = TextSplit(argv[i + 1], ',', &numInputFiles);
 
                 for (int f = 0; f < numInputFiles; f++)
                 {
-                    if (IsFileExtension(inputFiles[i], ".ico") ||
-                        IsFileExtension(inputFiles[i], ".png"))
+                    if (IsFileExtension(inputFiles[i], ".png"))
                     {
                         // TODO: Load input file?
                     }
@@ -771,15 +787,15 @@ static void ProcessCommandLine(int argc, char *argv[])
                 // Free input files strings memory
                 for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
                 if (inputFiles != NULL) free(inputFiles);
-
+                */
+                
                 i++;
             }
         }
         else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-') &&
-                (IsFileExtension(argv[i + 1], ".ico") ||
-                 IsFileExtension(argv[i + 1], ".png")))
+                (IsFileExtension(argv[i + 1], ".ico")))
             {
                 strcpy(outFileName, argv[i + 1]);   // Read output filename
                 i++;
@@ -794,6 +810,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             }
             else printf("WARNING: Platform provided not valid\n");
         }
+        else if (strcmp(argv[i], "--one") == 0) makeOne = true;         // raylib ONE triangle addition
     }
 
     // Process input files if provided
@@ -806,6 +823,24 @@ static void ProcessCommandLine(int argc, char *argv[])
         printf("\nOutput format:    %i\n\n", 0);
 
         // TODO: Process input ---> output
+        
+#if defined(SUPPORT_RTOOL_GENERATION)
+        if (makeOne)
+        {
+            int imCount = 0;
+            Image *images = LoadICO(inFileName, &imCount);
+            
+            for (int i = 0; i < imCount; i++)
+            {
+                int triSize = images[i].width/4;
+                int borderWidth = (int)ceil((float)images[i].width/16.0f);
+
+                ImageTriangleONE(&images[i], images[i].width - borderWidth*2 - triSize, borderWidth*2, triSize);
+            }
+            
+            SaveICO(images, imCount, outFileName);
+        }
+#endif
     }
 
     if (showUsageInfo) ShowCommandLineInfo();
@@ -877,7 +912,26 @@ static void DialogExportIcon(IconPackEntry *icoPack, int count)
         // Check for valid extension and make sure it is
         if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
 
-        SaveICO(icoPack, count, outFileName);
+        // Verify icon pack valid images (not placeholder ones)
+        int validCount = 0;
+        for (int i = 0; i < count; i++) if (icoPack[i].valid) validCount++;
+        
+        Image *images = (Image *)calloc(validCount, sizeof(Image));
+        
+        int imCount = 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (icoPack[i].valid)
+            {
+                images[imCount] = icoPack[i].image;
+                imCount++;
+            }
+        }
+        
+        // Save valid images to output ICO file
+        SaveICO(images, imCount, outFileName);
+        
+        free(images);
     }
 }
 
@@ -920,8 +974,6 @@ static void InitIconPack(int platform)
     // Unload previous sizes text list
     if ((sizeTextList != NULL) && (sizeListCount > 0))
     {
-        printf("free(sizeTextList)\n");
-
         for (int i = 0; i < sizeListCount; i++) free(sizeTextList[i]);
         free(sizeTextList);
     }
@@ -940,8 +992,6 @@ static void InitIconPack(int platform)
     // Unload previous icon pack
     if ((icoPack != NULL) && (icoPackCount > 0))
     {
-        printf("free(icoPack)\n");
-
         for (int i = 0; i < icoPackCount; i++)
         {
             UnloadImage(icoPack[i].image);
@@ -978,7 +1028,6 @@ static void RemoveIconPack(int num)
 
         icoPack[num].image = GenImageColor(icoPack[num].size, icoPack[num].size, DARKGRAY);
         ImageDrawRectangle(&icoPack[num].image, (Rectangle){ 1, 1, icoPack[num].size - 2, icoPack[num].size - 2 }, GRAY);
-
         icoPack[num].texture = LoadTextureFromImage(icoPack[num].image);
         icoPack[num].valid = false;
     }
@@ -992,31 +1041,22 @@ static Image *LoadICO(const char *fileName, int *count)
 
     FILE *icoFile = fopen(fileName, "rb");
 
-    // NOTE: raylib.ico, in the way it was generated, 256x256 PNG is embedded directly while the
-    // resto of image sizes seem to be embedded in an uncompressed form (BMP?)
-
     // Load .ico information
     IcoHeader icoHeader = { 0 };
     fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
 
-    printf("icoHeader.imageType: %i\n", icoHeader.imageType);
-    printf("icoHeader.icoPackCount: %i\n", icoHeader.icoPackCount);
+    //printf("icoHeader.imageType: %i\n", icoHeader.imageType);
+    //printf("icoHeader.imageCount: %i\n", icoHeader.imageCount);
 
-    images = (Image *)malloc(icoHeader.icoPackCount*sizeof(Image));
-    *count = icoHeader.icoPackCount;
+    images = (Image *)malloc(icoHeader.imageCount*sizeof(Image));
+    *count = icoHeader.imageCount;
 
-    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
-    unsigned char *icoData[icoHeader.icoPackCount];
+    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
+    unsigned char *icoData[icoHeader.imageCount];
 
-    for (int i = 0; i < icoHeader.icoPackCount; i++)
-    {
-        fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+    for (int i = 0; i < icoHeader.imageCount; i++) fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
 
-        printf("%ix%i@%i - %i - %i\n", icoDirEntry[i].width, icoDirEntry[i].height,
-               icoDirEntry[i].bpp, icoDirEntry[i].size, icoDirEntry[i].offset);
-    }
-
-    for (int i = 0; i < icoHeader.icoPackCount; i++)
+    for (int i = 0; i < icoHeader.imageCount; i++)
     {
         icoData[i] = (unsigned char *)malloc(icoDirEntry[i].size);
         fread(icoData[i], icoDirEntry[i].size, 1, icoFile);         // Read icon png data
@@ -1034,12 +1074,12 @@ static Image *LoadICO(const char *fileName, int *count)
         else if (channels == 4) icoPack[i].image.format = UNCOMPRESSED_R8G8B8A8;
         else printf("WARNING: Number of data channels not supported");
         */
-        printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", images[i].width, images[i].height, channels*8);
+        //printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", images[i].width, images[i].height, channels*8);
     }
 
     fclose(icoFile);
 
-    for (int i = 0; i < icoHeader.icoPackCount; i++)
+    for (int i = 0; i < icoHeader.imageCount; i++)
     {
         free(icoDirEntry);
         free(icoData[i]);
@@ -1049,53 +1089,33 @@ static Image *LoadICO(const char *fileName, int *count)
 }
 
 // Icon saver
-static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
+// NOTE: Make sure images array sizes are valid!
+static void SaveICO(Image *images, int imageCount, const char *fileName)
 {
-    for (int i = 0; i < packCount; i++)
+    IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = imageCount };
+    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
+
+    unsigned char *icoData[icoHeader.imageCount];       // PNG files data
+    int offset = 6 + 16*icoHeader.imageCount;
+
+    for (int i = 0; i < imageCount; i++)
     {
-        if (icoPack[i].valid)
-        {
-            printf("SaveICO(): icoPac[%i].size = %i\n", i, icoPack[i].size);
-            printf("SaveICO(): icoPac[%i].image.width = %i\n", i, icoPack[i].image.width);
-            printf("SaveICO(): icoPac[%i].image.height = %i\n", i, icoPack[i].image.height);
-            printf("SaveICO(): icoPac[%i].image.format = %i\n", i, icoPack[i].image.format);
-        }
-    }
+        int size = 0;     // Store generated png file size
 
-    // Check icon pack for valid images
-    int validCount = 0;
-    for (int i = 0; i < packCount; i++) if (icoPack[i].valid) validCount++;
+        // Compress images data into PNG file data streams
+        // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
+        icoData[i] = stbi_write_png_to_mem((unsigned char *)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
 
-    printf("SaveICO(): validCount = %i\n", validCount);
+        // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
+        // NOTE 2: miniz also provides a CRC32 calculation implementation
 
-    IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .icoPackCount = validCount };
-    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.icoPackCount, sizeof(IcoDirEntry));
+        icoDirEntry[i].width = (images[i].width == 256) ? 0 : images[i].width;
+        icoDirEntry[i].height = (images[i].width == 256) ? 0 : images[i].width;
+        icoDirEntry[i].bpp = 32;
+        icoDirEntry[i].size = size;
+        icoDirEntry[i].offset = offset;
 
-    unsigned char *icoData[icoHeader.icoPackCount];       // PNG files data
-    int offset = 6 + 16*icoHeader.icoPackCount;
-
-    for (int i = 0; i < packCount; i++)
-    {
-        // Check icon pack for valid images
-        if (icoPack[i].valid)
-        {
-            int size = 0;     // Store generated png file size
-
-            // Compress images data into PNG file data streams
-            // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
-            icoData[i] = stbi_write_png_to_mem((unsigned char *)icoPack[i].image.data, icoPack[i].image.width*4, icoPack[i].image.width, icoPack[i].image.height, 4, &size);
-
-            // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
-            // NOTE 2: miniz also provides a CRC32 calculation implementation
-
-            icoDirEntry[i].width = (icoPack[i].size == 256) ? 0 : icoPack[i].size;
-            icoDirEntry[i].height = (icoPack[i].size == 256) ? 0 : icoPack[i].size;
-            icoDirEntry[i].bpp = 32;
-            icoDirEntry[i].size = size;
-            icoDirEntry[i].offset = offset;
-
-            offset += size;
-        }
+        offset += size;
     }
 
     FILE *icoFile = fopen(fileName, "wb");
@@ -1104,23 +1124,18 @@ static void SaveICO(IconPackEntry *icoPack, int packCount, const char *fileName)
     fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
 
     // Write icon images entries data
-    for (int i = 0; i < icoHeader.icoPackCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+    for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
 
     // Write icon png data
-    for (int i = 0; i < icoHeader.icoPackCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
+    for (int i = 0; i < icoHeader.imageCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
 
     fclose(icoFile);
 
-    for (int i = 0; i < icoHeader.icoPackCount; i++)
+    for (int i = 0; i < icoHeader.imageCount; i++)
     {
         free(icoDirEntry);
         free(icoData[i]);
     }
-}
-
-static void SaveRID(IconPackEntry *icoPack, const char *fileName)
-{
-
 }
 
 // Check if provided image size has a valid index for current sizes scheme
@@ -1143,9 +1158,12 @@ static int CheckImageSize(int width, int height)
 #if defined(SUPPORT_RTOOL_GENERATION)
 // Process image data to add raylib PRO version triangle
 // NOTE: Image should be squared, returned image is RGBA
-static void ImageTrianglePRO(Image *image, int offsetX, int offsetY, int triSize)
+static void ImageTriangleONE(Image *image, int offsetX, int offsetY, int triSize)
 {
     Color *pixels = GetImageData(*image);
+    
+    // HACK: This icon size does not follow previous rule
+    if (image->width == 16) offsetX -=1, offsetY += 1;
 
     for (int y = 0; y < triSize; y++)
     {
@@ -1229,6 +1247,7 @@ static unsigned char *ImageToBits(Image image)
 }
 
 // Generate color-alpha image from and array of bits, stored in bytes
+// NOTE: 0-BLANK, 1-color
 static Image ImageFromBits(unsigned char *bytes, int width, int height, Color color)
 {
     Image image = { 0 };
