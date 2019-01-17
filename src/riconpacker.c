@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
 
     SetTraceLog(0);                             // Disable trace log messsages
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);    // Window configuration flags
     InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s - A simple and easy-to-use icons packer", TOOL_VERSION_TEXT));
     //SetWindowMinSize(400, 380);
     //SetExitKey(0);
@@ -250,8 +251,10 @@ int main(int argc, char *argv[])
         for (int p = 0; p < rToolPack[i].size*rToolPack[i].size; p++) rToolPack[i].textPixels[p] = BLANK;
     }
 
-    int textEditMode = 0;           // 0 - Move/Scale text, 1 - Text pixels edit mode
     bool iconEditMode = false;      // Icon pixel edition mode
+    int iconEditText = 0;           // 0 - Move/Scale text, 1 - Text pixels edit mode
+    float iconEditScale = 1.0f;     // Icon edit mode scale
+    float iconEditOffset = 0.0f;    // Icon edit offset inside box, allow icon movement
 
     Vector2 cell = { -1, -1 };      // Grid cell mouse position
 
@@ -278,11 +281,11 @@ int main(int argc, char *argv[])
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIconPack(inFileName);
 
-    SetTargetFPS(60);
+    SetTargetFPS(120);      // Increased for smooth pixel painting on edit mode
     //--------------------------------------------------------------------------------------
 
     // Main game loop
-    while (!exitWindow)    // Detect window close button or ESC key
+    while (!exitWindow)     // Detect window close button or ESC key
     {
         // Dropped files logic
         //----------------------------------------------------------------------------------
@@ -376,7 +379,10 @@ int main(int argc, char *argv[])
         if (iconEditMode)
         {
             // Choose text edit mode, edit text or edit pixels
-            if (IsKeyPressed(KEY_E)) textEditMode = !textEditMode;
+            if (IsKeyPressed(KEY_E)) iconEditText = !iconEditText;
+            
+            iconEditScale += (float)GetMouseWheelMove()/10.0f;
+            if (iconEditScale < 0.2f) iconEditScale = 0.2f;
 
             // Edit selected rTool icon text position and size
             if (sizeListActive > 0)
@@ -393,7 +399,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if (textEditMode == 1)
+            if (iconEditText == 1)
             {
                 // Pixels edit mode
                 if ((cell.x >= 0) && (cell.y >= 0))
@@ -424,12 +430,6 @@ int main(int argc, char *argv[])
                 UnloadTexture(icoPack[0].texture);
                 icoPack[0].texture = LoadTextureFromImage(icoPack[0].image);
             }
-
-            // Add stegano-message to the icon image
-            if (IsKeyPressed(KEY_K))
-            {
-                ImageSteganoMessage(&icoPack[0].image, "This is a test message!", 4, 0);     // One char bit every 4 image bytes, no offset
-            }
         }
 #endif
         //----------------------------------------------------------------------------------
@@ -455,7 +455,7 @@ int main(int argc, char *argv[])
                 }
             GuiEnable();
 
-            GuiListView((Rectangle){ anchor01.x + 10, anchor01.y + 45, 115, 300 }, sizeTextList, sizeListCount, NULL, &sizeListActive, true);
+            GuiListView((Rectangle){ anchor01.x + 10, anchor01.y + 45, 115, 300 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
 
             // Draw dummy panel and border lines
             GuiDummyRec((Rectangle){ anchor01.x + 135, anchor01.y + 10, 256, 256 }, "");
@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
                 }
                 else if (sizeListActive > 0)
                 {
-                    if (textEditMode == 0)       // Edit text position
+                    if (iconEditText == 0)       // Edit text position
                     {
                         // Draw rTool generated icon
                         DrawRectangle(anchor01.x + 135 + 128 - rToolPack[sizeListActive - 1].size/2,
@@ -485,7 +485,7 @@ int main(int argc, char *argv[])
                                  anchor01.y + 10 + 128 - rToolPack[sizeListActive - 1].size/2 + rToolPack[sizeListActive - 1].textRec.y,
                                  rToolPack[sizeListActive - 1].textSize, rToolPack[sizeListActive - 1].color);
                     }
-                    else if (textEditMode == 1)     // Edit text pixels painting
+                    else if (iconEditText == 1)     // Edit text pixels painting
                     {
                         int size = rToolPack[sizeListActive - 1].size;
                         float scaleFactor = 1.0f;
@@ -497,13 +497,15 @@ int main(int argc, char *argv[])
                             case 32: scaleFactor = 8.0f; break;
                             case 48: scaleFactor = 5.0f; break;
                             case 64: scaleFactor = 4.0f; break;
-                            case 96: scaleFactor = 2.0f; break;
+                            case 96: 
                             case 128: scaleFactor = 2.0f; break;
                             case 256: break;
                             default: break;
                         }
                         
                         float scaledSize = size*scaleFactor;
+                        
+                        // TODO: Use render target to apply iconEditScale
                         
                         BeginScissorMode(anchor01.x + 135, anchor01.y + 10, 256, 256);
 
@@ -1182,7 +1184,7 @@ static void ImageTriangleONE(Image *image, int offsetX, int offsetY, int triSize
 // NOTE: Every bytePadding, the LSB of every byte is used to embbed every bit of every character.
 // So, every 8x bytePadding, one character of the message is codified...
 // For a 64x64@32 image with a bytePadding = 4 (every pixel), you can embed: 64x64/8 = 512 characters
-// NOTE: Only supports 8-bit per channel data: GRAYSCALE, GRAY+ALPHA, R8G8B8, R8G8B8A8
+// NOTE: Only supported 8-bit per channel data: GRAYSCALE, GRAY+ALPHA, R8G8B8, R8G8B8A8
 static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, int offset)
 {
     int bpp = 0;
@@ -1199,7 +1201,7 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, 
     if (bpp == 0) printf("Image format not supported for steganography.\n");
     else
     {
-        int j = 0, k = 0;           // Required to count characters and bits of every character byte
+        int j = 0, k = 7;           // Required to count characters and bits of every character byte
         int msgLen = strlen(msg);
         int imByteSize = image->width*image->height*bpp/8;
 
@@ -1208,16 +1210,39 @@ static void ImageSteganoMessage(Image *image, const char *msg, int bytePadding, 
 
         if ((imByteSize/bytePadding) < (msgLen*8)) printf("WARNING: Message does not fit on image.");
 
-        for (int i = 0; i < imByteSize; i += bytePadding)
+        for (j = 0; j < msgLen; j++)
         {
-            if (BIT_CHECK(msg[j], k) == 1) BIT_SET(((unsigned char *)image->data)[i], 7);
+            for (k = 7; k >= 0; k--)
+            {
+                unsigned char value = msg[j]; 
+                if (BIT_CHECK(value, k)) BIT_SET(((unsigned char *)image->data)[offset], 0);
+                else BIT_CLEAR(((unsigned char *)image->data)[offset], 0);
 
-            k++;                                // Move to next bit of the character byte
-            if (k >= 8) { k = 0; j++; }         // Move to the next character in the chars array
-
-            if (j >= msgLen) i = imByteSize;    // Finish when full message gets embedded
+                offset += bytePadding;                
+            }
         }
     }
+}
+
+// Get stegano-message from image
+static char *GetImageSteganoMessage(Image image, int bytePadding, int offset)
+{
+    #define MAX_MESSAGE_LENGTH  64
+    
+    char *message = (char *)calloc(MAX_MESSAGE_LENGTH, 1);
+   
+    for (int j = 0; j < MAX_MESSAGE_LENGTH; j++)
+    {
+        for (int k = 7; k >= 0; k--)
+        {
+            unsigned char value = ((unsigned char *)image.data)[offset];
+            if (BIT_CHECK(value, 0)) BIT_SET(message[j], k);
+            
+            offset += bytePadding;
+        }
+    }
+
+    return message;
 }
 #endif
 
