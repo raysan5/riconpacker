@@ -211,9 +211,9 @@ int main(int argc, char *argv[])
     const int screenWidth = 400;
     const int screenHeight = 380;
 
-    SetTraceLog(0);                             // Disable trace log messsages
+    SetTraceLogLevel(LOG_NONE);                 // Disable trace log messsages
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);    // Window configuration flags
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);        // Window configuration flags
     InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s - A simple and easy-to-use icons packer", TOOL_VERSION_TEXT));
     //SetWindowMinSize(400, 380);
     //SetExitKey(0);
