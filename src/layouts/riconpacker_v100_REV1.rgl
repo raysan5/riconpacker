@@ -15,7 +15,7 @@ a 005 anchor05 0 0 0
 a 006 anchor06 0 0 0
 a 007 anchor07 0 0 0
 c 000 12 platform 10 10 115 25 1 WINDOWS;WEB;ANDROID;iOS
-c 001 22 size 10 45 115 305 1 
+c 001 22 size 10 45 115 305 1 256 x 256;128 x 128
 c 002 24 iconPanel 135 10 256 256 1 256
 c 003 5 GenIconImage 220 275 85 25 1 Generate
 c 004 2 line 135 310 255 10 1 

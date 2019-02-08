@@ -1,5 +1,5 @@
 #
-# rgl text file (v2.0) - raygui layout text file generated using rGuiLayout
+# rgl text file (v1.0) - raygui layout text file generated using rGuiLayout
 #
 # Total number of controls:     9
 # Anchor info:   a <id> <name> <posx> <posy> <enabled>
@@ -7,15 +7,15 @@
 #
 r 0 0 -1 -1
 a 000 anchor00 0 0 1
-a 001 anchor00 50 50 1
-a 002 anchor00 0 0 0
-a 003 anchor00 0 0 0
-a 004 anchor00 0 0 0
-a 005 anchor00 0 0 0
-a 006 anchor00 0 0 0
-a 007 anchor00 0 0 0
+a 001 anchor01 50 50 1
+a 002 anchor02 0 0 0
+a 003 anchor03 0 0 0
+a 004 anchor04 0 0 0
+a 005 anchor05 0 0 0
+a 006 anchor06 0 0 0
+a 007 anchor07 0 0 0
 c 000 12 platform 10 10 115 25 1 WINDOWS;WEB;ANDROID;iOS
-c 001 22 size 10 45 115 300 1 
+c 001 22 size 10 45 115 300 1 256 x 256;128 x 128
 c 002 24 iconPanel 135 10 256 256 1 256
 c 003 5 GenIconImage 265 275 126 25 1 Generate
 c 004 2 line 135 305 255 10 1 
