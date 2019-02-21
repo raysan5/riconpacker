@@ -103,7 +103,7 @@ typedef struct {
 
 // Icon platform type
 typedef enum {
-    ICON_PLATFORM_WINDOWS = 0,  
+    ICON_PLATFORM_WINDOWS = 0,
     ICON_PLATFORM_FAVICON,
     ICON_PLATFORM_ANDROID,
     ICON_PLATFORM_IOS7,
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
     int platformActive = 0;
     int prevPlatformActive = 0;
     int scaleAlgorythmActive = 1;
-    
+
     // NOTE: GuiListView() variables need to be global
     //----------------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
                         // Re-load image/texture from ico pack
                         UnloadImage(icoPack[index].image);
                         UnloadTexture(icoPack[index].texture);
-                        
+
                         icoPack[index].image = ImageCopy(image);
                         icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
                         icoPack[index].size = icoSizesPlatform[index];
@@ -445,7 +445,7 @@ int main(int argc, char *argv[])
             {
                 GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, (sizeListActive < 0) ? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
             }
-            
+
             GuiEnable();
             //----------------------------------------------------------------------------------
 
@@ -542,7 +542,7 @@ static void ProcessCommandLine(int argc, char *argv[])
     char inFileName[256] = { 0 };   // Input file name
     char outFileName[256] = { 0 };  // Output file name
     int outputFormat = 0;           // Supported output formats
-    
+
     bool makeOne = false;           // Add ONE version triangle on corner
 
     // Process command line arguments
@@ -577,7 +577,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
                 if (inputFiles != NULL) free(inputFiles);
                 */
-                
+
                 i++;
             }
         }
@@ -686,9 +686,9 @@ static void DialogExportIcon(IconPackEntry *icoPack, int count)
         // Verify icon pack valid images (not placeholder ones)
         int validCount = 0;
         for (int i = 0; i < count; i++) if (icoPack[i].valid) validCount++;
-        
+
         Image *images = (Image *)calloc(validCount, sizeof(Image));
-        
+
         int imCount = 0;
         for (int i = 0; i < count; i++)
         {
@@ -698,10 +698,10 @@ static void DialogExportIcon(IconPackEntry *icoPack, int count)
                 imCount++;
             }
         }
-        
+
         // Save valid images to output ICO file
         SaveICO(images, imCount, outFileName);
-        
+
         free(images);
     }
 }
@@ -864,11 +864,11 @@ static Image *LoadICO(const char *fileName, int *count)
 static Image *LoadICNS(const char *fileName, int *count)
 {
     Image *images = NULL;
-    
+
     int icnsCount = 0;
 
     FILE *icnsFile = fopen(fileName, "rb");
-    
+
     // Icns File Header (8 bytes)
     typedef struct {
         unsigned char id[4];        // Magic literal: "icns" (0x69, 0x63, 0x6e, 0x73)
@@ -887,7 +887,7 @@ static Image *LoadICNS(const char *fileName, int *count)
     fread(&icnsHeader, 1, sizeof(IcnsHeader), icnsFile);
 
     // TODO: Check file size to keep track of data read... until end of available data
-    
+
     // TODO: Load all icons data found
     images = (Image *)malloc(icnsCount);
     *count = icnsCount;
