@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, (sizeListActive < 0) ? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
+                GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
             }
 
             GuiEnable();
@@ -543,8 +543,6 @@ static void ProcessCommandLine(int argc, char *argv[])
     char outFileName[256] = { 0 };  // Output file name
     int outputFormat = 0;           // Supported output formats
 
-    bool makeOne = false;           // Add ONE version triangle on corner
-
     // Process command line arguments
     for (int i = 1; i < argc; i++)
     {
@@ -599,7 +597,6 @@ static void ProcessCommandLine(int argc, char *argv[])
             }
             else printf("WARNING: Platform provided not valid\n");
         }
-        else if (strcmp(argv[i], "--one") == 0) makeOne = true;         // raylib ONE triangle addition
     }
 
     // Process input files if provided
@@ -918,8 +915,8 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
         // NOTE 2: miniz also provides a CRC32 calculation implementation
 
-        icoDirEntry[i].width = (images[i].width == 256) ? 0 : images[i].width;
-        icoDirEntry[i].height = (images[i].width == 256) ? 0 : images[i].width;
+        icoDirEntry[i].width = (images[i].width == 256)? 0 : images[i].width;
+        icoDirEntry[i].height = (images[i].width == 256)? 0 : images[i].width;
         icoDirEntry[i].bpp = 32;
         icoDirEntry[i].size = size;
         icoDirEntry[i].offset = offset;
