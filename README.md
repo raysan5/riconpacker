@@ -2,7 +2,7 @@
 
 # rIconPacker
 
-A simple and easy-to-use icon packer.
+A simple and easy-to-use icons packer.
 
 Pack/Unpack icon files, load icon and add new image sizes or just export icon images. 
 
