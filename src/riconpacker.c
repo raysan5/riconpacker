@@ -8,9 +8,9 @@
 *       Enable PRO features for the tool. Usually command-line and export options related.
 *
 *   DEPENDENCIES:
-*       raylib 2.0              - Windowing/input management and drawing.
+*       raylib 2.4-dev          - Windowing/input management and drawing.
 *       raygui 2.0              - IMGUI controls (based on raylib).
-*       tinyfiledialogs 3.3.7   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
+*       tinyfiledialogs 3.3.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -38,6 +38,10 @@
 #define RAYGUI_IMPLEMENTATION
 #include "external/raygui.h"            // Required for: IMGUI controls
 
+#undef RAYGUI_IMPLEMENTATION
+#define GUI_WINDOW_ABOUT_IMPLEMENTATION
+#include "gui_window_about.h"           // GUI: About window
+
 #include "external/tinyfiledialogs.h"   // Required for: Native open/save file dialogs
 
 #include "external/stb_image.h"         // Required for: stbi_load_from_memory()
@@ -51,19 +55,18 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-#define VERSION_ONE             // Enable PRO version features
-
-#define TOOL_VERSION_TEXT       "1.0"   // Tool version string
-#define MAX_DEFAULT_ICONS          8    // Number of icon images for embedding
-
-#define BIT_SET(a,b) ((a) |= (1<<(b)))
-#define BIT_CLEAR(a,b) ((a) &= ~(1<<(b)))
-#define BIT_FLIP(a,b) ((a) ^= (1<<(b)))
-#define BIT_CHECK(a,b) ((a) & (1<<(b)))
+// Basic information
+#define TOOL_NAME           "rIconPacker"
+#define TOOL_VERSION        "1.0"
+#define TOOL_DESCRIPTION    "A simple and easy-to-use icons packer"
 
 // Define png to memory write function
 // NOTE: This function is internal to stb_image_write.h but not exposed by default
 unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, int x, int y, int n, int *out_len);
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib)
+#endif
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -158,6 +161,8 @@ static int CheckImageSize(int width, int height);   // Check if provided image s
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
+    SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messsages
+    
     char inFileName[256] = { 0 };       // Input file name (required in case of drag & drop over executable)
 
     // Command-line usage mode
@@ -181,42 +186,52 @@ int main(int argc, char *argv[])
         }
 #endif      // VERSION_ONE
     }
+    
+#if (defined(VERSION_ONE) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
+    // WARNING (Windows): If program is compiled as Window application (instead of console),
+    // no console is available to show output info... solution is compiling a console application
+    // and closing console (FreeConsole()) when changing to GUI interface
+    FreeConsole();
+#endif
 
     // GUI usage mode - Initialization
     //--------------------------------------------------------------------------------------
     const int screenWidth = 400;
     const int screenHeight = 380;
 
-    SetTraceLogLevel(LOG_NONE);                 // Disable trace log messsages
-    //SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);        // Window configuration flags
-    InitWindow(screenWidth, screenHeight, FormatText("rIconPacker v%s - A simple and easy-to-use icons packer", TOOL_VERSION_TEXT));
-    //SetWindowMinSize(400, 380);
-    //SetExitKey(0);
+    InitWindow(screenWidth, screenHeight, FormatText("%s v%s - %s", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION));
+    SetExitKey(0);
 
     // General pourpose variables
     Vector2 mousePoint = { 0.0f, 0.0f };
     int framesCounter = 0;
-
-    // Exit variables
-    bool exitWindow = false;
-    bool closingWindowActive = false;
+    
+    bool lockBackground = false;
 
     // Initialize icon pack by platform
     InitIconPack(ICON_PLATFORM_WINDOWS);
 
     // raygui: controls initialization
     //----------------------------------------------------------------------------------
-    Vector2 anchor01 = { 0, 0 };
+    Vector2 anchorMain = { 0, 0 };
 
     int platformActive = 0;
     int prevPlatformActive = 0;
     int scaleAlgorythmActive = 1;
-
-    // NOTE: GuiListView() variables need to be global
+    
+    GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 24);
     //----------------------------------------------------------------------------------
+    
+    // Exit Window
+    //-----------------------------------------------------------------------------------
+    bool exitWindow = false;
+    bool closingWindowActive = false;
+    //-----------------------------------------------------------------------------------
 
-    GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 25);
+    // About Window
+    //-----------------------------------------------------------------------------------
+    GuiWindowAboutState aboutState = InitGuiWindowAbout();
+    //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIconPack(inFileName);
@@ -281,13 +296,23 @@ int main(int argc, char *argv[])
 
         // Keyboard shortcuts
         //------------------------------------------------------------------------------------
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) DialogLoadIcon();         // Show dialog: load input file (.ico, .png)
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) DialogExportIcon(icoPack, icoPackCount);  // Show dialog: save icon file (.ico)
+        
+        // Show dialog: load input file (.ico, .png)
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) DialogLoadIcon();
+        
+        // Show dialog: save icon file (.ico)
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) DialogExportIcon(icoPack, icoPackCount);
+        
+        // Show dialog: export icon data
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E))
         {
-            if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image); // Show dialog: export tool data (.ex1)
+            if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
         }
+        
+        // Show window: about
+        if (IsKeyPressed(KEY_F2)) aboutState.windowAboutActive = true;
 
+        // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE))
         {
             if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);  // Delete all images in the series
@@ -304,15 +329,18 @@ int main(int argc, char *argv[])
         // Show closing window on ESC
         if (IsKeyPressed(KEY_ESCAPE))
         {
-            // TODO: Define KEY_ESCAPE custom logic (i.e. Show save dialog)
-            exitWindow = true;
+            if (aboutState.windowAboutActive) aboutState.windowAboutActive = false;
+            else closingWindowActive = !closingWindowActive;
         }
-        //----------------------------------------------------------------------------------
+
+        if (aboutState.windowAboutActive) lockBackground = true;
+        else lockBackground = false;
+        
+        // About window button logic
+        //if (mainToolbarState.btnAboutPressed) aboutState.windowAboutActive = true;
 
         // Calculate valid images
-        validCount = 0;
-        for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
-
+        for (int i = 0, validCount = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -327,7 +355,7 @@ int main(int argc, char *argv[])
             GuiDisable();
 #endif
                 // Icon platform scheme selector
-                platformActive = GuiComboBox((Rectangle){ anchor01.x + 10, anchor01.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
+                platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
 
                 if (platformActive != prevPlatformActive)
                 {
@@ -336,30 +364,30 @@ int main(int argc, char *argv[])
                 }
             GuiEnable();
 
-            GuiListView((Rectangle){ anchor01.x + 10, anchor01.y + 45, 115, 300 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
+            GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 45, 115, 300 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
 
             // Draw dummy panel and border lines
-            GuiDummyRec((Rectangle){ anchor01.x + 135, anchor01.y + 10, 256, 256 }, "");
-            DrawRectangleLines(anchor01.x + 135, anchor01.y + 10, 256, 256, Fade(GRAY, 0.6f));
+            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 256, 256 }, "");
+            DrawRectangleLines(anchorMain.x + 135, anchorMain.y + 10, 256, 256, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchor01.x + 135, anchor01.y + 10, WHITE);
+                for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchorMain.x + 135, anchorMain.y + 10, WHITE);
             }
             else if (sizeListActive > 0)
             {
                 DrawTexture(icoPack[sizeListActive - 1].texture,
-                            anchor01.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2,
-                            anchor01.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
+                            anchorMain.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2,
+                            anchorMain.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
             }
 
-            //GuiLabel((Rectangle){ anchor01.x + 135, anchor01.y + 270, 126, 25 }, "Scale algorythm:");
-            //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchor01.x + 135, anchor01.y + 295, 125, 25 }, "NearestN;Bicubic", scaleAlgorythmActive);
+            //GuiLabel((Rectangle){ anchorMain.x + 135, anchorMain.y + 270, 126, 25 }, "Scale algorythm:");
+            //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 295, 125, 25 }, "NearestN;Bicubic", scaleAlgorythmActive);
 
             if ((sizeListActive < 0) || (validCount == 0)) GuiDisable();
 
             if ((validCount == 0) || ((sizeListActive >= 0) && (!icoPack[sizeListActive - 1].valid))) GuiDisable();
-            if (GuiButton((Rectangle){ anchor01.x + 135, anchor01.y + 275, 126, 25 }, "Remove"))
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 275, 126, 25 }, "Remove"))
             {
                 if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
                 else RemoveIconPack(sizeListActive - 1);    // Delete one image
@@ -367,7 +395,7 @@ int main(int argc, char *argv[])
             GuiEnable();
 
             if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchor01.x + 265, anchor01.y + 275, 126, 25 }, "Generate"))
+            if (GuiButton((Rectangle){ anchorMain.x + 265, anchorMain.y + 275, 126, 25 }, "Generate"))
             {
                 // Get bigger available icon
                 int biggerValidSize = -1;
@@ -418,10 +446,10 @@ int main(int argc, char *argv[])
             }
             GuiEnable();
 
-            GuiLine((Rectangle){ anchor01.x + 135, anchor01.y + 305, 255, 10 }, NULL);
+            GuiLine((Rectangle){ anchorMain.x + 135, anchorMain.y + 305, 255, 10 }, NULL);
 
             if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive >= 0) && (!icoPack[sizeListActive - 1].valid))) GuiDisable();
-            if (GuiButton((Rectangle){ anchor01.x + 135, anchor01.y + 320, 125, 25 }, "Export Image"))
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 125, 25 }, "Export Image"))
             {
                 // Export all available valid images
                 //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
@@ -431,20 +459,37 @@ int main(int argc, char *argv[])
             GuiEnable();
 
             if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchor01.x + 265, anchor01.y + 320, 126, 25 }, "Export Icon")) DialogExportIcon(icoPack, icoPackCount);
+            if (GuiButton((Rectangle){ anchorMain.x + 265, anchorMain.y + 320, 126, 25 }, "Export Icon")) DialogExportIcon(icoPack, icoPackCount);
             GuiEnable();
-
+            
             // Draw status bar info
             if (sizeListActive == 0)
             {
                 int validCount = 0;
                 for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
-                GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, FormatText("SELECTED: ALL  AVAILABLE: %i/%i", validCount, icoPackCount));
+                GuiStatusBar((Rectangle){ anchorMain.x, anchorMain.y + 355, 400, 25 }, FormatText("SELECTED: ALL  AVAILABLE: %i/%i", validCount, icoPackCount));
             }
             else
             {
-                GuiStatusBar((Rectangle){ anchor01.x, anchor01.y + 355, 400, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
+                GuiStatusBar((Rectangle){ anchorMain.x, anchorMain.y + 355, 400, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
             }
+            
+            // Draw About Window
+            //-----------------------------------------------------------------------------------
+            GuiWindowAbout(&aboutState);
+            //-----------------------------------------------------------------------------------
+
+            // Draw ending message window
+            //----------------------------------------------------------------------------------------
+            if (closingWindowActive)
+            {
+                DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.8f));
+                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No"); 
+            
+                if ((message == 0) || (message == 2)) closingWindowActive = false;
+                else if (message == 1) exitWindow = true;
+            }
+            //----------------------------------------------------------------------------------------
 
             GuiEnable();
             //----------------------------------------------------------------------------------
@@ -486,7 +531,7 @@ static void ShowCommandLineInfo(void)
 {
     printf("\n//////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                              //\n");
-    printf("// rIconPacker v%s - A simple and easy-to-use icons packer                     //\n", TOOL_VERSION_TEXT);
+    printf("// %s v%s ONE - %s                 //\n", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION);
     printf("// powered by raylib v2.1 (www.raylib.com) and raygui v2.1                      //\n");
     printf("// more info and bugs-report: ray[at]raylibtech.com                             //\n");
     printf("//                                                                              //\n");
