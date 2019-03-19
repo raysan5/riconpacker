@@ -173,7 +173,8 @@ int main(int argc, char *argv[])
             (strcmp(argv[1], "-h") != 0) &&
             (strcmp(argv[1], "--help") != 0))       // One argument (file dropped over executable?)
         {
-            if (IsFileExtension(argv[1], ".ico"))
+            if (IsFileExtension(argv[1], ".ico") || 
+                IsFileExtension(argv[1], ".png"))
             {
                 strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
             }
@@ -255,42 +256,11 @@ int main(int argc, char *argv[])
 
             for (int i = 0; i < dropsCount; i++)
             {
-                if (IsFileExtension(droppedFiles[i], ".ico"))
+                if (IsFileExtension(droppedFiles[i], ".ico") ||
+                    IsFileExtension(droppedFiles[i], ".png"))
                 {
-                    // Load icon images into IconPack
+                    // Load images into IconPack
                     LoadIconPack(droppedFiles[i]);
-                }
-                else if (IsFileExtension(droppedFiles[i], ".png"))
-                {
-                    // Load dropped image and check if it's a valid image size
-                    Image image = LoadImage(droppedFiles[i]);
-
-                    int index = CheckImageSize(image.width, image.height);
-
-                    if (index >= 0)
-                    {
-                        // Force image to be RGBA, most icons could come as RGB
-                        // TODO: Support RGB icon format
-                        ImageFormat(&image, UNCOMPRESSED_R8G8B8A8);
-
-                        // Re-load image/texture from ico pack
-                        UnloadImage(icoPack[index].image);
-                        UnloadTexture(icoPack[index].texture);
-
-                        icoPack[index].image = ImageCopy(image);
-                        icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
-                        icoPack[index].size = icoSizesPlatform[index];
-                        icoPack[index].valid = true;
-                    }
-                    else
-                    {
-                        printf("WARNING: PNG contains not supported image size (%i x %i).", image.width, image.height);
-
-                        // TODO: Re-scale image to the closer supported ico size
-                        //ImageResize(&image, newWidth, newHeight);
-                    }
-
-                    UnloadImage(image);
                 }
             }
 
@@ -305,10 +275,13 @@ int main(int argc, char *argv[])
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) DialogLoadIcon();
         
         // Show dialog: save icon file (.ico)
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) DialogExportIcon(icoPack, icoPackCount);
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) 
+        {
+            if (validCount > 0) DialogExportIcon(icoPack, icoPackCount);
+        }
         
         // Show dialog: export icon data
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E))
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || btnSaveImagePressed)
         {
             if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
         }
@@ -317,10 +290,17 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_F2)) aboutState.windowAboutActive = true;
 
         // Delete selected icon from list
-        if (IsKeyPressed(KEY_DELETE))
+        if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
         {
             if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);  // Delete all images in the series
             else RemoveIconPack(sizeListActive - 1);                                            // Delete one image
+        }
+        
+        // Generate icon 
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            // Force icon regeneration if possible
+            if (validCount > 0) btnGenIconImagePressed = true;
         }
         //----------------------------------------------------------------------------------
 
@@ -344,13 +324,6 @@ int main(int argc, char *argv[])
         validCount = 0;
         for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
         
-        // Clear icon image selected
-        if (btnClearIconImagePressed)
-        {
-            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
-            else RemoveIconPack(sizeListActive - 1);    // Delete one image
-        }
-       
         // Generate new icon image (using biggest available image)
         if (btnGenIconImagePressed)
         {
@@ -411,18 +384,8 @@ int main(int argc, char *argv[])
             prevPlatformActive = platformActive;
         }
         
-        // Save icon image (or sequence)
-        if (btnSaveImagePressed)
-        {
-            if (sizeListActive == 0)
-            {
-                // TODO: open dialog to export all available images
-                
-                // Export all available valid images
-                //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
-            }
-            else if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
-        }
+        // Export all available valid images
+        //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -473,7 +436,7 @@ int main(int argc, char *argv[])
             btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 320, 80, 25 }, "#9#Clear");
             GuiEnable();
 
-            if ((validCount == 0) || icoPack[sizeListActive - 1].valid) GuiDisable();
+            if ((validCount == 0) || ((sizeListActive > 0) && icoPack[sizeListActive - 1].valid)) GuiDisable();
             btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate"); 
             GuiEnable();
 
@@ -490,6 +453,7 @@ int main(int argc, char *argv[])
             GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_LEFT);
             int statusInnerPadding = GuiGetStyle(DEFAULT, INNER_PADDING);
             GuiSetStyle(DEFAULT, INNER_PADDING, 10);
+            // TODO: Status information seems redundant... maybe other kind of information could be shown.
             GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
             GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? FormatText("AVAILABLE: %i/%i", validCount, icoPackCount) : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
             GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, statusTextAlign);
@@ -693,33 +657,69 @@ static void ProcessCommandLine(int argc, char *argv[])
 // NOTE: Operates on global variable: icoPack
 static void LoadIconPack(const char *fileName)
 {
-    // Load all ICO available images
-    int imCount = 0;
-    Image *images = LoadICO(fileName, &imCount);
-
-    for (int i = 0; i < imCount; i++)
+    if (IsFileExtension(fileName, ".ico"))
     {
-        // Validate loaded images to fit in available size slots
-        int index = CheckImageSize(images[i].width, images[i].height);
+        // Load all ICO available images and check wich ones fit in some slot
+        int imCount = 0;
+        Image *images = LoadICO(fileName, &imCount);
 
-        if (index >= 0)     // Valid index image
+        for (int i = 0; i < imCount; i++)
         {
-            // Re-load image from ico pack
+            // Validate loaded images to fit in available size slots
+            int index = CheckImageSize(images[i].width, images[i].height);
+
+            // Load image into pack slot only if it's empty
+            if ((index >= 0) && !icoPack[index].valid)
+            {
+                // Re-load image/texture from ico pack
+                UnloadImage(icoPack[index].image);
+                UnloadTexture(icoPack[index].texture);
+                
+                icoPack[index].image = ImageCopy(images[i]);
+                icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
+                icoPack[index].size = icoSizesPlatform[index];      // Not required
+                icoPack[index].valid = true;
+            }
+            else printf("WARNING: ICO contains not supported image size (%i x %i).", images[i].width, images[i].height);
+
+            UnloadImage(images[i]);
+        }
+
+        free(images);
+    }
+    else if (IsFileExtension(fileName, ".png"))
+    {
+        Image image = LoadImage(fileName);
+        
+        // Validate loaded images to fit in available size slots
+        int index = CheckImageSize(image.width, image.height);
+        
+        // Load image into pack slot only if it's empty
+        if ((index >= 0) && !icoPack[index].valid)
+        {
+            // Force image to be RGBA, most icons could come as RGB
+            // TODO: Support RGB icon format
+            ImageFormat(&image, UNCOMPRESSED_R8G8B8A8);
+
+            // Re-load image/texture from ico pack
             UnloadImage(icoPack[index].image);
-            icoPack[index].image = ImageCopy(images[i]);
-
             UnloadTexture(icoPack[index].texture);
-            icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
 
-            //icoPack[index].size = icoSizesPlatform[index];      // Not required
+            icoPack[index].image = ImageCopy(image);
+            icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
+            icoPack[index].size = icoSizesPlatform[index];
             icoPack[index].valid = true;
         }
-        else printf("WARNING: ICO contains not supported image size (%i x %i).", images[i].width, images[i].height);
+        else
+        {
+            printf("WARNING: Image size not supported (%i x %i).", image.width, image.height);
 
-        UnloadImage(images[i]);
+            // TODO: Re-scale image to the closer supported ico size
+            //ImageResize(&image, newWidth, newHeight);
+        }
+
+        UnloadImage(image);
     }
-
-    free(images);
 }
 
 // Show dialog: load input file
@@ -727,12 +727,9 @@ static void DialogLoadIcon(void)
 {
     // Open file dialog
     const char *filters[] = { "*.ico", "*.png" };
-    const char *fileName = tinyfd_openFileDialog("Load icon or image file", "", 2, filters, "Sound Icon Files (*.ico, *.png)", 0);
+    const char *fileName = tinyfd_openFileDialog("Load icon or image file", "", 2, filters, "Icon or Image Files (*.ico, *.png)", 0);
 
-    if (fileName != NULL)
-    {
-        // TODO: Load input file
-    }
+    if (fileName != NULL) LoadIconPack(fileName);
 }
 
 // Show dialog: save icon file
@@ -786,7 +783,7 @@ static void DialogExportImage(Image image)
         strcpy(outFileName, fileName);
 
         // Check for valid extension and make sure it is
-        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png");
 
         ExportImage(image, outFileName);
     }
