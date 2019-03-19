@@ -218,6 +218,10 @@ int main(int argc, char *argv[])
     int platformActive = 0;
     int prevPlatformActive = 0;
     int scaleAlgorythmActive = 1;
+
+    bool btnGenIconImagePressed = false;
+    bool btnClearIconImagePressed = false;
+    bool btnSaveImagePressed = false;
     
     GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 24);
     //----------------------------------------------------------------------------------
@@ -333,14 +337,92 @@ int main(int argc, char *argv[])
             else closingWindowActive = !closingWindowActive;
         }
 
-        if (aboutState.windowAboutActive) lockBackground = true;
+        if (aboutState.windowAboutActive || closingWindowActive) lockBackground = true;
         else lockBackground = false;
-        
-        // About window button logic
-        //if (mainToolbarState.btnAboutPressed) aboutState.windowAboutActive = true;
 
         // Calculate valid images
-        for (int i = 0, validCount = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
+        validCount = 0;
+        for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
+        
+        // Clear icon image selected
+        if (btnClearIconImagePressed)
+        {
+            if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
+            else RemoveIconPack(sizeListActive - 1);    // Delete one image
+        }
+       
+        // Generate new icon image (using biggest available image)
+        if (btnGenIconImagePressed)
+        {
+            // Get bigger available icon
+            int biggerValidSize = -1;
+            for (int i = 0; i < icoPackCount; i++)
+            {
+                if (icoPack[i].valid) { biggerValidSize = i; break; }
+            }
+
+            if (biggerValidSize >= 0)
+            {
+                if (sizeListActive == 0)
+                {
+                    // Generate all missing images in the series
+                    for (int i = 0; i < icoPackCount; i++)
+                    {
+                        if (!icoPack[i].valid)
+                        {
+                            UnloadImage(icoPack[i].image);
+                            icoPack[i].image = ImageCopy(icoPack[biggerValidSize].image);
+
+                            if (scaleAlgorythmActive == 0) ImageResizeNN(&icoPack[i].image, icoPack[i].size, icoPack[i].size);
+                            else if (scaleAlgorythmActive == 1) ImageResize(&icoPack[i].image, icoPack[i].size, icoPack[i].size);
+
+                            UnloadTexture(icoPack[i].texture);
+                            icoPack[i].texture = LoadTextureFromImage(icoPack[i].image);
+
+                            icoPack[i].valid = true;
+                        }
+                    }
+                }
+                else
+                {
+                    if (!icoPack[sizeListActive - 1].valid)
+                    {
+                        UnloadImage(icoPack[sizeListActive - 1].image);
+                        icoPack[sizeListActive - 1].image = ImageCopy(icoPack[biggerValidSize].image);
+
+                        if (scaleAlgorythmActive == 0) ImageResizeNN(&icoPack[sizeListActive - 1].image, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size);
+                        else if (scaleAlgorythmActive == 1) ImageResize(&icoPack[sizeListActive - 1].image, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size);
+
+                        UnloadTexture(icoPack[sizeListActive - 1].texture);
+                        icoPack[sizeListActive - 1].texture = LoadTextureFromImage(icoPack[sizeListActive - 1].image);
+
+                        icoPack[sizeListActive - 1].valid = true;
+                    }
+                }
+            }
+        }
+        
+        // Change active platform icons pack
+        if (platformActive != prevPlatformActive)
+        {
+            // TODO: Check icons that can be populated from current platform to next platform
+            
+            InitIconPack(platformActive);
+            prevPlatformActive = platformActive;
+        }
+        
+        // Save icon image (or sequence)
+        if (btnSaveImagePressed)
+        {
+            if (sizeListActive == 0)
+            {
+                // TODO: open dialog to export all available images
+                
+                // Export all available valid images
+                //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
+            }
+            else if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
+        }
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -348,135 +430,85 @@ int main(int argc, char *argv[])
         BeginDrawing();
 
             ClearBackground(RAYWHITE);
+            
+            if (lockBackground) GuiLock();          
 
             // raygui: controls drawing
             //----------------------------------------------------------------------------------
+            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 });
+            
 #if !defined(VERSION_ONE)
             GuiDisable();
 #endif
-                // Icon platform scheme selector
-                platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
-
-                if (platformActive != prevPlatformActive)
-                {
-                    InitIconPack(platformActive);
-                    prevPlatformActive = platformActive;
-                }
+            // Icon platform scheme selector
+            platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
             GuiEnable();
 
-            GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 45, 115, 300 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
+            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) aboutState.windowAboutActive = true;
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) DialogLoadIcon();
 
-            // Draw dummy panel and border lines
-            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 256, 256 }, "");
-            DrawRectangleLines(anchorMain.x + 135, anchorMain.y + 10, 256, 256, Fade(GRAY, 0.6f));
+            GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
+
+            // Draw icons panel and border lines
+            //--------------------------------------------------------------------------------------------------------------
+            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, "");
+            DrawRectangleLines(anchorMain.x + 135, anchorMain.y + 55, 256, 256, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchorMain.x + 135, anchorMain.y + 10, WHITE);
+                for (int i = 0; i < icoPackCount; i++) DrawTexture(icoPack[i].texture, anchorMain.x + 135, anchorMain.y + 55, WHITE);
             }
             else if (sizeListActive > 0)
             {
                 DrawTexture(icoPack[sizeListActive - 1].texture,
                             anchorMain.x + 135 + 128 - icoPack[sizeListActive - 1].texture.width/2,
-                            anchorMain.y + 10 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
+                            anchorMain.y + 55 + 128 - icoPack[sizeListActive - 1].texture.height/2, WHITE);
             }
+            //--------------------------------------------------------------------------------------------------------------
 
-            //GuiLabel((Rectangle){ anchorMain.x + 135, anchorMain.y + 270, 126, 25 }, "Scale algorythm:");
-            //scaleAlgorythmActive = GuiComboBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 295, 125, 25 }, "NearestN;Bicubic", scaleAlgorythmActive);
-
+            // TODO: Enabled buttons depend on several circunstances, check it carefully!
+            
             if ((sizeListActive < 0) || (validCount == 0)) GuiDisable();
-
-            if ((validCount == 0) || ((sizeListActive >= 0) && (!icoPack[sizeListActive - 1].valid))) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 275, 126, 25 }, "Remove"))
-            {
-                if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);   // Delete all images in the series
-                else RemoveIconPack(sizeListActive - 1);    // Delete one image
-            }
+            btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 320, 80, 25 }, "#9#Clear");
             GuiEnable();
 
-            if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 265, anchorMain.y + 275, 126, 25 }, "Generate"))
-            {
-                // Get bigger available icon
-                int biggerValidSize = -1;
-                for (int i = 0; i < icoPackCount; i++)
-                {
-                    if (icoPack[i].valid) { biggerValidSize = i; break; }
-                }
-
-                if (biggerValidSize >= 0)
-                {
-                    if (sizeListActive == 0)
-                    {
-                        // Generate all missing images in the series
-                        for (int i = 0; i < icoPackCount; i++)
-                        {
-                            if (!icoPack[i].valid)
-                            {
-                                UnloadImage(icoPack[i].image);
-                                icoPack[i].image = ImageCopy(icoPack[biggerValidSize].image);
-
-                                if (scaleAlgorythmActive == 0) ImageResizeNN(&icoPack[i].image, icoPack[i].size, icoPack[i].size);
-                                else if (scaleAlgorythmActive == 1) ImageResize(&icoPack[i].image, icoPack[i].size, icoPack[i].size);
-
-                                UnloadTexture(icoPack[i].texture);
-                                icoPack[i].texture = LoadTextureFromImage(icoPack[i].image);
-
-                                icoPack[i].valid = true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!icoPack[sizeListActive - 1].valid)
-                        {
-                            UnloadImage(icoPack[sizeListActive - 1].image);
-                            icoPack[sizeListActive - 1].image = ImageCopy(icoPack[biggerValidSize].image);
-
-                            if (scaleAlgorythmActive == 0) ImageResizeNN(&icoPack[sizeListActive - 1].image, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size);
-                            else if (scaleAlgorythmActive == 1) ImageResize(&icoPack[sizeListActive - 1].image, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size);
-
-                            UnloadTexture(icoPack[sizeListActive - 1].texture);
-                            icoPack[sizeListActive - 1].texture = LoadTextureFromImage(icoPack[sizeListActive - 1].image);
-
-                            icoPack[sizeListActive - 1].valid = true;
-                        }
-                    }
-                }
-            }
+            if ((validCount == 0) || icoPack[sizeListActive - 1].valid) GuiDisable();
+            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate"); 
             GuiEnable();
-
-            GuiLine((Rectangle){ anchorMain.x + 135, anchorMain.y + 305, 255, 10 }, NULL);
 
             if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive >= 0) && (!icoPack[sizeListActive - 1].valid))) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 125, 25 }, "Export Image"))
-            {
-                // Export all available valid images
-                //for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) ExportImage(icoPack[i].image, FormatText("icon_%ix%i.png", icoPack[i].size, icoPack[i].size));
-
-                if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
-            }
+            btnSaveImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 10, 80, 25 }, "#12#Save");
             GuiEnable();
 
             if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 265, anchorMain.y + 320, 126, 25 }, "Export Icon")) DialogExportIcon(icoPack, icoPackCount);
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 80, 25 }, "#7#Export")) DialogExportIcon(icoPack, icoPackCount);
             GuiEnable();
             
             // Draw status bar info
+            int statusTextAlign = GuiGetStyle(DEFAULT, TEXT_ALIGNMENT);
+            GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_LEFT);
+            int statusInnerPadding = GuiGetStyle(DEFAULT, INNER_PADDING);
+            GuiSetStyle(DEFAULT, INNER_PADDING, 10);
             if (sizeListActive == 0)
             {
-                int validCount = 0;
-                for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
-                GuiStatusBar((Rectangle){ anchorMain.x, anchorMain.y + 355, 400, 25 }, FormatText("SELECTED: ALL  AVAILABLE: %i/%i", validCount, icoPackCount));
+                GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, "SELECTED: ALL");
+                GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, FormatText("AVAILABLE: %i/%i", validCount, icoPackCount));
             }
             else
             {
-                GuiStatusBar((Rectangle){ anchorMain.x, anchorMain.y + 355, 400, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i  AVAILABLE: %i/1", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].valid));
+                GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
+                GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive < 0)? "" : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
             }
+            GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, statusTextAlign);
+            GuiSetStyle(DEFAULT, INNER_PADDING, statusInnerPadding);
+            
+            GuiUnlock();
             
             // Draw About Window
             //-----------------------------------------------------------------------------------
-            GuiWindowAbout(&aboutState);
+            // NOTE: We check for lockBackground to wait one frame before activation and
+            // avoid closing button pressed at activation frame (open-close effect)
+            if (lockBackground) GuiWindowAbout(&aboutState);
             //-----------------------------------------------------------------------------------
 
             // Draw ending message window
@@ -857,9 +889,6 @@ static Image *LoadICO(const char *fileName, int *count)
     // Load .ico information
     IcoHeader icoHeader = { 0 };
     fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
-
-    //printf("icoHeader.imageType: %i\n", icoHeader.imageType);
-    //printf("icoHeader.imageCount: %i\n", icoHeader.imageCount);
 
     images = (Image *)malloc(icoHeader.imageCount*sizeof(Image));
     *count = icoHeader.imageCount;
