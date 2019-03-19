@@ -448,10 +448,11 @@ int main(int argc, char *argv[])
             if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) DialogLoadIcon();
 
             GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
-
+            if (sizeListActive < 0) sizeListActive = 0;
+            
             // Draw icons panel and border lines
             //--------------------------------------------------------------------------------------------------------------
-            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, "");
+            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, NULL);
             DrawRectangleLines(anchorMain.x + 135, anchorMain.y + 55, 256, 256, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
@@ -466,9 +467,9 @@ int main(int argc, char *argv[])
             }
             //--------------------------------------------------------------------------------------------------------------
 
-            // TODO: Enabled buttons depend on several circunstances, check it carefully!
+            // NOTE: Enabled buttons depend on several circunstances
             
-            if ((sizeListActive < 0) || (validCount == 0)) GuiDisable();
+            if ((validCount == 0) || ((sizeListActive > 0) && !icoPack[sizeListActive - 1].valid)) GuiDisable();
             btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 320, 80, 25 }, "#9#Clear");
             GuiEnable();
 
@@ -476,7 +477,7 @@ int main(int argc, char *argv[])
             btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate"); 
             GuiEnable();
 
-            if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive >= 0) && (!icoPack[sizeListActive - 1].valid))) GuiDisable();
+            if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !icoPack[sizeListActive - 1].valid)) GuiDisable();
             btnSaveImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 10, 80, 25 }, "#12#Save");
             GuiEnable();
 
@@ -489,16 +490,8 @@ int main(int argc, char *argv[])
             GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_LEFT);
             int statusInnerPadding = GuiGetStyle(DEFAULT, INNER_PADDING);
             GuiSetStyle(DEFAULT, INNER_PADDING, 10);
-            if (sizeListActive == 0)
-            {
-                GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, "SELECTED: ALL");
-                GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, FormatText("AVAILABLE: %i/%i", validCount, icoPackCount));
-            }
-            else
-            {
-                GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive < 0)? "" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
-                GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive < 0)? "" : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
-            }
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? FormatText("AVAILABLE: %i/%i", validCount, icoPackCount) : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
             GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, statusTextAlign);
             GuiSetStyle(DEFAULT, INNER_PADDING, statusInnerPadding);
             
