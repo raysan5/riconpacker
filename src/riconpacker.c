@@ -547,7 +547,7 @@ static void ShowCommandLineInfo(void)
     printf("                                          2 - Android (Sizes: 192, 144, 96, 72, 64, 48, 36, 32, 24, 16)\n");
     printf("                                          3 - iOS (Sizes: 180, 152, 120, 87, 80, 76, 58, 40, 29)\n");
     printf("                                      NOTE: If not specified, any icon size can be generated\n\n");
-    printf("    -g, --generate <size01>,[size02],...\n");
+    printf("    -g, --gen-size <size01>,[size02],...\n");
     printf("                                    : Define icon sizes to generate using input (bigger size available).\n");
     printf("                                      Comma separated for multiple generation sizes.\n");
     printf("                                      NOTE: Generated icons are always squared.\n\n");
@@ -555,7 +555,8 @@ static void ShowCommandLineInfo(void)
     printf("                                      Supported values:\n");
     printf("                                          0 - Nearest-neighbor scaling algorythm\n");
     printf("                                          1 - Bicubic scaling algorythm (default)\n\n");
-    printf("    -xs, --extract-size <value>     : Extract image sizes from input (if size is available)\n");
+    printf("    -xs, --extract-size <size01>,[size02],...\n");
+    printf("                                    : Extract image sizes from input (if size is available)\n");
     printf("                                      NOTE: Exported images name: output_{size}.png\n\n");
     printf("    -xa, --extract-all              : Extract all images from icon.\n");
     printf("                                      NOTE: Exported images naming: output_{size}.png,...\n\n");
@@ -574,9 +575,23 @@ static void ProcessCommandLine(int argc, char *argv[])
 {
     // CLI required variables
     bool showUsageInfo = false;     // Toggle command line usage info
-
-    char inFileName[256] = { 0 };   // Input file name
+   
+    int inputFilesCount = 0;
+    char **inputFiles = NULL;       // Input file names
     char outFileName[256] = { 0 };  // Output file name
+    
+    int platform = 0;
+    int platformProvided = false;
+    
+    bool generate = false;
+    int genSizes[16] = { 0 };
+    
+    int scaleAlgorythm = 1;
+    
+    bool extractSize = false;
+    int outSizes[16] = { 0 };
+    
+    bool extractAll = false;
 
     // Process command line arguments
     for (int i = 1; i < argc; i++)
@@ -587,39 +602,25 @@ static void ProcessCommandLine(int argc, char *argv[])
         }
         else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
         {
-            // Check for valid argumment
+            // Check for valid argument
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                if (IsFileExtension(argv[i + 1], ".ico")) strcpy(inFileName, argv[i + 1]);
-
-                // WARNING: TextSplit() does not work!
-                /*
-                int numInputFiles = 0;
-                char **inputFiles = TextSplit(argv[i + 1], ',', &numInputFiles);
-
-                for (int f = 0; f < numInputFiles; f++)
-                {
-                    if (IsFileExtension(inputFiles[i], ".png"))
-                    {
-                        // TODO: Load input file?
-                    }
-                    else printf("WARNING: Input file extension not recognized: %s\n", inputFiles[i]);
-                }
-
-                // Free input files strings memory
-                for (int f = 0; f < numInputFiles; f++) free(inputFiles[i]);
-                if (inputFiles != NULL) free(inputFiles);
-                */
+                inputFiles = TextSplit(argv[i + 1], ',', &inputFilesCount);
 
                 i++;
             }
+            else printf("WARNING: No input file(s) provided\n");
         }
         else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
         {
-            if (((i + 1) < argc) && (argv[i + 1][0] != '-') &&
-                (IsFileExtension(argv[i + 1], ".ico")))
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                strcpy(outFileName, argv[i + 1]);   // Read output filename
+                if (IsFileExtension(argv[i + 1], ".ico") ||
+                    IsFileExtension(argv[i + 1], ".png"))
+                {
+                    strcpy(outFileName, argv[i + 1]);   // Read output filename
+                }
+                
                 i++;
             }
             else printf("WARNING: Output file extension not recognized.\n");
@@ -628,10 +629,39 @@ static void ProcessCommandLine(int argc, char *argv[])
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                // TODO: Read provided platform value
+                platformProvided = true;
+                
+                platform = atoi(argv[i + 1]);   // Read provided platform value
             }
-            else printf("WARNING: Platform provided not valid\n");
+            else printf("WARNING: No platform provided\n");
         }
+        else if ((strcmp(argv[i], "-g") == 0) || (strcmp(argv[i], "--gen-size") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                generate = true;
+                
+                int numValues = 0;
+                const char **values = TextSplit(argv[i + 1], ',', &numValues);
+                
+                for (int i = 0; i < numValues; i++) if (values[i] > 0) genSizes[i] = values[i];
+            }
+            else printf("WARNING: No sizes provided\n");
+        }
+        else if ((strcmp(argv[i], "-xs") == 0) || (strcmp(argv[i], "--extract-size") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                extractSize = true;
+                
+                int numValues = 0;
+                const char **values = TextSplit(argv[i + 1], ',', &numValues);
+                
+                for (int i = 0; i < numValues; i++) if (values[i] > 0) outSizes[i] = values[i];
+            }
+            else printf("WARNING: No sizes provided\n");
+        }
+        else if ((strcmp(argv[i], "-xa") == 0) || (strcmp(argv[i], "--extract-all") == 0)) extractAll = true;
     }
 
     // Process input files if provided
@@ -639,11 +669,14 @@ static void ProcessCommandLine(int argc, char *argv[])
     {
         if (outFileName[0] == '\0') strcpy(outFileName, "output.ico");  // Set a default name for output in case not provided
 
-        printf("\nInput file:       %s", inFileName);
-        printf("\nOutput file:      %s", outFileName);
-        printf("\nOutput format:    %i\n\n", 0);
+        printf("\nInput files:      %s", inputFiles[0]);
+        for (int i = 1; i < inputFilesCount; i++) printf(",%s", inputFiles[i]);
+        printf("\nOutput file:      %s\n", outFileName);
+        
+        if (generate) printf("\nGenerate %i sizes:    %i\n\n", genSizes[0]);
 
         // TODO: Process input ---> output
+        
     }
 
     if (showUsageInfo) ShowCommandLineInfo();
