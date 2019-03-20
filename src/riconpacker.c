@@ -553,12 +553,12 @@ static void ShowCommandLineInfo(void)
     printf("                                      NOTE: Generated icons are always squared.\n\n");
     printf("    -s, --scale-algorythm <value>   : Define the algorythm used to scale images.\n");
     printf("                                      Supported values:\n");
-    printf("                                          0 - Nearest-neighbourg scaling algorythm\n");
+    printf("                                          0 - Nearest-neighbor scaling algorythm\n");
     printf("                                          1 - Bicubic scaling algorythm (default)\n\n");
-    printf("    -x, --extract <value>           : Extract image sizes from input (if size is available)\n");
+    printf("    -xs, --extract-size <value>     : Extract image sizes from input (if size is available)\n");
     printf("                                      NOTE: Exported images name: output_{size}.png\n\n");
     printf("    -xa, --extract-all              : Extract all images from icon.\n");
-    printf("                                      NOTE: Exported images naming: output_{size}.png\n\n");
+    printf("                                      NOTE: Exported images naming: output_{size}.png,...\n\n");
     printf("\nEXAMPLES:\n\n");
     printf("    > riconpacker --input image.png --output image.ico --platform 0\n");
     printf("        Process <image.png> to generate <image.ico> including full Windows icons sequence\n\n");
