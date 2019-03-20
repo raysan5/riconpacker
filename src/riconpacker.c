@@ -518,27 +518,27 @@ int main(int argc, char *argv[])
 // Show command line usage info
 static void ShowCommandLineInfo(void)
 {
-    printf("\n//////////////////////////////////////////////////////////////////////////////////\n");
-    printf("//                                                                              //\n");
-    printf("// %s v%s ONE - %s                 //\n", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION);
-    printf("// powered by raylib v2.1 (www.raylib.com) and raygui v2.1                      //\n");
-    printf("// more info and bugs-report: ray[at]raylibtech.com                             //\n");
-    printf("//                                                                              //\n");
-    printf("// Copyright (c) 2018 raylib technologies (@raylibtech)                         //\n");
-    printf("//                                                                              //\n");
-    printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
+    printf("\n////////////////////////////////////////////////////////////////////////////////////////////\n");
+    printf("//                                                                                        //\n");
+    printf("// %s v%s ONE - %s                           //\n", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION);
+    printf("// powered by raylib v2.4 (www.raylib.com) and raygui v2.0                                //\n");
+    printf("// more info and bugs-report: ray[at]raylibtech.com                                       //\n");
+    printf("//                                                                                        //\n");
+    printf("// Copyright (c) 2019 raylib technologies (@raylibtech)                                   //\n");
+    printf("//                                                                                        //\n");
+    printf("////////////////////////////////////////////////////////////////////////////////////////////\n\n");
 
     printf("USAGE:\n\n");
     printf("    > riconpacker [--help] --input <file01.ext>,[file02.ext],... [--output <filename.ico>]\n");
     printf("                  [--platform <value>] [--generate <size01>,[size02],...]\n");
 
     printf("\nOPTIONS:\n\n");
-    printf("    -h, --help                      : Show tool version and command line usage help\n");
+    printf("    -h, --help                      : Show tool version and command line usage help\n\n");
     printf("    -i, --input <file01.ext>,[file02.ext],...\n");
     printf("                                    : Define input file(s). Comma separated for multiple files.\n");
-    printf("                                      Supported extensions: .png\n");
+    printf("                                      Supported extensions: .png, .ico\n\n");
     printf("    -o, --output <filename.ico>     : Define output file.\n");
-    printf("                                      Supported extensions: .ico\n");
+    printf("                                      Supported extensions: .ico, .png\n");
     printf("                                      NOTE: If not specified, defaults to: output.ico\n\n");
     printf("    -p, --platform <value>          : Define platform sizes scheme to support.\n");
     printf("                                      Supported values:\n");
@@ -550,21 +550,23 @@ static void ShowCommandLineInfo(void)
     printf("    -g, --generate <size01>,[size02],...\n");
     printf("                                    : Define icon sizes to generate using input (bigger size available).\n");
     printf("                                      Comma separated for multiple generation sizes.\n");
-    printf("                                      NOTE 1: Generated icons are always squared.\n\n");
-    printf("                                      NOTE 2: If size is 0, generates all platform scheme missing sizes.\n\n");
+    printf("                                      NOTE: Generated icons are always squared.\n\n");
     printf("    -s, --scale-algorythm <value>   : Define the algorythm used to scale images.\n");
     printf("                                      Supported values:\n");
-    printf("                                          0 - Bicubic scaling algorythm (default)\n");
-    printf("    -x, --extract <file01.ico>      : Extract individual images from icon.\n");
-    printf("                                      NOTE: Exported images naming: file01_{size}.png.\n\n");
-
+    printf("                                          0 - Nearest-neighbourg scaling algorythm\n");
+    printf("                                          1 - Bicubic scaling algorythm (default)\n\n");
+    printf("    -x, --extract <value>           : Extract image sizes from input (if size is available)\n");
+    printf("                                      NOTE: Exported images name: output_{size}.png\n\n");
+    printf("    -xa, --extract-all              : Extract all images from icon.\n");
+    printf("                                      NOTE: Exported images naming: output_{size}.png\n\n");
     printf("\nEXAMPLES:\n\n");
-    printf("    > riconpacker --input sound.rfx --output jump.wav\n");
-    printf("        Process <sound.rfx> to generate <sound.wav> at 44100 Hz, 32 bit, Mono\n\n");
-    printf("    > riconpacker --input sound.rfx --output jump.wav --format 22050 16 2\n");
-    printf("        Process <sound.rfx> to generate <jump.wav> at 22050 Hz, 16 bit, Stereo\n\n");
-    printf("    > riconpacker --input sound.rfx --play\n");
-    printf("        Plays <sound.rfx>, wave data is generated internally but not saved\n\n");
+    printf("    > riconpacker --input image.png --output image.ico --platform 0\n");
+    printf("        Process <image.png> to generate <image.ico> including full Windows icons sequence\n\n");
+    printf("    > riconpacker --input image.png --generate 256,64,48,32\n");
+    printf("        Process <image.png> to generate <output.ico> including sizes: 256,64,48,32\n");
+    printf("        NOTE: If a specifc size is not found on input file, it's generated from bigger available size\n\n");
+    printf("    > riconpacker --input image.ico --extract-all\n");
+    printf("        Extract all available images contained in image.ico\n\n");
 }
 
 // Process command line input
@@ -575,7 +577,6 @@ static void ProcessCommandLine(int argc, char *argv[])
 
     char inFileName[256] = { 0 };   // Input file name
     char outFileName[256] = { 0 };  // Output file name
-    int outputFormat = 0;           // Supported output formats
 
     // Process command line arguments
     for (int i = 1; i < argc; i++)
