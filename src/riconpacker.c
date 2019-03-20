@@ -675,8 +675,18 @@ static void ProcessCommandLine(int argc, char *argv[])
         
         if (generate) printf("\nGenerate %i sizes:    %i\n\n", genSizes[0]);
 
-        // TODO: Process input ---> output
+        // Process input ---> output
         
+        // TODO: Load input files (all of them) into icon pack, if one size has been previously loaded, do not load again
+        //for (int i = 0; i < inputFilesCount; i++) LoadIntoIconPack(&iconPack, inputFiles[i]);
+        
+        // TODO: Generate platform defined sizes (missing ones)
+        // or
+        // TODO: Generate other sizes if required, use biggest availabel input size and use provided scale algorythm
+        
+        // TODO: Save output icon file
+        // or
+        // TODO: Extract required images: all or provided sizes (only available ones)
     }
 
     if (showUsageInfo) ShowCommandLineInfo();
