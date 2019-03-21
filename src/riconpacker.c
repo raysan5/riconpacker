@@ -632,6 +632,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 platformProvided = true;
                 
                 platform = atoi(argv[i + 1]);   // Read provided platform value
+                // TODO: Warning when using atoi()
             }
             else printf("WARNING: No platform provided\n");
         }
@@ -677,8 +678,50 @@ static void ProcessCommandLine(int argc, char *argv[])
 
         // Process input ---> output
         
+        // NOTE: IcoPackEntry.texture is not used on command line
+        IconPackEntry pack[16];           // Icon images array (max size of 16 icons)
+        int packCount = 0;                // Icon images array counter
+
         // TODO: Load input files (all of them) into icon pack, if one size has been previously loaded, do not load again
-        //for (int i = 0; i < inputFilesCount; i++) LoadIntoIconPack(&iconPack, inputFiles[i]);
+        
+        // LoadIntoIconPack(&iconPack, inputFiles[i]);  // This function is not enough, it should probably be redesigned
+        
+        for (int i = 0; i < inputFilesCount; i++)
+        {
+            if (IsFileExtension(inputFiles[i], ".ico"))
+            {
+                // Load all ICO available images and check wich ones fit in some slot
+                int imCount = 0;
+                Image *images = LoadICO(inputFiles[i], &imCount);
+            }
+            else if (IsFileExtension(inputFiles[i], ".png"))
+            {
+                int imCount = 1;
+                Image images[1] = { LoadImage(inputFiles[i]) };
+            }
+            
+            // Add the obtained image(s) to the pack
+            for (int j = 0; j < imCount; j++)
+            {
+                // TODO: Check if image size is already on the list
+
+                // Load image into pack slot only if it's empty
+                if (!pack[packCount].valid)
+                {
+                    // Re-load image/texture from ico pack
+                    UnloadImage(pack[packCount].image);
+                    
+                    pack[packCount].image = ImageCopy(images[j]);
+
+                    pack[packCount].size = images[j]
+                    pack[packCount].valid = true;
+                }
+
+                UnloadImage(images[j]);
+            }
+
+            free(images);
+        }            
         
         // TODO: Generate platform defined sizes (missing ones)
         // or
