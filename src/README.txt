@@ -1,27 +1,29 @@
 # rIconPacker v1.0
 
-A simple and easy-to-use icons packer.
+A simple and easy-to-use icons packer and extractor.
 
 rIconPacker is available in two flavours: ZERO (free version) and ONE (low-cost version).
 
 ## rIconPacker ZERO features
 
- - Icons pack/unpack using PNG file compression
- - Multiple image file types supported
+ - Pack your custom PNG images into an icon
+ - Unpack icon to check available image sizes
+ - Generate missing icon sizes for selected platform
+ - Extract icon images as PNG files
  - Completely portable (single file)
 
 ## rIconPacker ONE plus features
 
- - Powerful command line for batch icon conversion and packaging
- - Export icon data as .raw or code bytes array (.h)
- - Three unique GUI themes: Light, Dark, Candy
+ - Additional predefined platform sizes: Windows, Favicon, Android, iOS
+ - Powerful command line for batch icon conversion and extraction
+ - Configurable image scaling algorythm: Nearest-neighbor or Bicubic
  
 ## rIconPacker Usage
 
-Drag & drop your ICO files for unpacking and image sizes processing,
-drag & drop PNG files for different icon sizes or generate directly on the tool.
+Drag & drop your ICO/PNG files to unpack/add the different available image sizes,
+missing sizes could also be generated (always using biggest available size).
 
-rIconPacker ONE comes with a powerful command line for batch icons generation and packaging.
+rIconPacker ONE comes with a powerful command line for batch icons generation and extraction.
 To view all available operation just run on command line:
 
  > riconpacker.exe --help
@@ -37,4 +39,4 @@ rIconPacker is closed source software but it's based on open-source technologies
 
 rIconPacker ZERO is free and rIconPacker ONE is low-cost, with the addition of some useful features. In any case, consider it as a small donation to help the author keep working on software for games development.
 
-*Copyright (c) 2016-2019 raylib technologies (@raylibtech)*
+*Copyright (c) 2019 raylib technologies (@raylibtech)*
