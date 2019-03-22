@@ -38,7 +38,8 @@
 #define RAYGUI_IMPLEMENTATION
 #include "external/raygui.h"            // Required for: IMGUI controls
 
-#undef RAYGUI_IMPLEMENTATION
+#undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
+
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"           // GUI: About window
 
@@ -210,7 +211,7 @@ int main(int argc, char *argv[])
     // Initialize icon pack by platform
     InitIconPack(ICON_PLATFORM_WINDOWS);
 
-    // raygui: controls initialization
+    // GUI: Main Layout
     //----------------------------------------------------------------------------------
     Vector2 anchorMain = { 0, 0 };
 
@@ -225,16 +226,16 @@ int main(int argc, char *argv[])
     GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 24);
     //----------------------------------------------------------------------------------
     
-    // Exit Window
+    // GUI: About Window
+    //-----------------------------------------------------------------------------------
+    GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
+    //-----------------------------------------------------------------------------------
+    
+    // GUI: Exit Window
     //-----------------------------------------------------------------------------------
     bool exitWindow = false;
-    bool closingWindowActive = false;
-    //-----------------------------------------------------------------------------------
-
-    // About Window
-    //-----------------------------------------------------------------------------------
-    GuiWindowAboutState aboutState = InitGuiWindowAbout();
-    //-----------------------------------------------------------------------------------
+    bool windowExitActive = false;
+    //-----------------------------------------------------------------------------------   
 
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIntoIconPack(inFileName);
@@ -285,7 +286,7 @@ int main(int argc, char *argv[])
         }
         
         // Show window: about
-        if (IsKeyPressed(KEY_F1)) aboutState.windowAboutActive = true;
+        if (IsKeyPressed(KEY_F1)) windowAboutState.windowAboutActive = true;
 
         // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
@@ -311,11 +312,11 @@ int main(int argc, char *argv[])
         // Show closing window on ESC
         if (IsKeyPressed(KEY_ESCAPE))
         {
-            if (aboutState.windowAboutActive) aboutState.windowAboutActive = false;
-            else closingWindowActive = !closingWindowActive;
+            if (windowAboutState.windowAboutActive) windowAboutState.windowAboutActive = false;
+            else windowExitActive = !windowExitActive;
         }
 
-        if (aboutState.windowAboutActive || closingWindowActive) lockBackground = true;
+        if (windowAboutState.windowAboutActive || windowExitActive) lockBackground = true;
         else lockBackground = false;
 
         // Calculate valid images
@@ -391,7 +392,7 @@ int main(int argc, char *argv[])
             
             if (lockBackground) GuiLock();          
 
-            // raygui: controls drawing
+            // GUI: Main Layout
             //----------------------------------------------------------------------------------
             GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 });
             
@@ -402,7 +403,7 @@ int main(int argc, char *argv[])
             platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
             GuiEnable();
 
-            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) aboutState.windowAboutActive = true;
+            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) windowAboutState.windowAboutActive = true;
             if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) DialogLoadIcon();
 
             GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
@@ -456,21 +457,21 @@ int main(int argc, char *argv[])
             
             GuiUnlock();
             
-            // Draw About Window
+            // GUI: About Window
             //-----------------------------------------------------------------------------------
             // NOTE: We check for lockBackground to wait one frame before activation and
             // avoid closing button pressed at activation frame (open-close effect)
-            if (lockBackground) GuiWindowAbout(&aboutState);
+            if (lockBackground) GuiWindowAbout(&windowAboutState);
             //-----------------------------------------------------------------------------------
 
-            // Draw ending message window
+            // GUI: Exit Window
             //----------------------------------------------------------------------------------------
-            if (closingWindowActive)
+            if (windowExitActive)
             {
                 DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.8f));
                 int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No"); 
             
-                if ((message == 0) || (message == 2)) closingWindowActive = false;
+                if ((message == 0) || (message == 2)) windowExitActive = false;
                 else if (message == 1) exitWindow = true;
             }
             //----------------------------------------------------------------------------------------
