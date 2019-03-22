@@ -301,6 +301,13 @@ int main(int argc, char *argv[])
             // Force icon regeneration if possible
             if (validCount > 0) btnGenIconImagePressed = true;
         }
+        
+        // Show closing window on ESC
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            if (windowAboutState.windowAboutActive) windowAboutState.windowAboutActive = false;
+            else windowExitActive = !windowExitActive;
+        }
         //----------------------------------------------------------------------------------
 
         // Basic program flow logic
@@ -308,13 +315,6 @@ int main(int argc, char *argv[])
         framesCounter++;                    // General usage frames counter
         mousePoint = GetMousePosition();    // Get mouse position each frame
         if (WindowShouldClose()) exitWindow = true;
-
-        // Show closing window on ESC
-        if (IsKeyPressed(KEY_ESCAPE))
-        {
-            if (windowAboutState.windowAboutActive) windowAboutState.windowAboutActive = false;
-            else windowExitActive = !windowExitActive;
-        }
 
         if (windowAboutState.windowAboutActive || windowExitActive) lockBackground = true;
         else lockBackground = false;
