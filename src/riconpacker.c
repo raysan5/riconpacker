@@ -526,7 +526,8 @@ static void ShowCommandLineInfo(void)
 
     printf("USAGE:\n\n");
     printf("    > riconpacker [--help] --input <file01.ext>,[file02.ext],... [--output <filename.ico>]\n");
-    printf("                  [--platform <value>] [--generate <size01>,[size02],...]\n");
+    printf("                  [--out-sizes <size01>,[size02],...] [--out-platform <value>] [--scale-algorythm <value>]\n");
+    printf("                  [--extract-size <size01>,[size02],...] [--extract-all]\n");
 
     printf("\nOPTIONS:\n\n");
     printf("    -h, --help                      : Show tool version and command line usage help\n\n");
@@ -535,18 +536,18 @@ static void ShowCommandLineInfo(void)
     printf("                                      Supported extensions: .png, .ico\n\n");
     printf("    -o, --output <filename.ico>     : Define output icon file.\n");
     printf("                                      NOTE: If not specified, defaults to: output.ico\n\n");
-    printf("    -p, --platform <value>          : Define platform sizes scheme to support.\n");
+    printf("    -op, --out-platform <value>     : Define out sizes by platform scheme.\n");
     printf("                                      Supported values:\n");
     printf("                                          1 - Windows (Sizes: 256, 128, 96, 64, 48, 32, 24, 16)\n");
     printf("                                          2 - Favicon (Sizes: 228, 152, 144, 120, 96, 72, 64, 32, 24, 16)\n");
     printf("                                          3 - Android (Sizes: 192, 144, 96, 72, 64, 48, 36, 32, 24, 16)\n");
     printf("                                          4 - iOS (Sizes: 180, 152, 120, 87, 80, 76, 58, 40, 29)\n");
     printf("                                      NOTE: If not specified, any icon size can be generated\n\n");
-    printf("    -g, --gen-size <size01>,[size02],...\n");
-    printf("                                    : Define icon sizes to generate using input (bigger size available).\n");
-    printf("                                      Comma separated for multiple generation sizes.\n");
+    printf("    -os, --out-sizes <size01>,[size02],...\n");
+    printf("                                    : Define output sizes for the output.\n");
+    printf("                                      If output size is not provided as input, it's generated.\n");
     printf("                                      NOTE: Generated icons are always squared.\n\n");
-    printf("    -s, --scale-algorythm <value>   : Define the algorythm used to scale images.\n");
+    printf("    -sa, --scale-algorythm <value>  : Define the algorythm used to scale images.\n");
     printf("                                      Supported values:\n");
     printf("                                          1 - Nearest-neighbor scaling algorythm\n");
     printf("                                          2 - Bicubic scaling algorythm (default)\n\n");
@@ -556,11 +557,11 @@ static void ShowCommandLineInfo(void)
     printf("    -xa, --extract-all              : Extract all images from icon.\n");
     printf("                                      NOTE: Exported images naming: output_{size}.png,...\n\n");
     printf("\nEXAMPLES:\n\n");
-    printf("    > riconpacker --input image.png --output image.ico --platform 0\n");
+    printf("    > riconpacker --input image.png --output image.ico --out-platform 0\n");
     printf("        Process <image.png> to generate <image.ico> including full Windows icons sequence\n\n");
-    printf("    > riconpacker --input image.png --generate 256,64,48,32\n");
+    printf("    > riconpacker --input image.png --out-sizes 256,64,48,32\n");
     printf("        Process <image.png> to generate <output.ico> including sizes: 256,64,48,32\n");
-    printf("        NOTE: If a specifc size is not found on input file, it's generated from bigger available size\n\n");
+    printf("        NOTE: If a specific size is not found on input file, it's generated from bigger available size\n\n");
     printf("    > riconpacker --input image.ico --extract-all\n");
     printf("        Extract all available images contained in image.ico\n\n");
 }
@@ -572,23 +573,22 @@ static void ProcessCommandLine(int argc, char *argv[])
     bool showUsageInfo = false;         // Toggle command line usage info
    
     int inputFilesCount = 0;
-    const char **inputFiles = NULL;     // Input file names
+    char **inputFiles = NULL;           // Input file names
     char outFileName[256] = { 0 };      // Output file name
     
-    int genPlatform = false;
-    int platform = 0;
+    int outPlatform = 0;                // Output platform sizes scheme
     
-    bool genCustom = false;
-    int genSizes[64] = { 0 };
-    int genSizesCount = 0;
+    int outSizes[64] = { 0 };           // Sizes to generate
+    int outSizesCount = 0;              // Number of sizes to generate
     
-    int scaleAlgorythm = 2;
+    int scaleAlgorythm = 2;             // Scaling algorythm on generation
     
-    bool extractSize = false;
-    int outSizes[64] = { 0 };
-    int outSizesCount = 0;
+    bool extractSize = false;           // Extract size required
+    int extractSizes[64] = { 0 };       // Sizes to extract
+    int extractSizesCount = 0;          // Number of sizes to extract
     
-    bool extractAll = false;
+    bool extractAll = false;            // Extract all sizes required
+    bool makeOne = false;               // Generate icon version ONE
 
     // Process command line arguments
     for (int i = 1; i < argc; i++)
@@ -602,8 +602,15 @@ static void ProcessCommandLine(int argc, char *argv[])
             // Check for valid argument
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                inputFiles = TextSplit(argv[i + 1], ',', &inputFilesCount);
-
+                const char **files = TextSplit(argv[i + 1], ',', &inputFilesCount);
+                
+                inputFiles = (char **)malloc(inputFilesCount);
+                for (int j = 0; j < inputFilesCount; j++) 
+                {
+                    inputFiles[j] = (char *)malloc(256);    // Input file name
+                    strcpy(inputFiles[j], files[j]);
+                }
+                
                 i++;
             }
             else printf("WARNING: No input file(s) provided\n");
@@ -612,8 +619,7 @@ static void ProcessCommandLine(int argc, char *argv[])
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                if (IsFileExtension(argv[i + 1], ".ico") ||
-                    IsFileExtension(argv[i + 1], ".png"))
+                if (IsFileExtension(argv[i + 1], ".ico"))
                 {
                     strcpy(outFileName, argv[i + 1]);   // Read output filename
                 }
@@ -622,39 +628,48 @@ static void ProcessCommandLine(int argc, char *argv[])
             }
             else printf("WARNING: Output file extension not recognized.\n");
         }
-        else if ((strcmp(argv[i], "-p") == 0) || (strcmp(argv[i], "--platform") == 0))
+        else if ((strcmp(argv[i], "-os") == 0) || (strcmp(argv[i], "--out-sizes") == 0))
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                platform = atoi(argv[i + 1]);   // Read provided platform value
-                
-                if ((platform > 0) && (platform < 5)) genPlatform = true;
-                else printf("WARNING: Platform requested not recognized\n");
-            }
-            else printf("WARNING: No platform provided\n");
-        }
-        else if ((strcmp(argv[i], "-g") == 0) || (strcmp(argv[i], "--gen-size") == 0))
-        {
-            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
-            {
-                genCustom = true;
-                
                 int numValues = 0;
                 const char **values = TextSplit(argv[i + 1], ',', &numValues);
                 
-                for (int i = 0; i < numValues; i++) 
+                for (int j = 0; j < numValues; j++) 
                 {
-                    int value = atoi(values[i]);
+                    int value = atoi(values[j]);
                     
                     if ((value > 0) && (value <= 256))
                     {
-                        genSizes[i] = value;
-                        genSizesCount++;
+                        outSizes[j] = value;
+                        outSizesCount++;
                     }
                     else printf("WARNING: Provided generation size not valid: %i\n", value);
                 }
             }
             else printf("WARNING: No sizes provided\n");
+        }
+        else if ((strcmp(argv[i], "-op") == 0) || (strcmp(argv[i], "--out-platform") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                int platform = atoi(argv[i + 1]);   // Read provided platform value
+                
+                if ((platform > 0) && (platform < 5)) outPlatform = platform;
+                else printf("WARNING: Platform requested not recognized\n");
+            }
+            else printf("WARNING: No platform provided\n");
+        }
+        else if ((strcmp(argv[i], "-sa") == 0) || (strcmp(argv[i], "--scale-algorythm") == 0))
+        {
+            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
+            {
+                int scale = atoi(argv[i + 1]);   // Read provided scale algorythm value
+                
+                if ((scale == 1) || (scale == 2)) scaleAlgorythm = scale;
+                else printf("WARNING: Scale algorythm not recognized, default to Bicubic\n");
+            }
+            else printf("WARNING: No scale algortyhm provided\n");
         }
         else if ((strcmp(argv[i], "-xs") == 0) || (strcmp(argv[i], "--extract-size") == 0))
         {
@@ -665,14 +680,14 @@ static void ProcessCommandLine(int argc, char *argv[])
                 int numValues = 0;
                 const char **values = TextSplit(argv[i + 1], ',', &numValues);
                 
-                for (int i = 0; i < numValues; i++) 
+                for (int j = 0; j < numValues; j++) 
                 {
-                    int value = atoi(values[i]);
+                    int value = atoi(values[j]);
                     
                     if ((value > 0) && (value <= 256)) 
                     {
-                        outSizes[i] = value;
-                        outSizesCount++;
+                        extractSizes[j] = value;
+                        extractSizesCount++;
                     }
                     else printf("WARNING: Requested extract size not valid: %i\n", value);
                 }
@@ -689,12 +704,14 @@ static void ProcessCommandLine(int argc, char *argv[])
 
         printf("\nInput files:      %s", inputFiles[0]);
         for (int i = 1; i < inputFilesCount; i++) printf(",%s", inputFiles[i]);
-        printf("\nOutput file:      %s\n", outFileName);
+        printf("\nOutput file:      %s\n\n", outFileName);
         
         #define MAX_ICONS_PACK      64
         
-        IconPackEntry inputPack[MAX_ICONS_PACK]; // Icon images array
-        int inputPackCount = 0;                  // Icon images array counter
+        IconPackEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon images array
+        int inputPackCount = 0;                          // Icon images array counter
+        
+        printf(" > PROCESSING INPUT FILES\n");
 
         // Load input files (all of them) into icon pack, if one size has been previously loaded, do not load again
         for (int i = 0; i < inputFilesCount; i++)
@@ -711,11 +728,15 @@ static void ProcessCommandLine(int argc, char *argv[])
                 images[0] = LoadImage(inputFiles[i]); 
             }
             
+            printf("\nInput file: %s / Images loaded: %i\n", inputFiles[i], imCount);
+            
             // Process all loaded images
             for (int j = 0; j < imCount; j++)
             {
+                printf(" > Processing image: %i ", j);
+                
                 // Check if provided image size is valid (only squared images supported)
-                if (images[j].width != images[j].height) printf("WARNING: Image is not squared as expected (%i x %i)\n", images[j].width, images[j].height);
+                if (images[j].width != images[j].height) printf("WARNING: Image is not squared as expected (%i x %i)", images[j].width, images[j].height);
                 else
                 {
                     // TODO: Check if current image size is already available in the package!
@@ -728,15 +749,21 @@ static void ProcessCommandLine(int argc, char *argv[])
                     inputPack[inputPackCount].valid = true;
                     
                     // NOTE: inputPack[inputPackCount].texture NOT required!
+
+                    printf("LOADED (size: %i)", inputPack[inputPackCount].size);
                     
                     inputPackCount++;
                 }
                 
                 UnloadImage(images[j]);
+                printf("\n");
             }
 
             free(images);
+            free(inputFiles[i]);    // Free input file name memory
         }
+        
+        free(inputFiles);           // Free input file names array memory
         
         // Get bigger available input image
         int biggerSizeIndex = 0;
@@ -751,71 +778,48 @@ static void ProcessCommandLine(int argc, char *argv[])
             }
         }
         
-        IconPackEntry *outPack;
+        printf("\nAll input images processed.\n");
+        printf("Images added to the pack: %i (%i", inputPackCount, inputPack[0].size);
+        for (int i = 1; i < inputPackCount; i++) printf(",%i", inputPack[i].size);
+        printf(")\n");
+        printf("Biggest size available: %i\n\n", biggerSize);
+        
+        printf(" > PROCESSING OUTPUT FILE\n\n");
+        
+        // Generate output sizes list by platform scheme
+        switch (outPlatform)
+        {
+            case ICON_PLATFORM_WINDOWS: for (int i = 0; i < 8; i++) { outSizes[outSizesCount] = icoSizesWindows[i]; outSizesCount++; }; break;
+            case ICON_PLATFORM_FAVICON: for (int i = 0; i < 10; i++) { outSizes[outSizesCount] = icoSizesFavicon[i]; outSizesCount++; }; break;
+            case ICON_PLATFORM_ANDROID: for (int i = 0; i < 10; i++) { outSizes[outSizesCount] = icoSizesAndroid[i]; outSizesCount++; }; break;
+            case ICON_PLATFORM_IOS7: for (int i = 0; i < 9; i++) { outSizes[outSizesCount] = icoSizesiOS[i]; outSizesCount++; }; break;
+            default: return;
+        }
+        
+        IconPackEntry *outPack = NULL;
         int outPackCount = 0;
-
-        if (genPlatform)
+        
+        if (outSizesCount > 0)
         {
-            // Generate platform defined sizes (missing ones)
-            int icoPlatformCount = 0;
-
-            switch (platform)
-            {
-                case ICON_PLATFORM_WINDOWS: icoPlatformCount = 8; icoSizesPlatform = icoSizesWindows; break;
-                case ICON_PLATFORM_FAVICON: icoPlatformCount = 10; icoSizesPlatform = icoSizesFavicon; break;
-                case ICON_PLATFORM_ANDROID: icoPlatformCount = 10; icoSizesPlatform = icoSizesAndroid; break;
-                case ICON_PLATFORM_IOS7: icoPlatformCount = 9; icoSizesPlatform = icoSizesiOS; break;
-                default: return;
-            }
+            printf("Output sizes requested: %i", outSizes[0]);
+            for (int i = 1; i < outSizesCount; i++) printf(",%i", outSizes[i]);
+            printf("\n");
             
-            outPackCount = icoPlatformCount;
-            outPack = (IconPackEntry *)malloc(outPackCount*sizeof(IconPackEntry));
-
-            // Copy from inputPack or generate if required
-            for (int i = 0; i < outPackCount; i++)
-            {
-                outPack[i].size = icoSizesPlatform[i];
-                
-                // Check input pack for size to copy
-                for (int j = 0; j < inputPackCount; j++)
-                {
-                    if (outPack[i].size == inputPack[j].size)
-                    {
-                        outPack[i].image = ImageCopy(inputPack[j].image);
-                        outPack[i].valid = true;
-                        break;
-                    }
-                }
-                
-                // Generate image size if not copied
-                if (!outPack[i].valid)
-                {
-                    outPack[i].image = ImageCopy(inputPack[biggerSizeIndex].image);
-  
-                    if (scaleAlgorythm == 1) ImageResizeNN(&outPack[i].image, outPack[i].size, outPack[i].size);
-                    else if (scaleAlgorythm == 2) ImageResize(&outPack[i].image, outPack[i].size, outPack[i].size);
-                    
-                    outPack[i].valid = true;
-                }
-            }
-        }
-        else if (genCustom)
-        {
             // Generate custom sizes if required, use biggest available input size and use provided scale algorythm
-            
-            outPackCount = genSizesCount;
+            outPackCount = outSizesCount;
             outPack = (IconPackEntry *)malloc(outPackCount*sizeof(IconPackEntry));
 
             // Copy from inputPack or generate if required
             for (int i = 0; i < outPackCount; i++)
             {
-                outPack[i].size = genSizes[i];
+                outPack[i].size = outSizes[i];
                 
                 // Check input pack for size to copy
                 for (int j = 0; j < inputPackCount; j++)
                 {
                     if (outPack[i].size == inputPack[j].size)
                     {
+                        printf(" > Size %i: COPIED from input images.\n", outPack[i].size);
                         outPack[i].image = ImageCopy(inputPack[j].image);
                         outPack[i].valid = true;
                         break;
@@ -825,8 +829,9 @@ static void ProcessCommandLine(int argc, char *argv[])
                 // Generate image size if not copied
                 if (!outPack[i].valid)
                 {
+                    printf(" > Size %i: GENERATED from input bigger image (%i).\n", outPack[i].size, biggerSize);
                     outPack[i].image = ImageCopy(inputPack[biggerSizeIndex].image);
-  
+
                     if (scaleAlgorythm == 1) ImageResizeNN(&outPack[i].image, outPack[i].size, outPack[i].size);
                     else if (scaleAlgorythm == 2) ImageResize(&outPack[i].image, outPack[i].size, outPack[i].size);
                     
@@ -834,6 +839,10 @@ static void ProcessCommandLine(int argc, char *argv[])
                 }
             }
         }
+        else printf("WARNING: No output sizes defined\n");
+        
+        printf("\n");
+        
 
         // Save output icon file
         Image *outImages = (Image *)calloc(outPackCount, sizeof(Image));
@@ -845,23 +854,35 @@ static void ProcessCommandLine(int argc, char *argv[])
         if (extractAll)
         {
             // Extract all input pack images
-            for (int i = 0; i < inputPackCount; i++) if (inputPack[i].valid) ExportImage(inputPack[i].image, FormatText("icon_%ix%i.png", inputPack[i].size, inputPack[i].size));
+            for (int i = 0; i < inputPackCount; i++) 
+            {
+                if (inputPack[i].valid)
+                {
+                    printf(" > Image extract requested (%i): %s_%ix%i.png\n", inputPack[i].size, GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
+                    ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
+                }
+            }
         }
         else if (extractSize)
         {
             // Extract requested sizes from pack (if available)
             for (int i = 0; i < inputPackCount; i++)
             {
-                for (int j = 0; j < outSizesCount; j++)
+                for (int j = 0; j < extractSizesCount; j++)
                 {
-                    if (inputPack[i].size == outSizes[j]) ExportImage(inputPack[i].image, FormatText("icon_%ix%i.png", inputPack[i].size, inputPack[i].size));
+                    if (inputPack[i].size == extractSizes[j]) 
+                    {
+                        printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
+                        ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
+                    }
                 }
             }
         }
         
         // Memory cleaning
+        for (int i = 0; i < inputPackCount; i++) UnloadImage(inputPack[i].image);
+        for (int i = 0; i < outPackCount; i++) UnloadImage(outPack[i].image);
         free(outPack);
-        free(outImages);
     }
 
     if (showUsageInfo) ShowCommandLineInfo();
