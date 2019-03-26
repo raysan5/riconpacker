@@ -838,17 +838,16 @@ static void ProcessCommandLine(int argc, char *argv[])
                     outPack[i].valid = true;
                 }
             }
+
+            printf("\n");            
+
+            // Save output icon file
+            Image *outImages = (Image *)calloc(outPackCount, sizeof(Image));
+            for (int i = 0; i < outPackCount; i++) outImages[i] = outPack[i].image;
+            SaveICO(outImages, outPackCount, outFileName);
+            free(outImages);
         }
         else printf("WARNING: No output sizes defined\n");
-        
-        printf("\n");
-        
-
-        // Save output icon file
-        Image *outImages = (Image *)calloc(outPackCount, sizeof(Image));
-        for (int i = 0; i < outPackCount; i++) outImages[i] = outPack[i].image;
-        SaveICO(outImages, outPackCount, outFileName);
-        free(outImages);
         
         // Extract required images: all or provided sizes (only available ones)
         if (extractAll)
@@ -874,6 +873,19 @@ static void ProcessCommandLine(int argc, char *argv[])
                     {
                         printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
                         ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
+                    }
+                }
+            }
+            
+            // Extract requested sizes from output pack (if available)
+            for (int i = 0; i < outPackCount; i++)
+            {
+                for (int j = 0; j < extractSizesCount; j++)
+                {
+                    if ((extractSizes[j] > 0) && (outPack[i].size == extractSizes[j]))
+                    {
+                        printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), outPack[i].size, outPack[i].size);
+                        ExportImage(outPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), outPack[i].size, outPack[i].size));
                     }
                 }
             }
