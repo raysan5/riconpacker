@@ -8,9 +8,6 @@ Pack/Unpack icon files, load icon and add new image sizes or just export icon im
 
 rIconPacker comes in two flavours: **ZERO** (free version) and **ONE** (low-cost version). You can get them [here](https://raylibtech.itch.io/riconpacker).
 
-<br>
-<br>
-
 ## rIconPacker ZERO features
 
  - Pack your custom PNG images into an icon
