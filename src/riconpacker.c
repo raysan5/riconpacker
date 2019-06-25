@@ -252,7 +252,10 @@ int main(int argc, char *argv[])
         {
             int dropsCount = 0;
             char **droppedFiles = GetDroppedFiles(&dropsCount);
-
+            
+#if defined(VERSION_ONE)
+            if ((dropsCount == 1) && IsFileExtension(droppedFiles[0], ".rgs")) GuiLoadStyle(droppedFiles[0]);
+#endif
             for (int i = 0; i < dropsCount; i++)
             {
                 if (IsFileExtension(droppedFiles[i], ".ico") ||
@@ -388,7 +391,7 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-            ClearBackground(RAYWHITE);
+            ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
             
             if (lockBackground) GuiLock();          
 
