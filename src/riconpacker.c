@@ -572,6 +572,9 @@ static void ShowCommandLineInfo(void)
 // Process command line input
 static void ProcessCommandLine(int argc, char *argv[])
 {
+    #define MAX_OUTPUT_SIZES    64      // Maximum number of output sizes to generate
+    #define MAX_EXTRACT_SIZES   64      // Maximum number of sizes to extract
+    
     // CLI required variables
     bool showUsageInfo = false;         // Toggle command line usage info
    
@@ -581,13 +584,13 @@ static void ProcessCommandLine(int argc, char *argv[])
     
     int outPlatform = 0;                // Output platform sizes scheme
     
-    int outSizes[64] = { 0 };           // Sizes to generate
+    int outSizes[MAX_OUTPUT_SIZE] = { 0 }; // Sizes to generate
     int outSizesCount = 0;              // Number of sizes to generate
     
     int scaleAlgorythm = 2;             // Scaling algorythm on generation
     
     bool extractSize = false;           // Extract size required
-    int extractSizes[64] = { 0 };       // Sizes to extract
+    int extractSizes[MAX_EXTRACT_SIZES] = { 0 }; // Sizes to extract
     int extractSizesCount = 0;          // Number of sizes to extract
     
     bool extractAll = false;            // Extract all sizes required
