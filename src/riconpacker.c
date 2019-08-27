@@ -7,6 +7,13 @@
 *   #define VERSION_ONE
 *       Enable PRO features for the tool. Usually command-line and export options related.
 *
+*   #define COMMAND_LINE_ONLY
+*       Compile tool only for command line usage
+*
+*   #define CUSTOM_MODAL_DIALOGS
+*       Use custom raygui generated modal dialogs instead of native OS ones
+*       NOTE: Avoids including tinyfiledialogs depencency library
+*
 *   DEPENDENCIES:
 *       raylib 2.4-dev          - Windowing/input management and drawing.
 *       raygui 2.0              - IMGUI controls (based on raylib).
@@ -136,7 +143,7 @@ static int validCount = 0;                  // Valid ico images counter
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
-#if defined(VERSION_ONE)
+#if defined(VERSION_ONE) || defined(COMMAND_LINE_ONLY)
 static void ShowCommandLineInfo(void);                      // Show command line usage info
 static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
 #endif
@@ -162,6 +169,9 @@ int main(int argc, char *argv[])
 #if !defined(DEBUG)
     SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messsages
 #endif
+#if defined(COMMAND_LINE_ONLY)
+    ProcessCommandLine(argc, argv);
+#else
     char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
     char outFileName[512] = { 0 };      // Output file name (required for file save/export)
 
@@ -506,6 +516,7 @@ int main(int argc, char *argv[])
     CloseWindow();      // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
+#endif  // COMMAND_LINE_ONLY
     return 0;
 }
 
@@ -596,6 +607,10 @@ static void ProcessCommandLine(int argc, char *argv[])
     
     bool extractAll = false;            // Extract all sizes required
     bool makeOne = false;               // Generate icon version ONE
+
+#if defined(COMMAND_LINE_ONLY)
+    if (argc == 1) showUsageInfo = true;
+#endif
 
     // Process command line arguments
     for (int i = 1; i < argc; i++)
