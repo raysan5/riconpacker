@@ -56,16 +56,12 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-// Basic information
-#define TOOL_NAME           "rIconPacker"
-#define TOOL_VERSION        "1.0"
-#define TOOL_DESCRIPTION    "A simple and easy-to-use icons packer and extractor"
 
 // Define png to memory write function
 // NOTE: This function is internal to stb_image_write.h but not exposed by default
 unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, int x, int y, int n, int *out_len);
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+#if (!defined(DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
 bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib)
 #endif
 
@@ -117,6 +113,9 @@ typedef enum {
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
+const char *toolName = "rIconPacker";
+const char *toolVersion = "1.1";
+const char *toolDescription = "A simple and easy-to-use icons packer and extractor";
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
 static int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
@@ -160,9 +159,11 @@ static void RemoveIconPack(int index);              // Remove one icon from the 
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
+#if !defined(DEBUG)
     SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messsages
-    
-    char inFileName[256] = { 0 };       // Input file name (required in case of drag & drop over executable)
+#endif
+    char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
+    char outFileName[512] = { 0 };      // Output file name (required for file save/export)
 
     // Command-line usage mode
     //--------------------------------------------------------------------------------------
@@ -187,7 +188,7 @@ int main(int argc, char *argv[])
 #endif      // VERSION_ONE
     }
     
-#if (defined(VERSION_ONE) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
+#if (!defined(DEBUG) && defined(VERSION_ONE) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
     // and closing console (FreeConsole()) when changing to GUI interface
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
     const int screenWidth = 400;
     const int screenHeight = 380;
 
-    InitWindow(screenWidth, screenHeight, FormatText("%s v%s - %s", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION));
+    InitWindow(screenWidth, screenHeight, FormatText("%s v%s - %s", toolName, toolVersion, toolDescription));
     SetExitKey(0);
 
     // General pourpose variables
@@ -519,7 +520,7 @@ static void ShowCommandLineInfo(void)
 {
     printf("\n////////////////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                                        //\n");
-    printf("// %s v%s ONE - %s             //\n", TOOL_NAME, TOOL_VERSION, TOOL_DESCRIPTION);
+    printf("// %s v%s ONE - %s             //\n", toolName, toolVersion, toolDescription);
     printf("// powered by raylib v2.4 (www.raylib.com) and raygui v2.0                                //\n");
     printf("// more info and bugs-report: ray[at]raylibtech.com                                       //\n");
     printf("//                                                                                        //\n");
