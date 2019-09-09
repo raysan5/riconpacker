@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.0 - A simple and easy-to-use icons packer
+*   rIconPacker v1.1 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -15,9 +15,9 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   DEPENDENCIES:
-*       raylib 2.4-dev          - Windowing/input management and drawing.
-*       raygui 2.0              - IMGUI controls (based on raylib).
-*       tinyfiledialogs 3.3.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
+*       raylib 2.6-dev          - Windowing/input management and drawing.
+*       raygui 2.6              - Immediate-mode GUI controls.
+*       tinyfiledialogs 3.3.9   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -43,6 +43,7 @@
 #include "raylib.h"
 
 #define RAYGUI_IMPLEMENTATION
+#define RAYGUI_SUPPORT_RICONS
 #include "external/raygui.h"            // Required for: IMGUI controls
 
 #undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
@@ -50,7 +51,12 @@
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"           // GUI: About window
 
-#include "external/tinyfiledialogs.h"   // Required for: Native open/save file dialogs
+#if defined(PLATFORM_DESKTOP) && !defined(CUSTOM_MODAL_DIALOGS)
+    #include "external/tinyfiledialogs.h"   // Required for: Native open/save file dialogs
+#else
+    //#define GUI_FILE_DIALOG_IMPLEMENTATION
+    //#include "gui_file_dialog.h"      // Required for: Custom file dialogs
+#endif
 
 #include "external/stb_image.h"         // Required for: stbi_load_from_memory()
 #include "external/stb_image_write.h"   // Required for: stbi_write_png_to_mem()
@@ -117,6 +123,15 @@ typedef enum {
     ICON_PLATFORM_IOS7,
 } IconPlatform;
 
+// Dialog type
+typedef enum DialogType {
+    DIALOG_OPEN = 0,
+    DIALOG_SAVE,
+    DIALOG_MESSAGE,
+    DIALOG_TEXTINPUT,
+    DIALOG_OTHER
+} DialogType;
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
@@ -153,13 +168,17 @@ static void LoadIntoIconPack(const char *fileName);         // Load icon file in
 static Image *LoadICO(const char *fileName, int *count);    // Load icon data
 static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
 
-static void DialogLoadIcon(void);                   // Show dialog: load input file
-static void DialogExportIcon(IconPackEntry *icoPack, int count);  // Show dialog: export icon file
-static void DialogExportImage(Image image);         // Show dialog: export image file
-
 // Icon pack management functions
 static void InitIconPack(int platform);             // Initialize icon pack for a specific platform
 static void RemoveIconPack(int index);              // Remove one icon from the pack
+
+#if !defined(COMMAND_LINE_ONLY)
+// Multiplatform file dialogs
+// NOTE 1: fileName parameters is used to display and store selected file name
+// NOTE 2: Value returned is the operation result, on custom dialogs represents button option pressed
+// NOTE 3: filters and message are used for buttons and dialog messages on DIALOG_MESSAGE and DIALOG_TEXTINPUT
+static int GuiFileDialog(int dialogType, const char *title, char *fileName, const char *filters, const char *message);
+#endif
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -210,7 +229,7 @@ int main(int argc, char *argv[])
     const int screenWidth = 400;
     const int screenHeight = 380;
 
-    InitWindow(screenWidth, screenHeight, FormatText("%s v%s - %s", toolName, toolVersion, toolDescription));
+    InitWindow(screenWidth, screenHeight, FormatText("%s v%s", toolName, toolVersion));
     SetExitKey(0);
 
     // General pourpose variables
@@ -234,7 +253,7 @@ int main(int argc, char *argv[])
     bool btnClearIconImagePressed = false;
     bool btnSaveImagePressed = false;
     
-    GuiSetStyle(LISTVIEW, ELEMENTS_HEIGHT, 24);
+    GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
     //----------------------------------------------------------------------------------
     
     // GUI: About Window
@@ -247,6 +266,13 @@ int main(int argc, char *argv[])
     bool exitWindow = false;
     bool windowExitActive = false;
     //-----------------------------------------------------------------------------------   
+    
+    // GUI: Custom file dialogs
+    //-----------------------------------------------------------------------------------
+    bool showLoadFileDialog = false;
+    bool showExportFileDialog = false;
+    bool showExportImageDialog = false;
+    //----------------------------------------------------------------------------------- 
 
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIntoIconPack(inFileName);
@@ -285,18 +311,18 @@ int main(int argc, char *argv[])
         //------------------------------------------------------------------------------------
         
         // Show dialog: load input file (.ico, .png)
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) DialogLoadIcon();
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) showLoadFileDialog = true;
         
         // Show dialog: save icon file (.ico)
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) 
         {
-            if (validCount > 0) DialogExportIcon(icoPack, icoPackCount);
+            if (validCount > 0) showExportFileDialog = true;
         }
         
         // Show dialog: export icon data
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || btnSaveImagePressed)
         {
-            if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) DialogExportImage(icoPack[sizeListActive - 1].image);
+            if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) showExportImageDialog = true;
         }
         
         // Show window: about
@@ -418,9 +444,9 @@ int main(int argc, char *argv[])
             GuiEnable();
 
             if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) windowAboutState.windowAboutActive = true;
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) DialogLoadIcon();
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) showLoadFileDialog = true;
 
-            GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), &sizeListActive, NULL, true);
+            sizeListActive = GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), NULL, sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
             
             // Draw icons panel and border lines
@@ -455,19 +481,13 @@ int main(int argc, char *argv[])
             GuiEnable();
 
             if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 80, 25 }, "#7#Export")) DialogExportIcon(icoPack, icoPackCount);
+            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 80, 25 }, "#7#Export")) showExportFileDialog = true;
             GuiEnable();
             
             // Draw status bar info
-            int statusTextAlign = GuiGetStyle(DEFAULT, TEXT_ALIGNMENT);
-            GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_LEFT);
-            int statusInnerPadding = GuiGetStyle(DEFAULT, INNER_PADDING);
-            GuiSetStyle(DEFAULT, INNER_PADDING, 10);
             // TODO: Status information seems redundant... maybe other kind of information could be shown.
             GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
             GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? FormatText("AVAILABLE: %i/%i", validCount, icoPackCount) : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
-            GuiSetStyle(DEFAULT, TEXT_ALIGNMENT, statusTextAlign);
-            GuiSetStyle(DEFAULT, INNER_PADDING, statusInnerPadding);
             
             GuiUnlock();
             
@@ -491,7 +511,97 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
 
             GuiEnable();
-            //----------------------------------------------------------------------------------
+
+            // GUI: Load File Dialog (and loading logic)
+            //----------------------------------------------------------------------------------------
+            if (showLoadFileDialog)
+            {
+#if defined(CUSTOM_MODAL_DIALOGS)
+                int result = GuiFileDialog(DIALOG_MESSAGE, "Load icon or image file", inFileName, "Ok", "Just drag and drop your file!");
+#else
+                int result = GuiFileDialog(DIALOG_OPEN, "Load icon or image file...", inFileName, "*.ico;*.png", "Icon or Image Files (*.ico, *.png)");
+#endif
+                if (result == 1) LoadIntoIconPack(inFileName);   // Load icon file
+
+                if (result >= 0) showLoadFileDialog = false;
+            }
+            //----------------------------------------------------------------------------------------
+            
+            // GUI: Export File Dialog (and saving logic)
+            //----------------------------------------------------------------------------------------
+            if (showExportFileDialog)
+            {
+                strcpy(outFileName, "icon.ico");
+
+#if defined(CUSTOM_MODAL_DIALOGS)
+                int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export icon file...", outFileName, "Ok;Cancel", NULL);
+#else
+                int result = GuiFileDialog(DIALOG_SAVE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
+#endif
+                if (result == 1)
+                {
+                    // Check for valid extension and make sure it is
+                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+        
+                    // Verify icon pack valid images (not placeholder ones)
+                    int validCount = 0;
+                    for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
+
+                    Image *images = (Image *)calloc(validCount, sizeof(Image));
+
+                    int imCount = 0;
+                    for (int i = 0; i < icoPackCount; i++)
+                    {
+                        if (icoPack[i].valid)
+                        {
+                            images[imCount] = icoPack[i].image;
+                            imCount++;
+                        }
+                    }
+
+                    // Export valid images to output ICO file
+                    SaveICO(images, imCount, outFileName);
+
+                    free(images);
+
+                #if defined(PLATFORM_WEB)
+                    // Download file from MEMFS (emscripten memory filesystem)
+                    // NOTE: Second argument must be a simple filename (we can't use directories)
+                    emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
+                #endif
+                }
+                
+                if (result >= 0) showExportFileDialog = false;
+            }
+            //----------------------------------------------------------------------------------------
+            
+            // GUI: Export Image Dialog (and saving logic)
+            //----------------------------------------------------------------------------------------
+            if (showExportImageDialog)
+            {
+                strcpy(outFileName, FormatText("icon_%ix%i.png", icoPack[sizeListActive - 1].image.width, icoPack[sizeListActive - 1].image.height));
+
+#if defined(CUSTOM_MODAL_DIALOGS)
+                int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export image file...", outFileName, "Ok;Cancel", NULL);
+#else
+                int result = GuiFileDialog(DIALOG_SAVE, "Export image file...", outFileName, "*.png", "Image File (*.png)");
+#endif
+                if (result == 1)
+                {
+                    // Check for valid extension and make sure it is
+                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png");
+
+                    ExportImage(icoPack[sizeListActive - 1].image, outFileName);
+
+                #if defined(PLATFORM_WEB)
+                    // Download file from MEMFS (emscripten memory filesystem)
+                    // NOTE: Second argument must be a simple filename (we can't use directories)
+                    emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
+                #endif
+                }
+                
+                if (result >= 0) showExportImageDialog = false;
+            }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -596,7 +706,7 @@ static void ProcessCommandLine(int argc, char *argv[])
     
     int outPlatform = 0;                // Output platform sizes scheme
     
-    int outSizes[MAX_OUTPUT_SIZE] = { 0 }; // Sizes to generate
+    int outSizes[MAX_OUTPUT_SIZES] = { 0 }; // Sizes to generate
     int outSizesCount = 0;              // Number of sizes to generate
     
     int scaleAlgorythm = 2;             // Scaling algorythm on generation
@@ -988,73 +1098,6 @@ static void LoadIntoIconPack(const char *fileName)
     free(images);
 }
 
-// Show dialog: load input file
-static void DialogLoadIcon(void)
-{
-    // Open file dialog
-    const char *filters[] = { "*.ico", "*.png" };
-    const char *fileName = tinyfd_openFileDialog("Load icon or image file", "", 2, filters, "Icon or Image Files (*.ico, *.png)", 0);
-
-    if (fileName != NULL) LoadIntoIconPack(fileName);
-}
-
-// Show dialog: save icon file
-static void DialogExportIcon(IconPackEntry *icoPack, int count)
-{
-    // Save file dialog
-    const char *filters[] = { "*.ico" };
-    const char *fileName = tinyfd_saveFileDialog("Save icon file", "icon.ico", 1, filters, "Icon File (*.ico)");
-
-    if (fileName != NULL)
-    {
-        char outFileName[128] = { 0 };
-        strcpy(outFileName, fileName);
-
-        // Check for valid extension and make sure it is
-        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
-
-        // Verify icon pack valid images (not placeholder ones)
-        int validCount = 0;
-        for (int i = 0; i < count; i++) if (icoPack[i].valid) validCount++;
-
-        Image *images = (Image *)calloc(validCount, sizeof(Image));
-
-        int imCount = 0;
-        for (int i = 0; i < count; i++)
-        {
-            if (icoPack[i].valid)
-            {
-                images[imCount] = icoPack[i].image;
-                imCount++;
-            }
-        }
-
-        // Save valid images to output ICO file
-        SaveICO(images, imCount, outFileName);
-
-        free(images);
-    }
-}
-
-// Show dialog: export image file
-static void DialogExportImage(Image image)
-{
-    // Save file dialog
-    const char *filters[] = { "*.png" };
-    const char *fileName = tinyfd_saveFileDialog("Save image file", FormatText("icon_%ix%i.png", image.width, image.height), 1, filters, "Image File (*.png)");
-
-    if (fileName != NULL)
-    {
-        char outFileName[128] = { 0 };
-        strcpy(outFileName, fileName);
-
-        // Check for valid extension and make sure it is
-        if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png");
-
-        ExportImage(image, outFileName);
-    }
-}
-
 // Initialize icon pack for an specific platform
 // NOTE: Uses globals: icoSizesPlatform, sizeListCount, sizeTextList, icoPack, icoPackCount
 static void InitIconPack(int platform)
@@ -1187,44 +1230,6 @@ static Image *LoadICO(const char *fileName, int *count)
     return images;
 }
 
-// Apple ICNS icons loader
-// NOTE: Check for reference: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-static Image *LoadICNS(const char *fileName, int *count)
-{
-    Image *images = NULL;
-
-    int icnsCount = 0;
-
-    FILE *icnsFile = fopen(fileName, "rb");
-
-    // Icns File Header (8 bytes)
-    typedef struct {
-        unsigned char id[4];        // Magic literal: "icns" (0x69, 0x63, 0x6e, 0x73)
-        unsigned int size;          // Length of file, in bytes, msb first
-    } IcnsHeader;
-
-    // Icon Entry info (16 bytes)
-    typedef struct {
-        unsigned char type[4];      // Icon type, defined by OSType
-        unsigned int dataSize;      // Length of data, in bytes (including type and length), msb first
-        unsigned char *data;        // Icon data
-    } IcnsData;
-
-    // Load .icns information
-    IcnsHeader icnsHeader = { 0 };
-    fread(&icnsHeader, 1, sizeof(IcnsHeader), icnsFile);
-
-    // TODO: Check file size to keep track of data read... until end of available data
-
-    // TODO: Load all icons data found
-    images = (Image *)malloc(icnsCount);
-    *count = icnsCount;
-
-    fclose(icnsFile);
-
-    return images;
-}
-
 // Icon saver
 // NOTE: Make sure images array sizes are valid!
 static void SaveICO(Image *images, int imageCount, const char *fileName)
@@ -1274,3 +1279,91 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         free(icoData[i]);
     }
 }
+
+/*
+// Apple ICNS icons loader
+// NOTE: Check for reference: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
+static Image *LoadICNS(const char *fileName, int *count)
+{
+    Image *images = NULL;
+
+    int icnsCount = 0;
+
+    FILE *icnsFile = fopen(fileName, "rb");
+
+    // Icns File Header (8 bytes)
+    typedef struct {
+        unsigned char id[4];        // Magic literal: "icns" (0x69, 0x63, 0x6e, 0x73)
+        unsigned int size;          // Length of file, in bytes, msb first
+    } IcnsHeader;
+
+    // Icon Entry info (16 bytes)
+    typedef struct {
+        unsigned char type[4];      // Icon type, defined by OSType
+        unsigned int dataSize;      // Length of data, in bytes (including type and length), msb first
+        unsigned char *data;        // Icon data
+    } IcnsData;
+
+    // Load .icns information
+    IcnsHeader icnsHeader = { 0 };
+    fread(&icnsHeader, 1, sizeof(IcnsHeader), icnsFile);
+
+    // TODO: Check file size to keep track of data read... until end of available data
+
+    // TODO: Load all icons data found
+    images = (Image *)malloc(icnsCount);
+    *count = icnsCount;
+
+    fclose(icnsFile);
+
+    return images;
+}
+*/
+
+#if !defined(COMMAND_LINE_ONLY)
+// Multiplatform file dialogs
+static int GuiFileDialog(int dialogType, const char *title, char *fileName, const char *filters, const char *message)
+{
+    int result = -1;
+
+#if defined(CUSTOM_MODAL_DIALOGS)
+    static char tempFileName[256] = { 0 };
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
+
+    switch (dialogType)
+    {
+        case DIALOG_OPEN: /* TODO: Load file modal dialog */ break;
+        case DIALOG_SAVE: /* TODO: Load file modal dialog */ break;
+        case DIALOG_MESSAGE: result = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 120, GetScreenHeight()/2 - 60, 240, 120 }, GuiIconText(RICON_FILE_OPEN, title), message, filters); break;
+        case DIALOG_TEXTINPUT: result = GuiTextInputBox((Rectangle){ GetScreenWidth()/2 - 120, GetScreenHeight()/2 - 60, 240, 120 }, GuiIconText(RICON_FILE_SAVE, title), message, filters, tempFileName); break;
+        default: break;
+    }
+    
+    if ((result == 1) && (tempFileName[0] != '\0')) strcpy(fileName, tempFileName);
+
+#else   // Use native OS dialogs (tinyfiledialogs)
+
+    const char *tempFileName = NULL;
+    int filterCount = 0;
+    const char **filterSplit = TextSplit(filters, ';', &filterCount);
+    
+    switch (dialogType)
+    {
+        case DIALOG_OPEN: tempFileName = tinyfd_openFileDialog(title, fileName, filterCount, filterSplit, message, 0); break;
+        case DIALOG_SAVE: tempFileName = tinyfd_saveFileDialog(title, fileName, filterCount, filterSplit, message); break;
+        case DIALOG_MESSAGE: result = tinyfd_messageBox(title, message, "ok", "info", 0); break;
+        case DIALOG_TEXTINPUT: tempFileName = tinyfd_inputBox(title, message, ""); break;
+        default: break;
+    }
+
+    if (tempFileName != NULL) 
+    {
+        strcpy(fileName, tempFileName);
+        result = 1;
+    }
+    else result = 0;
+#endif
+
+    return result;
+}
+#endif // COMMAND_LINE_ONLY

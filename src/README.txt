@@ -1,4 +1,4 @@
-# rIconPacker v1.0
+# rIconPacker v1.1
 
 A simple and easy-to-use icons packer and extractor.
 
