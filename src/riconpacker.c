@@ -1185,46 +1185,45 @@ static Image *LoadICO(const char *fileName, int *count)
     Image *images = NULL;
 
     FILE *icoFile = fopen(fileName, "rb");
-
-    // Load .ico information
-    IcoHeader icoHeader = { 0 };
-    fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
-
-    images = (Image *)malloc(icoHeader.imageCount*sizeof(Image));
-    *count = icoHeader.imageCount;
-
-    IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
-    unsigned char *icoData[icoHeader.imageCount];
-
-    for (int i = 0; i < icoHeader.imageCount; i++) fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
-
-    for (int i = 0; i < icoHeader.imageCount; i++)
+    
+    if (icoFile != NULL)
     {
-        icoData[i] = (unsigned char *)malloc(icoDirEntry[i].size);
-        fread(icoData[i], icoDirEntry[i].size, 1, icoFile);         // Read icon png data
+        // Load .ico information
+        IcoHeader icoHeader = { 0 };
+        fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
 
-        // Reading png data from memory buffer
-        int channels;
-        images[i].data = stbi_load_from_memory(icoData[i], icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);     // Force image data to 4 channels (RGBA)
+        images = (Image *)malloc(icoHeader.imageCount*sizeof(Image));
+        *count = icoHeader.imageCount;
 
-        images[i].mipmaps =  1;
-        images[i].format = UNCOMPRESSED_R8G8B8A8;
-        /*
-        if (channels == 1) icoPack[i].image.format = UNCOMPRESSED_GRAYSCALE;
-        else if (channels == 2) icoPack[i].image.format = UNCOMPRESSED_GRAY_ALPHA;
-        else if (channels == 3) icoPack[i].image.format = UNCOMPRESSED_R8G8B8;
-        else if (channels == 4) icoPack[i].image.format = UNCOMPRESSED_R8G8B8A8;
-        else printf("WARNING: Number of data channels not supported");
-        */
-        //printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", images[i].width, images[i].height, channels*8);
-    }
+        IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-    fclose(icoFile);
+        for (int i = 0; i < icoHeader.imageCount; i++) fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
 
-    for (int i = 0; i < icoHeader.imageCount; i++)
-    {
+        for (int i = 0; i < icoHeader.imageCount; i++)
+        {
+            unsigned char *icoData = (unsigned char *)malloc(icoDirEntry[i].size);
+            fread(icoData, icoDirEntry[i].size, 1, icoFile);         // Read icon png data
+
+            // Reading png data from memory buffer
+            int channels = 0;
+            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);     // Force image data to 4 channels (RGBA)
+
+            images[i].mipmaps =  1;
+            images[i].format = UNCOMPRESSED_R8G8B8A8;
+            /*
+            if (channels == 1) icoPack[i].image.format = UNCOMPRESSED_GRAYSCALE;
+            else if (channels == 2) icoPack[i].image.format = UNCOMPRESSED_GRAY_ALPHA;
+            else if (channels == 3) icoPack[i].image.format = UNCOMPRESSED_R8G8B8;
+            else if (channels == 4) icoPack[i].image.format = UNCOMPRESSED_R8G8B8A8;
+            else printf("WARNING: Number of data channels not supported");
+            */
+            //printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", images[i].width, images[i].height, channels*8);
+            free(icoData);
+        }
+
+        fclose(icoFile);
+
         free(icoDirEntry);
-        free(icoData[i]);
     }
 
     return images;
