@@ -1204,12 +1204,14 @@ static Image *LoadICO(const char *fileName, int *count)
             unsigned char *icoData = (unsigned char *)malloc(icoDirEntry[i].size);
             fread(icoData, icoDirEntry[i].size, 1, icoFile);         // Read icon png data
 
-            // Reading png data from memory buffer
             int channels = 0;
-            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);     // Force image data to 4 channels (RGBA)
-
+            
+            // Reading png data from memory buffer
+            // NOTE: Force image data to 4 channels (RGBA)
+            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);     
             images[i].mipmaps =  1;
             images[i].format = UNCOMPRESSED_R8G8B8A8;
+
             /*
             if (channels == 1) icoPack[i].image.format = UNCOMPRESSED_GRAYSCALE;
             else if (channels == 2) icoPack[i].image.format = UNCOMPRESSED_GRAY_ALPHA;
@@ -1217,13 +1219,13 @@ static Image *LoadICO(const char *fileName, int *count)
             else if (channels == 4) icoPack[i].image.format = UNCOMPRESSED_R8G8B8A8;
             else printf("WARNING: Number of data channels not supported");
             */
-            //printf("Read image data from PNG in memory: %ix%i @ %ibpp\n", images[i].width, images[i].height, channels*8);
+
             free(icoData);
         }
 
-        fclose(icoFile);
-
         free(icoDirEntry);
+
+        fclose(icoFile);
     }
 
     return images;
@@ -1260,22 +1262,23 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     }
 
     FILE *icoFile = fopen(fileName, "wb");
-
-    // Write ico header
-    fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
-
-    // Write icon images entries data
-    for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
-
-    // Write icon png data
-    for (int i = 0; i < icoHeader.imageCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
-
-    fclose(icoFile);
-
-    for (int i = 0; i < icoHeader.imageCount; i++)
+    
+    if (icoFile != NULL)
     {
+        // Write ico header
+        fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+
+        // Write icon images entries data
+        for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+
+        // Write icon png data
+        for (int i = 0; i < icoHeader.imageCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
+
+        // Free used data
+        for (int i = 0; i < icoHeader.imageCount; i++) free(icoData[i]);
         free(icoDirEntry);
-        free(icoData[i]);
+        
+        fclose(icoFile);
     }
 }
 
