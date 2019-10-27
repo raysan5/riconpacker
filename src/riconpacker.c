@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
             (strcmp(argv[1], "-h") != 0) &&
             (strcmp(argv[1], "--help") != 0))       // One argument (file dropped over executable?)
         {
-            if (IsFileExtension(argv[1], ".ico") || 
+            if (IsFileExtension(argv[1], ".ico") ||
                 IsFileExtension(argv[1], ".png"))
             {
                 strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
         }
 #endif      // VERSION_ONE
     }
-    
+
 #if (!defined(DEBUG) && defined(VERSION_ONE) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
     // General pourpose variables
     Vector2 mousePoint = { 0.0f, 0.0f };
     int framesCounter = 0;
-    
+
     bool lockBackground = false;
 
     // Initialize icon pack by platform
@@ -252,27 +252,27 @@ int main(int argc, char *argv[])
     bool btnGenIconImagePressed = false;
     bool btnClearIconImagePressed = false;
     bool btnSaveImagePressed = false;
-    
+
     GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
     //----------------------------------------------------------------------------------
-    
+
     // GUI: About Window
     //-----------------------------------------------------------------------------------
     GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
     //-----------------------------------------------------------------------------------
-    
+
     // GUI: Exit Window
     //-----------------------------------------------------------------------------------
     bool exitWindow = false;
     bool windowExitActive = false;
-    //-----------------------------------------------------------------------------------   
-    
+    //-----------------------------------------------------------------------------------
+
     // GUI: Custom file dialogs
     //-----------------------------------------------------------------------------------
     bool showLoadFileDialog = false;
     bool showExportFileDialog = false;
     bool showExportImageDialog = false;
-    //----------------------------------------------------------------------------------- 
+    //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIntoIconPack(inFileName);
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
         {
             int dropsCount = 0;
             char **droppedFiles = GetDroppedFiles(&dropsCount);
-            
+
 #if defined(VERSION_ONE)
             if ((dropsCount == 1) && IsFileExtension(droppedFiles[0], ".rgs")) GuiLoadStyle(droppedFiles[0]);
 #endif
@@ -309,22 +309,22 @@ int main(int argc, char *argv[])
 
         // Keyboard shortcuts
         //------------------------------------------------------------------------------------
-        
+
         // Show dialog: load input file (.ico, .png)
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) showLoadFileDialog = true;
-        
+
         // Show dialog: save icon file (.ico)
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) 
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E))
         {
             if (validCount > 0) showExportFileDialog = true;
         }
-        
+
         // Show dialog: export icon data
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || btnSaveImagePressed)
         {
             if ((sizeListActive > 0) && (icoPack[sizeListActive - 1].valid)) showExportImageDialog = true;
         }
-        
+
         // Show window: about
         if (IsKeyPressed(KEY_F1)) windowAboutState.windowAboutActive = true;
 
@@ -334,14 +334,14 @@ int main(int argc, char *argv[])
             if (sizeListActive == 0) for (int i = 0; i < icoPackCount; i++) RemoveIconPack(i);  // Delete all images in the series
             else RemoveIconPack(sizeListActive - 1);                                            // Delete one image
         }
-        
-        // Generate icon 
+
+        // Generate icon
         if (IsKeyPressed(KEY_SPACE))
         {
             // Force icon regeneration if possible
             if (validCount > 0) btnGenIconImagePressed = true;
         }
-        
+
         // Show closing window on ESC
         if (IsKeyPressed(KEY_ESCAPE))
         {
@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
         // Calculate valid images
         validCount = 0;
         for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
-        
+
         // Generate new icon image (using biggest available image)
         if (btnGenIconImagePressed)
         {
@@ -413,12 +413,12 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        
+
         // Change active platform icons pack
         if (platformActive != prevPlatformActive)
         {
             // TODO: Check icons that can be populated from current platform to next platform
-            
+
             InitIconPack(platformActive + 1);
             prevPlatformActive = platformActive;
         }
@@ -429,13 +429,13 @@ int main(int argc, char *argv[])
         BeginDrawing();
 
             ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
-            
-            if (lockBackground) GuiLock();          
+
+            if (lockBackground) GuiLock();
 
             // GUI: Main Layout
             //----------------------------------------------------------------------------------
             GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 });
-            
+
 #if !defined(VERSION_ONE)
             GuiDisable();
 #endif
@@ -448,7 +448,7 @@ int main(int argc, char *argv[])
 
             sizeListActive = GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), NULL, sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
-            
+
             // Draw icons panel and border lines
             //--------------------------------------------------------------------------------------------------------------
             GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, NULL);
@@ -467,13 +467,13 @@ int main(int argc, char *argv[])
             //--------------------------------------------------------------------------------------------------------------
 
             // NOTE: Enabled buttons depend on several circunstances
-            
+
             if ((validCount == 0) || ((sizeListActive > 0) && !icoPack[sizeListActive - 1].valid)) GuiDisable();
             btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 320, 80, 25 }, "#9#Clear");
             GuiEnable();
 
             if ((validCount == 0) || ((sizeListActive > 0) && icoPack[sizeListActive - 1].valid)) GuiDisable();
-            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate"); 
+            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate");
             GuiEnable();
 
             if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !icoPack[sizeListActive - 1].valid)) GuiDisable();
@@ -483,14 +483,14 @@ int main(int argc, char *argv[])
             if (validCount == 0) GuiDisable();
             if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 80, 25 }, "#7#Export")) showExportFileDialog = true;
             GuiEnable();
-            
+
             // Draw status bar info
             // TODO: Status information seems redundant... maybe other kind of information could be shown.
             GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
             GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? FormatText("AVAILABLE: %i/%i", validCount, icoPackCount) : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
-            
+
             GuiUnlock();
-            
+
             // GUI: About Window
             //-----------------------------------------------------------------------------------
             // NOTE: We check for lockBackground to wait one frame before activation and
@@ -503,8 +503,8 @@ int main(int argc, char *argv[])
             if (windowExitActive)
             {
                 DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.8f));
-                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No"); 
-            
+                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
+
                 if ((message == 0) || (message == 2)) windowExitActive = false;
                 else if (message == 1) exitWindow = true;
             }
@@ -526,7 +526,7 @@ int main(int argc, char *argv[])
                 if (result >= 0) showLoadFileDialog = false;
             }
             //----------------------------------------------------------------------------------------
-            
+
             // GUI: Export File Dialog (and saving logic)
             //----------------------------------------------------------------------------------------
             if (showExportFileDialog)
@@ -542,7 +542,7 @@ int main(int argc, char *argv[])
                 {
                     // Check for valid extension and make sure it is
                     if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
-        
+
                     // Verify icon pack valid images (not placeholder ones)
                     int validCount = 0;
                     for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
@@ -570,11 +570,11 @@ int main(int argc, char *argv[])
                     emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
                 #endif
                 }
-                
+
                 if (result >= 0) showExportFileDialog = false;
             }
             //----------------------------------------------------------------------------------------
-            
+
             // GUI: Export Image Dialog (and saving logic)
             //----------------------------------------------------------------------------------------
             if (showExportImageDialog)
@@ -599,7 +599,7 @@ int main(int argc, char *argv[])
                     emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
                 #endif
                 }
-                
+
                 if (result >= 0) showExportImageDialog = false;
             }
 
@@ -696,25 +696,25 @@ static void ProcessCommandLine(int argc, char *argv[])
 {
     #define MAX_OUTPUT_SIZES    64      // Maximum number of output sizes to generate
     #define MAX_EXTRACT_SIZES   64      // Maximum number of sizes to extract
-    
+
     // CLI required variables
     bool showUsageInfo = false;         // Toggle command line usage info
-   
+
     int inputFilesCount = 0;
     char **inputFiles = NULL;           // Input file names
     char outFileName[256] = { 0 };      // Output file name
-    
+
     int outPlatform = 0;                // Output platform sizes scheme
-    
+
     int outSizes[MAX_OUTPUT_SIZES] = { 0 }; // Sizes to generate
     int outSizesCount = 0;              // Number of sizes to generate
-    
+
     int scaleAlgorythm = 2;             // Scaling algorythm on generation
-    
+
     bool extractSize = false;           // Extract size required
     int extractSizes[MAX_EXTRACT_SIZES] = { 0 }; // Sizes to extract
     int extractSizesCount = 0;          // Number of sizes to extract
-    
+
     bool extractAll = false;            // Extract all sizes required
     bool makeOne = false;               // Generate icon version ONE
 
@@ -735,14 +735,14 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 const char **files = TextSplit(argv[i + 1], ',', &inputFilesCount);
-                
+
                 inputFiles = (char **)malloc(inputFilesCount);
-                for (int j = 0; j < inputFilesCount; j++) 
+                for (int j = 0; j < inputFilesCount; j++)
                 {
                     inputFiles[j] = (char *)malloc(256);    // Input file name
                     strcpy(inputFiles[j], files[j]);
                 }
-                
+
                 i++;
             }
             else printf("WARNING: No input file(s) provided\n");
@@ -755,7 +755,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 {
                     strcpy(outFileName, argv[i + 1]);   // Read output filename
                 }
-                
+
                 i++;
             }
             else printf("WARNING: Output file extension not recognized.\n");
@@ -766,11 +766,11 @@ static void ProcessCommandLine(int argc, char *argv[])
             {
                 int numValues = 0;
                 const char **values = TextSplit(argv[i + 1], ',', &numValues);
-                
-                for (int j = 0; j < numValues; j++) 
+
+                for (int j = 0; j < numValues; j++)
                 {
                     int value = atoi(values[j]);
-                    
+
                     if ((value > 0) && (value <= 256))
                     {
                         outSizes[j] = value;
@@ -786,7 +786,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 int platform = atoi(argv[i + 1]);   // Read provided platform value
-                
+
                 if ((platform > 0) && (platform < 5)) outPlatform = platform;
                 else printf("WARNING: Platform requested not recognized\n");
             }
@@ -797,7 +797,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 int scale = atoi(argv[i + 1]);   // Read provided scale algorythm value
-                
+
                 if ((scale == 1) || (scale == 2)) scaleAlgorythm = scale;
                 else printf("WARNING: Scale algorythm not recognized, default to Bicubic\n");
             }
@@ -808,15 +808,15 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 extractSize = true;
-                
+
                 int numValues = 0;
                 const char **values = TextSplit(argv[i + 1], ',', &numValues);
-                
-                for (int j = 0; j < numValues; j++) 
+
+                for (int j = 0; j < numValues; j++)
                 {
                     int value = atoi(values[j]);
-                    
-                    if ((value > 0) && (value <= 256)) 
+
+                    if ((value > 0) && (value <= 256))
                     {
                         extractSizes[j] = value;
                         extractSizesCount++;
@@ -837,12 +837,12 @@ static void ProcessCommandLine(int argc, char *argv[])
         printf("\nInput files:      %s", inputFiles[0]);
         for (int i = 1; i < inputFilesCount; i++) printf(",%s", inputFiles[i]);
         printf("\nOutput file:      %s\n\n", outFileName);
-        
+
         #define MAX_ICONS_PACK      64
-        
+
         IconPackEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon images array
         int inputPackCount = 0;                          // Icon images array counter
-        
+
         printf(" > PROCESSING INPUT FILES\n");
 
         // Load input files (all of them) into icon pack, if one size has been previously loaded, do not load again
@@ -850,43 +850,43 @@ static void ProcessCommandLine(int argc, char *argv[])
         {
             int imCount = 0;
             Image *images = NULL;
-            
+
             // Load all available images in current file
             if (IsFileExtension(inputFiles[i], ".ico")) images = LoadICO(inputFiles[i], &imCount);
-            else if (IsFileExtension(inputFiles[i], ".png")) 
+            else if (IsFileExtension(inputFiles[i], ".png"))
             {
                 imCount = 1;
                 images = (Image *)malloc(imCount*sizeof(Image));
-                images[0] = LoadImage(inputFiles[i]); 
+                images[0] = LoadImage(inputFiles[i]);
             }
-            
+
             printf("\nInput file: %s / Images loaded: %i\n", inputFiles[i], imCount);
-            
+
             // Process all loaded images
             for (int j = 0; j < imCount; j++)
             {
                 printf(" > Processing image: %i ", j);
-                
+
                 // Check if provided image size is valid (only squared images supported)
                 if (images[j].width != images[j].height) printf("WARNING: Image is not squared as expected (%i x %i)", images[j].width, images[j].height);
                 else
                 {
                     // TODO: Check if current image size is already available in the package!
-                    
+
                     // Force image to be RGBA
                     ImageFormat(&images[j], UNCOMPRESSED_R8G8B8A8);
-                    
+
                     inputPack[inputPackCount].image = ImageCopy(images[j]);
                     inputPack[inputPackCount].size = images[j].width;
                     inputPack[inputPackCount].valid = true;
-                    
+
                     // NOTE: inputPack[inputPackCount].texture NOT required!
 
                     printf("LOADED (size: %i)", inputPack[inputPackCount].size);
-                    
+
                     inputPackCount++;
                 }
-                
+
                 UnloadImage(images[j]);
                 printf("\n");
             }
@@ -894,30 +894,30 @@ static void ProcessCommandLine(int argc, char *argv[])
             free(images);
             free(inputFiles[i]);    // Free input file name memory
         }
-        
+
         free(inputFiles);           // Free input file names array memory
-        
+
         // Get bigger available input image
         int biggerSizeIndex = 0;
         int biggerSize = inputPack[0].size;
-        
+
         for (int i = 1; i < inputPackCount; i++)
         {
-            if (inputPack[i].size > biggerSize) 
-            { 
+            if (inputPack[i].size > biggerSize)
+            {
                 biggerSize = inputPack[i].size;
                 biggerSizeIndex = i;
             }
         }
-        
+
         printf("\nAll input images processed.\n");
         printf("Images added to the pack: %i (%i", inputPackCount, inputPack[0].size);
         for (int i = 1; i < inputPackCount; i++) printf(",%i", inputPack[i].size);
         printf(")\n");
         printf("Biggest size available: %i\n\n", biggerSize);
-        
+
         printf(" > PROCESSING OUTPUT FILE\n\n");
-        
+
         // Generate output sizes list by platform scheme
         switch (outPlatform)
         {
@@ -927,16 +927,16 @@ static void ProcessCommandLine(int argc, char *argv[])
             case ICON_PLATFORM_IOS7: for (int i = 0; i < 9; i++) { outSizes[outSizesCount] = icoSizesiOS[i]; outSizesCount++; }; break;
             default: return;
         }
-        
+
         IconPackEntry *outPack = NULL;
         int outPackCount = 0;
-        
+
         if (outSizesCount > 0)
         {
             printf("Output sizes requested: %i", outSizes[0]);
             for (int i = 1; i < outSizesCount; i++) printf(",%i", outSizes[i]);
             printf("\n");
-            
+
             // Generate custom sizes if required, use biggest available input size and use provided scale algorythm
             outPackCount = outSizesCount;
             outPack = (IconPackEntry *)malloc(outPackCount*sizeof(IconPackEntry));
@@ -945,7 +945,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             for (int i = 0; i < outPackCount; i++)
             {
                 outPack[i].size = outSizes[i];
-                
+
                 // Check input pack for size to copy
                 for (int j = 0; j < inputPackCount; j++)
                 {
@@ -957,7 +957,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                         break;
                     }
                 }
-                
+
                 // Generate image size if not copied
                 if (!outPack[i].valid)
                 {
@@ -966,12 +966,12 @@ static void ProcessCommandLine(int argc, char *argv[])
 
                     if (scaleAlgorythm == 1) ImageResizeNN(&outPack[i].image, outPack[i].size, outPack[i].size);
                     else if (scaleAlgorythm == 2) ImageResize(&outPack[i].image, outPack[i].size, outPack[i].size);
-                    
+
                     outPack[i].valid = true;
                 }
             }
 
-            printf("\n");            
+            printf("\n");
 
             // Save output icon file
             Image *outImages = (Image *)calloc(outPackCount, sizeof(Image));
@@ -980,12 +980,12 @@ static void ProcessCommandLine(int argc, char *argv[])
             free(outImages);
         }
         else printf("WARNING: No output sizes defined\n");
-        
+
         // Extract required images: all or provided sizes (only available ones)
         if (extractAll)
         {
             // Extract all input pack images
-            for (int i = 0; i < inputPackCount; i++) 
+            for (int i = 0; i < inputPackCount; i++)
             {
                 if (inputPack[i].valid)
                 {
@@ -1001,14 +1001,14 @@ static void ProcessCommandLine(int argc, char *argv[])
             {
                 for (int j = 0; j < extractSizesCount; j++)
                 {
-                    if (inputPack[i].size == extractSizes[j]) 
+                    if (inputPack[i].size == extractSizes[j])
                     {
                         printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
                         ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
                     }
                 }
             }
-            
+
             // Extract requested sizes from output pack (if available)
             for (int i = 0; i < outPackCount; i++)
             {
@@ -1022,7 +1022,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 }
             }
         }
-        
+
         // Memory cleaning
         for (int i = 0; i < inputPackCount; i++) UnloadImage(inputPack[i].image);
         for (int i = 0; i < outPackCount; i++) UnloadImage(outPack[i].image);
@@ -1043,14 +1043,14 @@ static void LoadIntoIconPack(const char *fileName)
 {
     int imCount = 0;
     Image *images = NULL;
-    
+
     // Load all available images
     if (IsFileExtension(fileName, ".ico")) images = LoadICO(fileName, &imCount);
-    else if (IsFileExtension(fileName, ".png")) 
+    else if (IsFileExtension(fileName, ".png"))
     {
         imCount = 1;
         images = (Image *)malloc(imCount*sizeof(Image));
-        images[0] = LoadImage(fileName); 
+        images[0] = LoadImage(fileName);
     }
 
     // Process all loaded images
@@ -1074,11 +1074,11 @@ static void LoadIntoIconPack(const char *fileName)
         {
             // Force image to be RGBA
             ImageFormat(&images[i], UNCOMPRESSED_R8G8B8A8);
-            
+
             // Re-load image/texture from ico pack
             UnloadImage(icoPack[index].image);
             UnloadTexture(icoPack[index].texture);
-            
+
             icoPack[index].image = ImageCopy(images[i]);
             icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
             icoPack[index].size = icoSizesPlatform[index];      // Not required
@@ -1185,7 +1185,7 @@ static Image *LoadICO(const char *fileName, int *count)
     Image *images = NULL;
 
     FILE *icoFile = fopen(fileName, "rb");
-    
+
     if (icoFile != NULL)
     {
         // Load .ico information
@@ -1205,10 +1205,10 @@ static Image *LoadICO(const char *fileName, int *count)
             fread(icoData, icoDirEntry[i].size, 1, icoFile);         // Read icon png data
 
             int channels = 0;
-            
+
             // Reading png data from memory buffer
             // NOTE: Force image data to 4 channels (RGBA)
-            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);     
+            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);
             images[i].mipmaps =  1;
             images[i].format = UNCOMPRESSED_R8G8B8A8;
 
@@ -1262,7 +1262,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     }
 
     FILE *icoFile = fopen(fileName, "wb");
-    
+
     if (icoFile != NULL)
     {
         // Write ico header
@@ -1277,7 +1277,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         // Free used data
         for (int i = 0; i < icoHeader.imageCount; i++) free(icoData[i]);
         free(icoDirEntry);
-        
+
         fclose(icoFile);
     }
 }
@@ -1340,7 +1340,7 @@ static int GuiFileDialog(int dialogType, const char *title, char *fileName, cons
         case DIALOG_TEXTINPUT: result = GuiTextInputBox((Rectangle){ GetScreenWidth()/2 - 120, GetScreenHeight()/2 - 60, 240, 120 }, GuiIconText(RICON_FILE_SAVE, title), message, filters, tempFileName); break;
         default: break;
     }
-    
+
     if ((result == 1) && (tempFileName[0] != '\0')) strcpy(fileName, tempFileName);
 
 #else   // Use native OS dialogs (tinyfiledialogs)
@@ -1348,7 +1348,7 @@ static int GuiFileDialog(int dialogType, const char *title, char *fileName, cons
     const char *tempFileName = NULL;
     int filterCount = 0;
     const char **filterSplit = TextSplit(filters, ';', &filterCount);
-    
+
     switch (dialogType)
     {
         case DIALOG_OPEN: tempFileName = tinyfd_openFileDialog(title, fileName, filterCount, filterSplit, message, 0); break;
@@ -1358,7 +1358,7 @@ static int GuiFileDialog(int dialogType, const char *title, char *fileName, cons
         default: break;
     }
 
-    if (tempFileName != NULL) 
+    if (tempFileName != NULL)
     {
         strcpy(fileName, tempFileName);
         result = 1;
