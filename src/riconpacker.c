@@ -32,7 +32,7 @@
 *
 *   LICENSE: Propietary License
 *
-*   Copyright (c) 2018 raylib technologies (@raylibtech). All Rights Reserved.
+*   Copyright (c) 2018-2020 raylib technologies (@raylibtech). All Rights Reserved.
 *
 *   Unauthorized copying of this file, via any medium is strictly prohibited
 *   This project is proprietary and confidential unless the owner allows
@@ -645,7 +645,7 @@ static void ShowCommandLineInfo(void)
     printf("// powered by raylib v2.4 (www.raylib.com) and raygui v2.0                                //\n");
     printf("// more info and bugs-report: ray[at]raylibtech.com                                       //\n");
     printf("//                                                                                        //\n");
-    printf("// Copyright (c) 2019 raylib technologies (@raylibtech)                                   //\n");
+    printf("// Copyright (c) 2018-2020 raylib technologies (@raylibtech)                              //\n");
     printf("//                                                                                        //\n");
     printf("////////////////////////////////////////////////////////////////////////////////////////////\n\n");
 

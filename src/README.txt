@@ -39,4 +39,4 @@ rIconPacker is closed source software but it's based on open-source technologies
 
 rIconPacker ZERO is free and rIconPacker ONE is low-cost, with the addition of some useful features. In any case, consider it as a small donation to help the author keep working on software for games development.
 
-*Copyright (c) 2019 raylib technologies (@raylibtech)*
+*Copyright (c) 2019-2020 raylib technologies (@raylibtech)*
