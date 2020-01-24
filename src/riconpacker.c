@@ -769,7 +769,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
                 for (int j = 0; j < numValues; j++)
                 {
-                    int value = atoi(values[j]);
+                    int value = TextToInteger(values[j]);
 
                     if ((value > 0) && (value <= 256))
                     {
@@ -785,7 +785,7 @@ static void ProcessCommandLine(int argc, char *argv[])
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                int platform = atoi(argv[i + 1]);   // Read provided platform value
+                int platform = TextToInteger(argv[i + 1]);   // Read provided platform value
 
                 if ((platform > 0) && (platform < 5)) outPlatform = platform;
                 else printf("WARNING: Platform requested not recognized\n");
@@ -796,7 +796,7 @@ static void ProcessCommandLine(int argc, char *argv[])
         {
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                int scale = atoi(argv[i + 1]);   // Read provided scale algorythm value
+                int scale = TextToInteger(argv[i + 1]);   // Read provided scale algorythm value
 
                 if ((scale == 1) || (scale == 2)) scaleAlgorythm = scale;
                 else printf("WARNING: Scale algorythm not recognized, default to Bicubic\n");
@@ -814,7 +814,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
                 for (int j = 0; j < numValues; j++)
                 {
-                    int value = atoi(values[j]);
+                    int value = TextToInteger(values[j]);
 
                     if ((value > 0) && (value <= 256))
                     {
