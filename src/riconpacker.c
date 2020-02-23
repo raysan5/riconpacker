@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.1 - A simple and easy-to-use icons packer
+*   rIconPacker v1.2 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -15,9 +15,9 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   DEPENDENCIES:
-*       raylib 2.6-dev          - Windowing/input management and drawing.
-*       raygui 2.6              - Immediate-mode GUI controls.
-*       tinyfiledialogs 3.3.9   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
+*       raylib 3.0              - Windowing/input management and drawing.
+*       raygui 2.7              - Immediate-mode GUI controls.
+*       tinyfiledialogs 3.4.3   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -42,21 +42,22 @@
 
 #include "raylib.h"
 
+#if defined(PLATFORM_WEB)
+    #define CUSTOM_MODAL_DIALOGS        // Force custom modal dialogs usage
+    #include <emscripten/emscripten.h>  // Emscripten library - LLVM to JavaScript compiler
+#endif
+
 #define RAYGUI_IMPLEMENTATION
-#define RAYGUI_SUPPORT_RICONS
-#include "external/raygui.h"            // Required for: IMGUI controls
+#define RAYGUI_SUPPORT_ICONS
+#include "raygui.h"                     // Required for: IMGUI controls
 
 #undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
 
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"           // GUI: About window
 
-#if defined(PLATFORM_DESKTOP) && !defined(CUSTOM_MODAL_DIALOGS)
-    #include "external/tinyfiledialogs.h"   // Required for: Native open/save file dialogs
-#else
-    //#define GUI_FILE_DIALOG_IMPLEMENTATION
-    //#include "gui_file_dialog.h"      // Required for: Custom file dialogs
-#endif
+#define GUI_FILE_DIALOGS_IMPLEMENTATION
+#include "gui_file_dialogs.h"           // GUI: File Dialogs
 
 #include "external/stb_image.h"         // Required for: stbi_load_from_memory()
 #include "external/stb_image_write.h"   // Required for: stbi_write_png_to_mem()
@@ -123,20 +124,11 @@ typedef enum {
     ICON_PLATFORM_IOS7,
 } IconPlatform;
 
-// Dialog type
-typedef enum DialogType {
-    DIALOG_OPEN = 0,
-    DIALOG_SAVE,
-    DIALOG_MESSAGE,
-    DIALOG_TEXTINPUT,
-    DIALOG_OTHER
-} DialogType;
-
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
 const char *toolName = "rIconPacker";
-const char *toolVersion = "1.1";
+const char *toolVersion = "1.2";
 const char *toolDescription = "A simple and easy-to-use icons packer and extractor";
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
@@ -171,14 +163,6 @@ static void SaveICO(Image *images, int imageCount, const char *fileName);  // Sa
 // Icon pack management functions
 static void InitIconPack(int platform);             // Initialize icon pack for a specific platform
 static void RemoveIconPack(int index);              // Remove one icon from the pack
-
-#if !defined(COMMAND_LINE_ONLY)
-// Multiplatform file dialogs
-// NOTE 1: fileName parameters is used to display and store selected file name
-// NOTE 2: Value returned is the operation result, on custom dialogs represents button option pressed
-// NOTE 3: filters and message are used for buttons and dialog messages on DIALOG_MESSAGE and DIALOG_TEXTINPUT
-static int GuiFileDialog(int dialogType, const char *title, char *fileName, const char *filters, const char *message);
-#endif
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -558,16 +542,17 @@ int main(int argc, char *argv[])
                             imCount++;
                         }
                     }
-
-                    // Export valid images to output ICO file
-                    SaveICO(images, imCount, outFileName);
+                    
+                    // Check for valid extension and make sure it is
+                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+                    SaveICO(images, imCount, outFileName);      // Export valid images to output ICO file
 
                     free(images);
 
                 #if defined(PLATFORM_WEB)
                     // Download file from MEMFS (emscripten memory filesystem)
                     // NOTE: Second argument must be a simple filename (we can't use directories)
-                    emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
+                    emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
                 #endif
                 }
 
@@ -589,14 +574,14 @@ int main(int argc, char *argv[])
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png");
+                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
 
                     ExportImage(icoPack[sizeListActive - 1].image, outFileName);
 
                 #if defined(PLATFORM_WEB)
                     // Download file from MEMFS (emscripten memory filesystem)
                     // NOTE: Second argument must be a simple filename (we can't use directories)
-                    emscripten_run_script(TextFormat("SaveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
+                    emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
                 #endif
                 }
 
@@ -1321,51 +1306,3 @@ static Image *LoadICNS(const char *fileName, int *count)
     return images;
 }
 */
-
-#if !defined(COMMAND_LINE_ONLY)
-// Multiplatform file dialogs
-static int GuiFileDialog(int dialogType, const char *title, char *fileName, const char *filters, const char *message)
-{
-    int result = -1;
-
-#if defined(CUSTOM_MODAL_DIALOGS)
-    static char tempFileName[256] = { 0 };
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
-
-    switch (dialogType)
-    {
-        case DIALOG_OPEN: /* TODO: Load file modal dialog */ break;
-        case DIALOG_SAVE: /* TODO: Load file modal dialog */ break;
-        case DIALOG_MESSAGE: result = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 120, GetScreenHeight()/2 - 60, 240, 120 }, GuiIconText(RICON_FILE_OPEN, title), message, filters); break;
-        case DIALOG_TEXTINPUT: result = GuiTextInputBox((Rectangle){ GetScreenWidth()/2 - 120, GetScreenHeight()/2 - 60, 240, 120 }, GuiIconText(RICON_FILE_SAVE, title), message, filters, tempFileName); break;
-        default: break;
-    }
-
-    if ((result == 1) && (tempFileName[0] != '\0')) strcpy(fileName, tempFileName);
-
-#else   // Use native OS dialogs (tinyfiledialogs)
-
-    const char *tempFileName = NULL;
-    int filterCount = 0;
-    const char **filterSplit = TextSplit(filters, ';', &filterCount);
-
-    switch (dialogType)
-    {
-        case DIALOG_OPEN: tempFileName = tinyfd_openFileDialog(title, fileName, filterCount, filterSplit, message, 0); break;
-        case DIALOG_SAVE: tempFileName = tinyfd_saveFileDialog(title, fileName, filterCount, filterSplit, message); break;
-        case DIALOG_MESSAGE: result = tinyfd_messageBox(title, message, "ok", "info", 0); break;
-        case DIALOG_TEXTINPUT: tempFileName = tinyfd_inputBox(title, message, ""); break;
-        default: break;
-    }
-
-    if (tempFileName != NULL)
-    {
-        strcpy(fileName, tempFileName);
-        result = 1;
-    }
-    else result = 0;
-#endif
-
-    return result;
-}
-#endif // COMMAND_LINE_ONLY
