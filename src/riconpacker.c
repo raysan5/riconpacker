@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.2 - A simple and easy-to-use icons packer
+*   rIconPacker v1.3 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -29,6 +29,8 @@
 *
 *   DEVELOPERS:
 *       Ramon Santamaria (@raysan5):   Developer, supervisor, updater and maintainer.
+*
+*   1.3 - Adapted to latest rayglib 3.1-dev
 *
 *   LICENSE: Propietary License
 *
@@ -1140,7 +1142,7 @@ static void InitIconPack(int platform)
         icoPack[i].size = icoSizesPlatform[i];
 
         icoPack[i].image = GenImageColor(icoPack[i].size, icoPack[i].size, DARKGRAY);
-        ImageDrawRectangle(&icoPack[i].image, (Rectangle){ 1, 1, icoPack[i].size - 2, icoPack[i].size - 2 }, GRAY);
+        ImageDrawRectangle(&icoPack[i].image, 1, 1, icoPack[i].size - 2, icoPack[i].size - 2, GRAY);
 
         icoPack[i].texture = LoadTextureFromImage(icoPack[i].image);
         icoPack[i].valid = false;
@@ -1157,7 +1159,7 @@ static void RemoveIconPack(int index)
         UnloadTexture(icoPack[index].texture);
 
         icoPack[index].image = GenImageColor(icoPack[index].size, icoPack[index].size, DARKGRAY);
-        ImageDrawRectangle(&icoPack[index].image, (Rectangle){ 1, 1, icoPack[index].size - 2, icoPack[index].size - 2 }, GRAY);
+        ImageDrawRectangle(&icoPack[index].image, 1, 1, icoPack[index].size - 2, icoPack[index].size - 2, GRAY);
         icoPack[index].texture = LoadTextureFromImage(icoPack[index].image);
         icoPack[index].valid = false;
     }
