@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
 
                     // Verify icon pack valid images (not placeholder ones)
                     int validCount = 0;
@@ -546,7 +546,7 @@ int main(int argc, char *argv[])
                     }
                     
                     // Check for valid extension and make sure it is
-                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
                     SaveICO(images, imCount, outFileName);      // Export valid images to output ICO file
 
                     free(images);
@@ -576,7 +576,7 @@ int main(int argc, char *argv[])
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if ((GetExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
+                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
 
                     ExportImage(icoPack[sizeListActive - 1].image, outFileName);
 
