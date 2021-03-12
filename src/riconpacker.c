@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
     const int screenWidth = 400;
     const int screenHeight = 380;
 
-    InitWindow(screenWidth, screenHeight, FormatText("%s v%s", toolName, toolVersion));
+    InitWindow(screenWidth, screenHeight, TextFormat("%s v%s", toolName, toolVersion));
     SetExitKey(0);
 
     // General pourpose variables
@@ -472,8 +472,8 @@ int main(int argc, char *argv[])
 
             // Draw status bar info
             // TODO: Status information seems redundant... maybe other kind of information could be shown.
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : FormatText("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? FormatText("AVAILABLE: %i/%i", validCount, icoPackCount) : FormatText("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, icoPackCount) : TextFormat("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
 
             GuiUnlock();
 
@@ -566,7 +566,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showExportImageDialog)
             {
-                strcpy(outFileName, FormatText("icon_%ix%i.png", icoPack[sizeListActive - 1].image.width, icoPack[sizeListActive - 1].image.height));
+                strcpy(outFileName, TextFormat("icon_%ix%i.png", icoPack[sizeListActive - 1].image.width, icoPack[sizeListActive - 1].image.height));
 
 #if defined(CUSTOM_MODAL_DIALOGS)
                 int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export image file...", outFileName, "Ok;Cancel", NULL);
@@ -977,7 +977,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 if (inputPack[i].valid)
                 {
                     printf(" > Image extract requested (%i): %s_%ix%i.png\n", inputPack[i].size, GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
-                    ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
+                    ExportImage(inputPack[i].image, TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
                 }
             }
         }
@@ -991,7 +991,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                     if (inputPack[i].size == extractSizes[j])
                     {
                         printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size);
-                        ExportImage(inputPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
+                        ExportImage(inputPack[i].image, TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), inputPack[i].size, inputPack[i].size));
                     }
                 }
             }
@@ -1004,7 +1004,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                     if ((extractSizes[j] > 0) && (outPack[i].size == extractSizes[j]))
                     {
                         printf(" > Image extract requested (%i): %s_%ix%i.png\n", extractSizes[j], GetFileNameWithoutExt(outFileName), outPack[i].size, outPack[i].size);
-                        ExportImage(outPack[i].image, FormatText("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), outPack[i].size, outPack[i].size));
+                        ExportImage(outPack[i].image, TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), outPack[i].size, outPack[i].size));
                     }
                 }
             }
@@ -1118,7 +1118,7 @@ static void InitIconPack(int platform)
     {
         sizeTextList[i] = (char *)malloc(64);   // 64 chars array
         if (i == 0) strcpy(sizeTextList[i], "ALL");
-        else strcpy(sizeTextList[i], FormatText("%i x %i", icoSizesPlatform[i - 1], icoSizesPlatform[i - 1]));
+        else strcpy(sizeTextList[i], TextFormat("%i x %i", icoSizesPlatform[i - 1], icoSizesPlatform[i - 1]));
     }
 
     // Unload previous icon pack
