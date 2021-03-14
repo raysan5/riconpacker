@@ -861,7 +861,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                     // TODO: Check if current image size is already available in the package!
 
                     // Force image to be RGBA
-                    ImageFormat(&images[j], UNCOMPRESSED_R8G8B8A8);
+                    ImageFormat(&images[j], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
                     inputPack[inputPackCount].image = ImageCopy(images[j]);
                     inputPack[inputPackCount].size = images[j].width;
@@ -1060,7 +1060,7 @@ static void LoadIntoIconPack(const char *fileName)
         if ((index >= 0) && !icoPack[index].valid)
         {
             // Force image to be RGBA
-            ImageFormat(&images[i], UNCOMPRESSED_R8G8B8A8);
+            ImageFormat(&images[i], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
             // Re-load image/texture from ico pack
             UnloadImage(icoPack[index].image);
@@ -1197,13 +1197,13 @@ static Image *LoadICO(const char *fileName, int *count)
             // NOTE: Force image data to 4 channels (RGBA)
             images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);
             images[i].mipmaps =  1;
-            images[i].format = UNCOMPRESSED_R8G8B8A8;
+            images[i].format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 
             /*
-            if (channels == 1) icoPack[i].image.format = UNCOMPRESSED_GRAYSCALE;
-            else if (channels == 2) icoPack[i].image.format = UNCOMPRESSED_GRAY_ALPHA;
-            else if (channels == 3) icoPack[i].image.format = UNCOMPRESSED_R8G8B8;
-            else if (channels == 4) icoPack[i].image.format = UNCOMPRESSED_R8G8B8A8;
+            if (channels == 1) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+            else if (channels == 2) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+            else if (channels == 3) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+            else if (channels == 4) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
             else printf("WARNING: Number of data channels not supported");
             */
 
