@@ -1,11 +1,13 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.3 - A simple and easy-to-use icons packer
+*   rIconPacker v1.5 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
 *   #define VERSION_ONE
 *       Enable PRO features for the tool. Usually command-line and export options related.
+*       - Support command line
+*       - Support multiple platform schemes
 *
 *   #define COMMAND_LINE_ONLY
 *       Compile tool only for command line usage
@@ -14,10 +16,14 @@
 *       Use custom raygui generated modal dialogs instead of native OS ones
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
+*   VERSIONS HISTORY:
+*       1.5  (xx-Nov-2021) Updated to raylib 4.0 and raygui 3.0
+*       1.0  (23-Mar-2019) First release
+*
 *   DEPENDENCIES:
-*       raylib 3.0              - Windowing/input management and drawing.
-*       raygui 2.7              - Immediate-mode GUI controls.
-*       tinyfiledialogs 3.4.3   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
+*       raylib 4.0              - Windowing/input management and drawing.
+*       raygui 3.0              - Immediate-mode GUI controls.
+*       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -30,7 +36,6 @@
 *   DEVELOPERS:
 *       Ramon Santamaria (@raysan5):   Developer, supervisor, updater and maintainer.
 *
-*   1.3 - Adapted to latest rayglib 3.1-dev
 *
 *   LICENSE: Propietary License
 *
@@ -276,9 +281,9 @@ int main(int argc, char *argv[])
             int dropsCount = 0;
             char **droppedFiles = GetDroppedFiles(&dropsCount);
 
-#if defined(VERSION_ONE)
+            // Support gui styles
             if ((dropsCount == 1) && IsFileExtension(droppedFiles[0], ".rgs")) GuiLoadStyle(droppedFiles[0]);
-#endif
+
             for (int i = 0; i < dropsCount; i++)
             {
                 if (IsFileExtension(droppedFiles[i], ".ico") ||
