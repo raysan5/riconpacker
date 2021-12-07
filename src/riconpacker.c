@@ -135,7 +135,7 @@ typedef enum {
 // Global Variables Definition
 //----------------------------------------------------------------------------------
 const char *toolName = "rIconPacker";
-const char *toolVersion = "1.2";
+const char *toolVersion = "1.5";
 const char *toolDescription = "A simple and easy-to-use icons packer and extractor";
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
