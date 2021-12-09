@@ -49,6 +49,13 @@
 
 #include "raylib.h"
 
+#define TOOL_NAME               "rIconPacker"
+#define TOOL_SHORT_NAME         "rIP"
+#define TOOL_VERSION            "1.5"
+#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
+#define TOOL_RELEASE_DATE       "Dec.2021"
+#define TOOL_LOGO_COLOR         0xffc800ff
+
 #if defined(PLATFORM_WEB)
     #define CUSTOM_MODAL_DIALOGS        // Force custom modal dialogs usage
     #include <emscripten/emscripten.h>  // Emscripten library - LLVM to JavaScript compiler
@@ -317,7 +324,7 @@ int main(int argc, char *argv[])
         }
 
         // Show window: about
-        if (IsKeyPressed(KEY_F1)) windowAboutState.windowAboutActive = true;
+        if (IsKeyPressed(KEY_F1)) windowAboutState.windowActive = true;
 
         // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
@@ -336,7 +343,7 @@ int main(int argc, char *argv[])
         // Show closing window on ESC
         if (IsKeyPressed(KEY_ESCAPE))
         {
-            if (windowAboutState.windowAboutActive) windowAboutState.windowAboutActive = false;
+            if (windowAboutState.windowActive) windowAboutState.windowActive = false;
             else windowExitActive = !windowExitActive;
         }
         //----------------------------------------------------------------------------------
@@ -347,7 +354,7 @@ int main(int argc, char *argv[])
         mousePoint = GetMousePosition();    // Get mouse position each frame
         if (WindowShouldClose()) exitWindow = true;
 
-        if (windowAboutState.windowAboutActive || windowExitActive) lockBackground = true;
+        if (windowAboutState.windowActive || windowExitActive) lockBackground = true;
         else lockBackground = false;
 
         // Calculate valid images
@@ -434,7 +441,7 @@ int main(int argc, char *argv[])
             platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
             GuiEnable();
 
-            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) windowAboutState.windowAboutActive = true;
+            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) windowAboutState.windowActive = true;
             if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) showLoadFileDialog = true;
 
             sizeListActive = GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, TextJoin(sizeTextList, sizeListCount, ";"), NULL, sizeListActive);
@@ -1193,26 +1200,20 @@ static Image *LoadICO(const char *fileName, int *count)
 
         for (int i = 0; i < icoHeader.imageCount; i++)
         {
-            unsigned char *icoData = (unsigned char *)malloc(icoDirEntry[i].size);
-            fread(icoData, icoDirEntry[i].size, 1, icoFile);         // Read icon png data
+            unsigned char *icoImageData = (unsigned char *)malloc(icoDirEntry[i].size);
+            fread(icoImageData, icoDirEntry[i].size, 1, icoFile);    // Read icon image data
 
             int channels = 0;
 
-            // Reading png data from memory buffer
-            // NOTE: Force image data to 4 channels (RGBA)
-            images[i].data = stbi_load_from_memory(icoData, icoDirEntry[i].size, &images[i].width, &images[i].height, &channels, 4);
-            images[i].mipmaps =  1;
-            images[i].format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+            // Reading image data from memory buffer
+            // WARNING: Image data on th IcoDirEntry may be in either:
+            //  - Windows BMP format, excluding the BITMAPFILEHEADER structure
+            //  - PNG format, stored in its entirety
+            // NOTE: We are only supporting the PNG format
+            // TODO: Support BMP data
+            images[i] = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
 
-            /*
-            if (channels == 1) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-            else if (channels == 2) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
-            else if (channels == 3) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
-            else if (channels == 4) icoPack[i].image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-            else printf("WARNING: Number of data channels not supported");
-            */
-
-            free(icoData);
+            free(icoImageData);
         }
 
         free(icoDirEntry);
@@ -1230,7 +1231,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = imageCount };
     IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-    unsigned char *icoData[icoHeader.imageCount];       // PNG files data
+    unsigned char *icoData = (unsigned char *)malloc(icoHeader.imageCount);       // PNG files data
     int offset = 6 + 16*icoHeader.imageCount;
 
     for (int i = 0; i < imageCount; i++)
@@ -1239,7 +1240,8 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
 
         // Compress images data into PNG file data streams
         // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
-        icoData[i] = stbi_write_png_to_mem((unsigned char *)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
+        // TODO: Use `rpng.h`
+        icoData[i] = ExportImageToMemory(images[i], ".png", &size); //stbi_write_png_to_mem((unsigned char*)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
 
         // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
         // NOTE 2: miniz also provides a CRC32 calculation implementation
@@ -1272,6 +1274,8 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
 
         fclose(icoFile);
     }
+
+    free(icoData);
 }
 
 /*
