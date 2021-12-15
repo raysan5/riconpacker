@@ -1211,7 +1211,7 @@ static Image *LoadICO(const char *fileName, int *count)
             //  - PNG format, stored in its entirety
             // NOTE: We are only supporting the PNG format
             // TODO: Support BMP data
-            images[i] = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
+            ((Image *)images)[i] = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
 
             free(icoImageData);
         }
@@ -1241,7 +1241,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         // Compress images data into PNG file data streams
         // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
         // TODO: Use `rpng.h`
-        icoData[i] = ExportImageToMemory(images[i], ".png", &size); //stbi_write_png_to_mem((unsigned char*)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
+        //icoData[i] = ExportImageToMemory(images[i], ".png", &size); //stbi_write_png_to_mem((unsigned char*)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
 
         // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
         // NOTE 2: miniz also provides a CRC32 calculation implementation
