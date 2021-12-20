@@ -636,7 +636,7 @@ static void ShowCommandLineInfo(void)
 {
     printf("\n////////////////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                                        //\n");
-    printf("// %s v%s ONE - %s             //\n", toolName, toolVersion, toolDescription);
+    printf("// %s v%s - %s                 //\n", toolName, toolVersion, toolDescription);
     printf("// powered by raylib v4.0 (www.raylib.com) and raygui v3.0                                //\n");
     printf("// more info and bugs-report: ray[at]raylibtech.com                                       //\n");
     printf("//                                                                                        //\n");
@@ -711,7 +711,6 @@ static void ProcessCommandLine(int argc, char *argv[])
     int extractSizesCount = 0;          // Number of sizes to extract
 
     bool extractAll = false;            // Extract all sizes required
-    bool makeOne = false;               // Generate icon version ONE
 
 #if defined(COMMAND_LINE_ONLY)
     if (argc == 1) showUsageInfo = true;
