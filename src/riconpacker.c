@@ -17,13 +17,13 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
-*       1.5  (xx-Nov-2021) Updated to raylib 4.0 and raygui 3.0
+*       1.5  (xx-Nov-2021) Updated to raylib 4.0 and raygui 3.1
 *       1.0  (23-Mar-2019) First release
 *
 *   DEPENDENCIES:
-*       raylib 4.0              - Windowing/input management and drawing.
-*       raygui 3.0              - Immediate-mode GUI controls.
-*       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs.
+*       raylib 4.0              - Windowing/input management and drawing
+*       raygui 3.1              - Immediate-mode GUI controls with custom styling and icons
+*       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -52,7 +52,7 @@
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
 #define TOOL_VERSION            "1.5"
-#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
+#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer and extractor"
 #define TOOL_RELEASE_DATE       "Dec.2021"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
@@ -84,13 +84,17 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-
-// Define png to memory write function
-// NOTE: This function is internal to stb_image_write.h but not exposed by default
-unsigned char *stbi_write_png_to_mem(unsigned char *pixels, int stride_bytes, int x, int y, int n, int *out_len);
-
 #if (!defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
 bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib)
+#endif
+
+// Simple log system to avoid printf() calls if required
+// NOTE: Avoiding those calls, also avoids const strings memory usage
+#define SUPPORT_LOG_INFO
+#if defined(SUPPORT_LOG_INFO)
+  #define LOG(...) printf(__VA_ARGS__)
+#else
+  #define LOG(...)
 #endif
 
 //----------------------------------------------------------------------------------
@@ -141,9 +145,9 @@ typedef enum {
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-const char *toolName = "rIconPacker";
-const char *toolVersion = "1.5";
-const char *toolDescription = "A simple and easy-to-use icons packer and extractor";
+static const char *toolName = TOOL_NAME;
+static const char *toolVersion = TOOL_VERSION;
+static const char *toolDescription = TOOL_DESCRIPTION;
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
 static int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
@@ -344,7 +348,9 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_ESCAPE))
         {
             if (windowAboutState.windowActive) windowAboutState.windowActive = false;
+#if !defined(PLATFORM_WEB)
             else windowExitActive = !windowExitActive;
+#endif
         }
         //----------------------------------------------------------------------------------
 
@@ -352,7 +358,9 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         framesCounter++;                    // General usage frames counter
         mousePoint = GetMousePosition();    // Get mouse position each frame
+#if !defined(PLATFORM_WEB)
         if (WindowShouldClose()) exitWindow = true;
+#endif
 
         if (windowAboutState.windowActive || windowExitActive) lockBackground = true;
         else lockBackground = false;
@@ -625,11 +633,9 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-
 //--------------------------------------------------------------------------------------------
-// Module functions
+// Module functions definition
 //--------------------------------------------------------------------------------------------
-
 #if defined(VERSION_ONE)            // Command line
 // Show command line usage info
 static void ShowCommandLineInfo(void)
