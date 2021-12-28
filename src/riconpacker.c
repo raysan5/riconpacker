@@ -5,9 +5,7 @@
 *   CONFIGURATION:
 *
 *   #define VERSION_ONE
-*       Enable PRO features for the tool. Usually command-line and export options related.
-*       - Support command line
-*       - Support multiple platform schemes
+*       Enable command-line usage and PRO features for the tool
 *
 *   #define COMMAND_LINE_ONLY
 *       Compile tool only for command line usage
@@ -47,8 +45,6 @@
 *
 **********************************************************************************************/
 
-#include "raylib.h"
-
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
 #define TOOL_VERSION            "1.5"
@@ -56,13 +52,17 @@
 #define TOOL_RELEASE_DATE       "Dec.2021"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
+#include "raylib.h"
+
+#define RPNG_IMPLEMENTATION
+#include "rpng.h"
+
 #if defined(PLATFORM_WEB)
     #define CUSTOM_MODAL_DIALOGS        // Force custom modal dialogs usage
     #include <emscripten/emscripten.h>  // Emscripten library - LLVM to JavaScript compiler
 #endif
 
 #define RAYGUI_IMPLEMENTATION
-#define RAYGUI_SUPPORT_ICONS
 #include "raygui.h"                     // Required for: IMGUI controls
 
 #undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
@@ -72,9 +72,6 @@
 
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"           // GUI: File Dialogs
-
-#include "external/stb_image.h"         // Required for: stbi_load_from_memory()
-#include "external/stb_image_write.h"   // Required for: stbi_write_png_to_mem()
 
 #include <stdio.h>                      // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                     // Required for: malloc(), free()
@@ -155,6 +152,7 @@ static int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };
 static int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
 static int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
 
+#if !defined(COMMAND_LINE_ONLY)
 static int icoPackCount = 0;                // Icon images array counter
 static IconPackEntry *icoPack;              // Icon images array
 
@@ -164,6 +162,7 @@ static char **sizeTextList = NULL;          // Pointer to list text arrays
 static int *icoSizesPlatform = NULL;        // Pointer to selected platform icon sizes
 
 static int validCount = 0;                  // Valid ico images counter
+#endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -173,14 +172,16 @@ static void ShowCommandLineInfo(void);                      // Show command line
 static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
 #endif
 
-// Load/Save/Export data functions
-static void LoadIntoIconPack(const char *fileName);         // Load icon file into icoPack
-static Image *LoadICO(const char *fileName, int *count);    // Load icon data
-static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
-
+#if !defined(COMMAND_LINE_ONLY)
 // Icon pack management functions
+static void LoadIntoIconPack(const char *fileName); // Load icon file into icoPack
 static void InitIconPack(int platform);             // Initialize icon pack for a specific platform
 static void RemoveIconPack(int index);              // Remove one icon from the pack
+#endif
+
+// Load/Save/Export data functions
+static Image *LoadICO(const char *fileName, int *count);    // Load icon data
+static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -193,6 +194,7 @@ int main(int argc, char *argv[])
 #if defined(COMMAND_LINE_ONLY)
     ProcessCommandLine(argc, argv);
 #else
+#if defined(VERSION_ONE)
     char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
     char outFileName[512] = { 0 };      // Output file name (required for file save/export)
 
@@ -210,15 +212,13 @@ int main(int argc, char *argv[])
                 strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
             }
         }
-#if defined(VERSION_ONE)
         else
         {
             ProcessCommandLine(argc, argv);
             return 0;
         }
-#endif      // VERSION_ONE
     }
-
+#endif      // VERSION_ONE
 #if (!defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
@@ -285,6 +285,8 @@ int main(int argc, char *argv[])
     // Main game loop
     while (!exitWindow)     // Detect window close button or ESC key
     {
+        if (WindowShouldClose()) exitWindow = true;
+
         // Dropped files logic
         //----------------------------------------------------------------------------------
         if (IsFileDropped())
@@ -358,9 +360,6 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         framesCounter++;                    // General usage frames counter
         mousePoint = GetMousePosition();    // Get mouse position each frame
-#if !defined(PLATFORM_WEB)
-        if (WindowShouldClose()) exitWindow = true;
-#endif
 
         if (windowAboutState.windowActive || windowExitActive) lockBackground = true;
         else lockBackground = false;
@@ -612,7 +611,6 @@ int main(int argc, char *argv[])
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-
     // Unload sizes text list
     for (int i = 0; i < sizeListCount; i++) free(sizeTextList[i]);
     free(sizeTextList);
@@ -629,21 +627,22 @@ int main(int argc, char *argv[])
     CloseWindow();      // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
-#endif  // COMMAND_LINE_ONLY
+#endif      // !COMMAND_LINE_ONLY
+
     return 0;
 }
 
 //--------------------------------------------------------------------------------------------
 // Module functions definition
 //--------------------------------------------------------------------------------------------
-#if defined(VERSION_ONE)            // Command line
+#if defined(VERSION_ONE) || defined(COMMAND_LINE_ONLY)
 // Show command line usage info
 static void ShowCommandLineInfo(void)
 {
     printf("\n////////////////////////////////////////////////////////////////////////////////////////////\n");
     printf("//                                                                                        //\n");
     printf("// %s v%s - %s                 //\n", toolName, toolVersion, toolDescription);
-    printf("// powered by raylib v%s and raygui v%s                                       //\n", RAYLIB_VERSION, RAYGUI_VERSION);
+    printf("// powered by raylib v%s and raygui v%s                                             //\n", RAYLIB_VERSION, RAYGUI_VERSION);
     printf("// more info and bugs-report: ray[at]raylibtech.com                                       //\n");
     printf("//                                                                                        //\n");
     printf("// Copyright (c) 2018-2022 raylib technologies (@raylibtech)                              //\n");
@@ -1031,12 +1030,12 @@ static void ProcessCommandLine(int argc, char *argv[])
 
     if (showUsageInfo) ShowCommandLineInfo();
 }
-#endif      // VERSION_ONE: Command line
+#endif      // VERSION_ONE || COMMAND_LINE_ONLY
 
 //--------------------------------------------------------------------------------------------
 // Load/Save/Export functions
 //--------------------------------------------------------------------------------------------
-
+#if !defined(COMMAND_LINE_ONLY)
 // Load icon file into an image array
 // NOTE: Uses global variables: icoPack, icoPackCount, icoSizesPlatform
 static void LoadIntoIconPack(const char *fileName)
@@ -1177,6 +1176,7 @@ static void RemoveIconPack(int index)
         icoPack[index].valid = false;
     }
 }
+#endif      // !COMMAND_LINE_ONLY
 
 // Icon data loader
 // NOTE: Returns an array of images
@@ -1204,8 +1204,6 @@ static Image *LoadICO(const char *fileName, int *count)
             unsigned char *icoImageData = (unsigned char *)malloc(icoDirEntry[i].size);
             fread(icoImageData, icoDirEntry[i].size, 1, icoFile);    // Read icon image data
 
-            int channels = 0;
-
             // Reading image data from memory buffer
             // WARNING: Image data on th IcoDirEntry may be in either:
             //  - Windows BMP format, excluding the BITMAPFILEHEADER structure
@@ -1232,7 +1230,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = imageCount };
     IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-    unsigned char *icoData = (unsigned char *)malloc(icoHeader.imageCount);       // PNG files data
+    unsigned char *icoData = (unsigned char *)malloc(icoHeader.imageCount);     // PNG files data
     int offset = 6 + 16*icoHeader.imageCount;
 
     for (int i = 0; i < imageCount; i++)
@@ -1243,9 +1241,6 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
         // TODO: Use `rpng.h`
         //icoData[i] = ExportImageToMemory(images[i], ".png", &size); //stbi_write_png_to_mem((unsigned char*)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
-
-        // NOTE 1: In-memory png could also be generated using miniz_tdef: tdefl_write_image_to_png_file_in_memory()
-        // NOTE 2: miniz also provides a CRC32 calculation implementation
 
         icoDirEntry[i].width = (images[i].width == 256)? 0 : images[i].width;
         icoDirEntry[i].height = (images[i].width == 256)? 0 : images[i].width;
