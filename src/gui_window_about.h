@@ -178,7 +178,7 @@ GuiWindowAboutState InitGuiWindowAbout(void)
     // Custom variables initialization
     state.windowWidth = 340;
     state.windowHeight = 340;
-    state.position = (Vector2){ GetScreenWidth()/2 - state.windowWidth/2, GetScreenHeight()/2 - state.windowHeight/2 };
+    state.position = (Vector2){ GetScreenWidth()/2.0f - state.windowWidth/2, GetScreenHeight()/2.0f - state.windowHeight/2 };
 
     return state;
 }

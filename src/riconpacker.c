@@ -135,7 +135,7 @@ typedef struct {
 typedef struct {
     IconPackEntry *icons;       // Pack icons
     unsigned int *sizes;        // Icon sizes pointer
-    unsigned int count;         // Pack icon count
+    int count;                  // Pack icon count
 } IconPack;
 
 // Icon platform type
@@ -154,10 +154,10 @@ static const char *toolVersion = TOOL_VERSION;
 static const char *toolDescription = TOOL_DESCRIPTION;
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
-static const int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
-static const int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
-static const int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
-static const int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
+static int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
+static int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
+static int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
+static int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
 
 #if !defined(COMMAND_LINE_ONLY)
 static IconPack packs[4] = { 0 };           // Icon packs, one for every platform
@@ -457,17 +457,17 @@ int main(int argc, char *argv[])
             // Draw icons panel and border lines
             //--------------------------------------------------------------------------------------------------------------
             GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, NULL);
-            DrawRectangleLines(anchorMain.x + 135, anchorMain.y + 55, 256, 256, Fade(GRAY, 0.6f));
+            DrawRectangleLines((int)anchorMain.x + 135, (int)anchorMain.y + 55, 256, 256, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < packs[platformActive].count; i++) DrawTexture(packs[platformActive].icons[i].texture, anchorMain.x + 135, anchorMain.y + 55, WHITE);
+                for (int i = 0; i < packs[platformActive].count; i++) DrawTexture(packs[platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 55, WHITE);
             }
             else if (sizeListActive > 0)
             {
                 DrawTexture(packs[platformActive].icons[sizeListActive - 1].texture,
-                            anchorMain.x + 135 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.width/2,
-                            anchorMain.y + 55 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                            (int)anchorMain.x + 135 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.width/2,
+                            (int)anchorMain.y + 55 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
             }
             //--------------------------------------------------------------------------------------------------------------
 
@@ -509,7 +509,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (windowExitActive)
             {
-                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
+                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2.0f - 125, GetScreenHeight()/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
 
                 if ((message == 0) || (message == 2)) windowExitActive = false;
                 else if (message == 1) exitWindow = true;
@@ -1102,7 +1102,7 @@ static IconPack LoadIconPack(int platform)
         case ICON_PLATFORM_FAVICON: pack.count = 10; pack.sizes = icoSizesFavicon; break;
         case ICON_PLATFORM_ANDROID: pack.count = 10; pack.sizes = icoSizesAndroid; break;
         case ICON_PLATFORM_IOS7: pack.count = 9; pack.sizes = icoSizesiOS; break;
-        default: return;
+        default: break;
     }
 
     pack.icons = (IconPackEntry *)malloc(pack.count*sizeof(IconPackEntry));
@@ -1250,7 +1250,6 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     free(icoData);
 }
 
-/*
 // Apple ICNS icons loader
 // NOTE: Check for reference: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
 static Image *LoadICNS(const char *fileName, int *count)
@@ -1288,7 +1287,6 @@ static Image *LoadICNS(const char *fileName, int *count)
 
     return images;
 }
-*/
 
 // Get sizes as a text array separated by semicolon (ready for GuiListView())
 static char *GetTextIconSizes(IconPack pack)
