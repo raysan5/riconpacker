@@ -15,12 +15,13 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
-*       1.5  (xx-Nov-2021) Updated to raylib 4.0 and raygui 3.1
+*       1.5  (30-Dec-2021) Updated to raylib 4.0 and raygui 3.1
 *       1.0  (23-Mar-2019) First release
 *
 *   DEPENDENCIES:
 *       raylib 4.0              - Windowing/input management and drawing
 *       raygui 3.1              - Immediate-mode GUI controls with custom styling and icons
+*       rpng 1.0                - PNG chunks management
 *       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *
 *   COMPILATION (Windows - MinGW):
@@ -48,7 +49,7 @@
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
 #define TOOL_VERSION            "1.5"
-#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer and extractor"
+#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
 #define TOOL_RELEASE_DATE       "Dec.2021"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
@@ -188,6 +189,9 @@ static void SaveICO(Image *images, int imageCount, const char *fileName);  // Sa
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
+    char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
+    char outFileName[512] = { 0 };      // Output file name (required for file save/export)
+
 #if !defined(_DEBUG)
     SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messsages
 #endif
@@ -195,9 +199,6 @@ int main(int argc, char *argv[])
     ProcessCommandLine(argc, argv);
 #else
 #if defined(VERSION_ONE)
-    char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
-    char outFileName[512] = { 0 };      // Output file name (required for file save/export)
-
     // Command-line usage mode
     //--------------------------------------------------------------------------------------
     if (argc > 1)
@@ -237,8 +238,6 @@ int main(int argc, char *argv[])
     // General pourpose variables
     Vector2 mousePoint = { 0.0f, 0.0f };
     int framesCounter = 0;
-
-    bool lockBackground = false;
 
     // Initialize icon pack by platform
     InitIconPack(ICON_PLATFORM_WINDOWS);
@@ -285,7 +284,7 @@ int main(int argc, char *argv[])
     // Main game loop
     while (!exitWindow)     // Detect window close button or ESC key
     {
-        if (WindowShouldClose()) exitWindow = true;
+        if (WindowShouldClose()) windowExitActive = true;
 
         // Dropped files logic
         //----------------------------------------------------------------------------------
@@ -361,9 +360,6 @@ int main(int argc, char *argv[])
         framesCounter++;                    // General usage frames counter
         mousePoint = GetMousePosition();    // Get mouse position each frame
 
-        if (windowAboutState.windowActive || windowExitActive) lockBackground = true;
-        else lockBackground = false;
-
         // Calculate valid images
         validCount = 0;
         for (int i = 0; i < icoPackCount; i++) if (icoPack[i].valid) validCount++;
@@ -427,6 +423,9 @@ int main(int argc, char *argv[])
             InitIconPack(platformActive + 1);
             prevPlatformActive = platformActive;
         }
+
+        // WARNING: Some windows should lock the main screen controls when shown
+        if (windowAboutState.windowActive || windowExitActive || showLoadFileDialog || showExportFileDialog || showExportImageDialog) GuiLock();
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -434,8 +433,6 @@ int main(int argc, char *argv[])
         BeginDrawing();
 
             ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
-
-            if (lockBackground) GuiLock();
 
             // GUI: Main Layout
             //----------------------------------------------------------------------------------
@@ -490,28 +487,27 @@ int main(int argc, char *argv[])
             GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", icoPack[sizeListActive - 1].size, icoPack[sizeListActive - 1].size));
             GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, icoPackCount) : TextFormat("AVAILABLE: %i/1", icoPack[sizeListActive - 1].valid));
 
+            // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
+            if (GuiIsLocked()) DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
+
+            // WARNING: Before drawing the windows, we unlock them
             GuiUnlock();
 
             // GUI: About Window
             //-----------------------------------------------------------------------------------
-            // NOTE: We check for lockBackground to wait one frame before activation and
-            // avoid closing button pressed at activation frame (open-close effect)
-            if (lockBackground) GuiWindowAbout(&windowAboutState);
+            GuiWindowAbout(&windowAboutState);
             //-----------------------------------------------------------------------------------
 
             // GUI: Exit Window
             //----------------------------------------------------------------------------------------
             if (windowExitActive)
             {
-                DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.8f));
                 int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2 - 125, GetScreenHeight()/2 - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
 
                 if ((message == 0) || (message == 2)) windowExitActive = false;
                 else if (message == 1) exitWindow = true;
             }
             //----------------------------------------------------------------------------------------
-
-            GuiEnable();
 
             // GUI: Load File Dialog (and loading logic)
             //----------------------------------------------------------------------------------------
@@ -1230,25 +1226,29 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = imageCount };
     IcoDirEntry *icoDirEntry = (IcoDirEntry *)calloc(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-    unsigned char *icoData = (unsigned char *)malloc(icoHeader.imageCount);     // PNG files data
+    char **icoData = (char **)malloc(icoHeader.imageCount*sizeof(char *));     // Pointers array to PNG image data
     int offset = 6 + 16*icoHeader.imageCount;
 
     for (int i = 0; i < imageCount; i++)
     {
-        int size = 0;     // Store generated png file size
+        int fileSize = 0;       // Store generated png file size
+        int colorChannels = 0;
 
         // Compress images data into PNG file data streams
-        // TODO: Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
-        // TODO: Use `rpng.h`
-        //icoData[i] = ExportImageToMemory(images[i], ".png", &size); //stbi_write_png_to_mem((unsigned char*)images[i].data, images[i].width*4, images[i].width, images[i].height, 4, &size);
+        // Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
+        if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8) colorChannels = 3;
+        else if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) colorChannels = 4;
+
+        // NOTE: Memory is allocated internally using RPNG_MALLOC(), must be freed with RPNG_FREE()
+        icoData[i] = rpng_save_image_to_memory(images[i].data, images[i].width, images[i].height, colorChannels, 8, &fileSize);
 
         icoDirEntry[i].width = (images[i].width == 256)? 0 : images[i].width;
         icoDirEntry[i].height = (images[i].width == 256)? 0 : images[i].width;
         icoDirEntry[i].bpp = 32;
-        icoDirEntry[i].size = size;
+        icoDirEntry[i].size = fileSize;
         icoDirEntry[i].offset = offset;
 
-        offset += size;
+        offset += fileSize;
     }
 
     FILE *icoFile = fopen(fileName, "wb");
@@ -1264,13 +1264,12 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
         // Write icon png data
         for (int i = 0; i < icoHeader.imageCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
 
-        // Free used data
-        for (int i = 0; i < icoHeader.imageCount; i++) free(icoData[i]);
-        free(icoDirEntry);
-
         fclose(icoFile);
     }
 
+    // Free used data
+    for (int i = 0; i < icoHeader.imageCount; i++) RPNG_FREE(icoData[i]);
+    free(icoDirEntry);
     free(icoData);
 }
 
