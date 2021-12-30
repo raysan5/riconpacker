@@ -37,7 +37,7 @@
 *
 *   LICENSE: Propietary License
 *
-*   Copyright (c) 2018-2020 raylib technologies (@raylibtech). All Rights Reserved.
+*   Copyright (c) 2018-2021 raylib technologies (@raylibtech). All Rights Reserved.
 *
 *   Unauthorized copying of this file, via any medium is strictly prohibited
 *   This project is proprietary and confidential unless the owner allows
@@ -55,23 +55,23 @@
 #include "raylib.h"
 
 #define RPNG_IMPLEMENTATION
-#include "rpng.h"
+#include "external/rpng.h"                  // PNG chunks management
 
 #if defined(PLATFORM_WEB)
-    #define CUSTOM_MODAL_DIALOGS        // Force custom modal dialogs usage
-    #include <emscripten/emscripten.h>  // Emscripten library - LLVM to JavaScript compiler
+    #define CUSTOM_MODAL_DIALOGS            // Force custom modal dialogs usage
+    #include <emscripten/emscripten.h>      // Emscripten library - LLVM to JavaScript compiler
 #endif
 
 #define RAYGUI_IMPLEMENTATION
-#include "raygui.h"                     // Required for: IMGUI controls
+#include "raygui.h"                         // Required for: IMGUI controls
 
-#undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
+#undef RAYGUI_IMPLEMENTATION                // Avoid including raygui implementation again
 
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
-#include "gui_window_about.h"           // GUI: About window
+#include "gui_window_about.h"               // GUI: About window
 
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
-#include "gui_file_dialogs.h"           // GUI: File Dialogs
+#include "gui_file_dialogs.h"               // GUI: File Dialogs
 
 #include <stdio.h>                      // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                     // Required for: malloc(), free()
