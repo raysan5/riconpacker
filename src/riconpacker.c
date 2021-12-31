@@ -1250,6 +1250,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     free(icoData);
 }
 
+/*
 // Apple ICNS icons loader
 // NOTE: Check for reference: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
 static Image *LoadICNS(const char *fileName, int *count)
@@ -1272,6 +1273,30 @@ static Image *LoadICNS(const char *fileName, int *count)
         unsigned int dataSize;      // Length of data, in bytes (including type and length), msb first
         unsigned char *data;        // Icon data
     } IcnsData;
+    
+    // ICNS support a long list of OSType icon data formats,
+    // we will only support and load a small subset and **only PNG data format**:
+    //  OSType  Size        Details
+    //---------------------------------------------------------------------------
+    // - icp4	16x16	    JPEG 2000† or PNG† format or 24-bit RGB icon[2]
+    // - icp5	32x32	    JPEG 2000† or PNG† format or 24-bit RGB icon[2]
+    // - icp6	48x48	    JPEG 2000† or PNG† format
+    // - ic07	128x128	    JPEG 2000 or PNG format
+    // - ic08	256x256	    JPEG 2000 or PNG format
+    // - ic09	512x512	    JPEG 2000 or PNG format
+    // - ic10	1024x1024   JPEG 2000 or PNG format (512x512@2x "retina" in 10.8)
+    // - ic11	32x32	    JPEG 2000 or PNG format (16x16@2x "retina")
+    // - ic12	64x64	    JPEG 2000 or PNG format (32x32@2x "retina")
+    // - ic13	256x256	    JPEG 2000 or PNG format (128x128@2x "retina")
+    // - ic14	512x512	    JPEG 2000 or PNG format (256x256@2x "retina")
+    
+    // App icon sizes (recommended)
+    // https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-images/app-icon/
+    // - 512x512 (512x512@1x, 1024x1024@2x)
+    // - 256x256 (256x256@1x, 512x512@2x)
+    // - 128x128 (128x128@1x, 256x256@2x)
+    // - 32x32   (32x32@1x, 64x64@2x)
+    // - 16x16   (16x16@1x, 32x32@2x)
 
     // Load .icns information
     IcnsHeader icnsHeader = { 0 };
@@ -1287,6 +1312,7 @@ static Image *LoadICNS(const char *fileName, int *count)
 
     return images;
 }
+*/
 
 // Get sizes as a text array separated by semicolon (ready for GuiListView())
 static char *GetTextIconSizes(IconPack pack)
