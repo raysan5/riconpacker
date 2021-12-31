@@ -154,10 +154,10 @@ static const char *toolVersion = TOOL_VERSION;
 static const char *toolDescription = TOOL_DESCRIPTION;
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
-static int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
-static int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
-static int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
-static int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
+static unsigned int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
+static unsigned int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
+static unsigned int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
+static unsigned int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
 
 #if !defined(COMMAND_LINE_ONLY)
 static IconPack packs[4] = { 0 };           // Icon packs, one for every platform
@@ -175,19 +175,19 @@ static void ProcessCommandLine(int argc, char *argv[]);     // Process command l
 
 #if !defined(COMMAND_LINE_ONLY)
 // Icon pack management functions
-static IconPack LoadIconPack(int platform);                 // Load icon pack for a specific platform
-static void UnloadIconPack(IconPack *pack);                 // Unload icon pack
+static IconPack LoadIconPack(int platform);     // Load icon pack for a specific platform
+static void UnloadIconPack(IconPack *pack);     // Unload icon pack
 
 static void LoadIconToPack(IconPack *pack, const char *fileName); // Load icon file into pack
 static void UnloadIconFromPack(IconPack *pack, int index);        // Unload one icon from the pack
+
+static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array separated by semicolon (ready for GuiListView())
 #endif
 
 // Load/Save/Export data functions
 static Image *LoadICO(const char *fileName, int *count);    // Load icon data
 static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
 
-// Get sizes as a text array separated by semicolon (ready for GuiListView())
-static char *GetTextIconSizes(IconPack pack);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
     SetExitKey(0);
 
     // General pourpose variables
-    Vector2 mousePoint = { 0.0f, 0.0f };
+    //Vector2 mousePoint = { 0.0f, 0.0f };
     int framesCounter = 0;
 
     // Initialize all icon packs (for all platforms)
@@ -366,7 +366,6 @@ int main(int argc, char *argv[])
         // Basic program flow logic
         //----------------------------------------------------------------------------------
         framesCounter++;                    // General usage frames counter
-        mousePoint = GetMousePosition();    // Get mouse position each frame
 
         // Calculate valid images
         validCount = 0;
@@ -1149,6 +1148,29 @@ static void UnloadIconFromPack(IconPack *pack, int index)
         pack->icons[index].valid = false;
     }
 }
+
+// Get sizes as a text array separated by semicolon (ready for GuiListView())
+static char *GetTextIconSizes(IconPack pack)
+{
+    static char buffer[512] = { 0 };
+    memset(buffer, 0, 512);
+
+    int offset = 0;
+    int length = 0;
+    memcpy(buffer, "ALL;", 4);
+    offset += 4;
+
+    for (int i = 0; i < pack.count; i++)
+    {
+        length = TextLength(TextFormat("%i x %i;", pack.sizes[i], pack.sizes[i]));
+        memcpy(buffer + offset, TextFormat("%i x %i;", pack.sizes[i], pack.sizes[i]), length);
+        offset += length;
+    }
+
+    buffer[offset - 1] = '\0';
+
+    return buffer;
+}
 #endif      // !COMMAND_LINE_ONLY
 
 // Icon data loader
@@ -1313,26 +1335,3 @@ static Image *LoadICNS(const char *fileName, int *count)
     return images;
 }
 */
-
-// Get sizes as a text array separated by semicolon (ready for GuiListView())
-static char *GetTextIconSizes(IconPack pack)
-{
-    static char buffer[512] = { 0 };
-    memset(buffer, 0, 512);
-
-    int offset = 0;
-    int length = 0;
-    memcpy(buffer, "ALL;", 4);
-    offset += 4;
-
-    for (int i = 0; i < pack.count; i++)
-    {
-        length = TextLength(TextFormat("%i x %i;", pack.sizes[i], pack.sizes[i]));
-        memcpy(buffer + offset, TextFormat("%i x %i;", pack.sizes[i], pack.sizes[i]), length);
-        offset += length;
-    }
-
-    buffer[offset - 1] = '\0';
-
-    return buffer;
-}
