@@ -13,7 +13,7 @@ rGuiIcons can be used for free as a [WebAssembly online tool](https://raylibtech
 ## rIconPacker Features
 
  - **Pack** your custom images into an icon
- - Multiple input image formats supported: `.bmp`, `.png`, `.jpg`, `.qoi`...
+ - Input image formats supported: `.bmp`, `.png`, `.jpg` and `.qoi`
  - **Unpack** icon to check available image sizes
  - **Generate** missing icon sizes for selected platform
  - **Extract icon images** as PNG files
