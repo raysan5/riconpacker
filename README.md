@@ -45,4 +45,4 @@ Drag & drop your ICO/PNG files to unpack/add the different available image sizes
 
 In any case, consider a donation to help the author keep working on software for games development.
 
-*Copyright (c) 2015-2021 raylib technologies ([@raylibtech](https://twitter.com/raylibtech))*
+*Copyright (c) 2015-2022 raylib technologies ([@raylibtech](https://twitter.com/raylibtech))*
