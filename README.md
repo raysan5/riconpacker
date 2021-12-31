@@ -6,36 +6,43 @@ A simple and easy-to-use icons packer and extractor.
 
 Pack/Unpack icon files, load icon and add new image sizes or just export icon images. 
 
-rIconPacker comes in two flavours: **ZERO** (free version) and **ONE** (low-cost version). You can get them [here](https://raylibtech.itch.io/riconpacker).
+rGuiIcons can be used for free as a [WebAssembly online tool](https://raylibtech.itch.io/riconpacker) and it can also be downloaded as a **standalone tool** for _Windows_ and _Linux_ with some extra features.
 
 <br>
 
-## rIconPacker ZERO features
+## rIconPacker Features
 
- - Pack your custom PNG images into an icon
- - Unpack icon to check available image sizes
- - Generate missing icon sizes for selected platform
- - Extract icon images as PNG files
- - Completely portable (single file)
- 
-## rIconPacker ONE features
+ - **Pack** your custom images into an icon
+ - Multiple input image formats supported: `.bmp`, `.png`, `.jpg`, `.qoi`...
+ - **Unpack** icon to check available image sizes
+ - **Generate** missing icon sizes for selected platform
+ - **Extract icon images** as PNG files
+ - **4 predefined platforms: Windows, Favicon, Android, iOS**
 
- - Predefined platform sizes: Windows, Favicon, Android, iOS
- - Powerful command line for batch icon conversion and extraction
- - Configurable image scaling algorythm: Nearest-neighbor or Bicubic
+### rIconPacker Standalone Additional Features
+
+ - Command-line support for icons packing and extraction
+ - Command-line supports configurable image scaling algorythm
+ - **Completely portable (single-file, no-dependencies)**
+
+## rIconPacker Screenshot
+
+![rIconPacker](screenshots/riconpacker_v100_shot02.png)
 
 ## rIconPacker Usage
 
 Drag & drop your ICO/PNG files to unpack/add the different available image sizes, missing sizes could also be generated (using biggest available size).
 
-rIconPacker ONE comes with a powerful command line for batch icons generation and extraction.
-
-To view all available operation just run on command line:
+`rIconPacker Standalone` comes with command-line support for batch conversion. For usage help:
 
  > riconpacker.exe --help
 
 ## rIconPacker License
 
-*Copyright (c) 2018-2020 raylib technologies ([@raylibtech](https://twitter.com/raylibtech)). All Rights Reserved.* Check [LICENSE](LICENSE) for details.
+`rIconPacker` online tool can be used completely for free.
 
-In case you want a custom version of the tool, just get in touch: ray[at]raylibtech.com
+`rIconPacker Standalone` desktop tool could be downloaded with a small donation. 
+
+In any case, consider a donation to help the author keep working on software for games development.
+
+*Copyright (c) 2015-2021 raylib technologies ([@raylibtech](https://twitter.com/raylibtech))*
