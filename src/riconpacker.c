@@ -20,7 +20,7 @@
 *
 *   DEPENDENCIES:
 *       raylib 4.0              - Windowing/input management and drawing
-*       raygui 3.1              - Immediate-mode GUI controls with custom styling and icons
+*       raygui 3.2-dev          - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.0                - PNG chunks management
 *       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *
@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
 
             // GUI: Main Layout
             //----------------------------------------------------------------------------------
-            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 });
+            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 }, NULL);
 
             // Icon platform scheme selector
             platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
