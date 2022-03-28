@@ -441,57 +441,58 @@ int main(int argc, char *argv[])
             ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
             // GUI: Main Layout
-            //----------------------------------------------------------------------------------
-            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 45 }, NULL);
+            //--------------------------------------------------------------------------------------------------------------
+            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 40 }, NULL);
 
             // Icon platform scheme selector
-            platformActive = GuiComboBox((Rectangle){ anchorMain.x + 10, anchorMain.y + 10, 115, 25 }, "Windows;Favicon;Android;iOS", platformActive);
+            platformActive = GuiComboBox((Rectangle){ anchorMain.x + 8, anchorMain.y + 8, 115, 24 }, "Windows;Favicon;Android;iOS", platformActive);
 
-            if (GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 10, 85, 25 }, "#191#ABOUT")) windowAboutState.windowActive = true;
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 320, 80, 25 }, "#8#Load")) showLoadFileDialog = true;
+            if (validCount == 0) GuiDisable();
+            if (GuiButton((Rectangle) { anchorMain.x + 135, anchorMain.y + 8, 80, 24 }, "#7#Export")) showExportFileDialog = true;
+            GuiEnable();
 
-            sizeListActive = GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 55, 115, 290 }, GetTextIconSizes(packs[platformActive]), NULL, sizeListActive);
+            if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
+            btnSaveImagePressed = GuiButton((Rectangle) { anchorMain.x + 220, anchorMain.y + 8, 80, 24 }, "#12#Save");
+            GuiEnable();
+
+            if (GuiButton((Rectangle) { anchorMain.x + 305, anchorMain.y + 8, 85, 24 }, "#191#ABOUT")) windowAboutState.windowActive = true;
+            //--------------------------------------------------------------------------------------------------------------
+
+            // Draw list view and icons viewer panel
+            //--------------------------------------------------------------------------------------------------------------
+            sizeListActive = GuiListView((Rectangle) { anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[platformActive]), NULL, sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
 
-            // Draw icons panel and border lines
-            //--------------------------------------------------------------------------------------------------------------
-            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 55, 256, 256 }, NULL);
-            DrawRectangleLines((int)anchorMain.x + 135, (int)anchorMain.y + 55, 256, 256, Fade(GRAY, 0.6f));
+            GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 52, 256, 256 }, NULL);
+            DrawRectangleLines((int)anchorMain.x + 135, (int)anchorMain.y + 52, 256, 256, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < packs[platformActive].count; i++) DrawTexture(packs[platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 55, WHITE);
+                for (int i = 0; i < packs[platformActive].count; i++) DrawTexture(packs[platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
             }
             else if (sizeListActive > 0)
             {
                 DrawTexture(packs[platformActive].icons[sizeListActive - 1].texture,
                             (int)anchorMain.x + 135 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.width/2,
-                            (int)anchorMain.y + 55 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                            (int)anchorMain.y + 52 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
             }
             //--------------------------------------------------------------------------------------------------------------
 
             // NOTE: Enabled buttons depend on several circunstances
+            if (GuiButton((Rectangle) { anchorMain.x + 135, anchorMain.y + 318, 80, 24 }, "#8#Load")) showLoadFileDialog = true;
 
             if ((validCount == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 320, 80, 25 }, "#9#Clear");
+            btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 318, 80, 25 }, "#9#Clear");
             GuiEnable();
 
             if ((validCount == 0) || ((sizeListActive > 0) && packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 320, 85, 25 }, "#12#Generate");
-            GuiEnable();
-
-            if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnSaveImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 10, 80, 25 }, "#12#Save");
-            GuiEnable();
-
-            if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle){ anchorMain.x + 135, anchorMain.y + 10, 80, 25 }, "#7#Export")) showExportFileDialog = true;
+            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 318, 85, 25 }, "#12#Generate");
             GuiEnable();
 
             // Draw status bar info
             // TODO: Status information seems redundant... maybe other kind of information could be shown.
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, anchorMain.y + 355, 125, 25 }, (sizeListActive == 0)? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", packs[platformActive].icons[sizeListActive - 1].size, packs[platformActive].icons[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 124, anchorMain.y + 355, 276, 25 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, packs[platformActive].count) : TextFormat("AVAILABLE: %i/1", packs[platformActive].icons[sizeListActive - 1].valid));
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 125, 24 }, (sizeListActive == 0) ? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", packs[platformActive].icons[sizeListActive - 1].size, packs[platformActive].icons[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 124, GetScreenHeight() - 24, 276, 24 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, packs[platformActive].count) : TextFormat("AVAILABLE: %i/1", packs[platformActive].icons[sizeListActive - 1].valid));
 
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
             if (GuiIsLocked()) DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
