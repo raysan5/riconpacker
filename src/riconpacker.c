@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
         if (IsFileDropped())
         {
             int dropsCount = 0;
-            char **droppedFiles = GetDroppedFiles(&dropsCount);
+            char **droppedFiles = LoadDroppedFiles(&dropsCount);
 
             // Support gui styles
             if ((dropsCount == 1) && IsFileExtension(droppedFiles[0], ".rgs")) GuiLoadStyle(droppedFiles[0]);
@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            ClearDroppedFiles();
+            UnloadDroppedFiles();
         }
         //----------------------------------------------------------------------------------
 
