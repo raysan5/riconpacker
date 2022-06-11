@@ -298,23 +298,22 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         if (IsFileDropped())
         {
-            int dropsCount = 0;
-            char **droppedFiles = LoadDroppedFiles(&dropsCount);
+            FilePathList droppedFiles = LoadDroppedFiles();
 
             // Support gui styles
-            if ((dropsCount == 1) && IsFileExtension(droppedFiles[0], ".rgs")) GuiLoadStyle(droppedFiles[0]);
+            if ((droppedFiles.count == 1) && IsFileExtension(droppedFiles.paths[0], ".rgs")) GuiLoadStyle(droppedFiles.paths[0]);
 
-            for (int i = 0; i < dropsCount; i++)
+            for (int i = 0; i < droppedFiles.count; i++)
             {
-                if (IsFileExtension(droppedFiles[i], ".ico") ||
-                    IsFileExtension(droppedFiles[i], ".png"))
+                if (IsFileExtension(droppedFiles.paths[i], ".ico") ||
+                    IsFileExtension(droppedFiles.paths[i], ".png"))
                 {
                     // Load images into IconPack
-                    LoadIconToPack(&packs[platformActive], droppedFiles[i]);
+                    LoadIconToPack(&packs[platformActive], droppedFiles.paths[i]);
                 }
             }
 
-            UnloadDroppedFiles();
+            UnloadDroppedFiles(droppedFiles);    // Unload filepaths from memory
         }
         //----------------------------------------------------------------------------------
 
@@ -523,7 +522,7 @@ int main(int argc, char *argv[])
 #if defined(CUSTOM_MODAL_DIALOGS)
                 int result = GuiFileDialog(DIALOG_MESSAGE, "Load icon or image file", inFileName, "Ok", "Just drag and drop your file!");
 #else
-                int result = GuiFileDialog(DIALOG_OPEN, "Load icon or image file...", inFileName, "*.ico;*.png", "Icon or Image Files (*.ico, *.png)");
+                int result = GuiFileDialog(DIALOG_OPEN_FILE, "Load icon or image file...", inFileName, "*.ico;*.png", "Icon or Image Files (*.ico, *.png)");
 #endif
                 if (result == 1) LoadIconToPack(&packs[platformActive], inFileName);   // Load icon file
 
@@ -540,7 +539,7 @@ int main(int argc, char *argv[])
 #if defined(CUSTOM_MODAL_DIALOGS)
                 int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export icon file...", outFileName, "Ok;Cancel", NULL);
 #else
-                int result = GuiFileDialog(DIALOG_SAVE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
+                int result = GuiFileDialog(DIALOG_SAVE_FILE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
 #endif
                 if (result == 1)
                 {
@@ -589,7 +588,7 @@ int main(int argc, char *argv[])
 #if defined(CUSTOM_MODAL_DIALOGS)
                 int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export image file...", outFileName, "Ok;Cancel", NULL);
 #else
-                int result = GuiFileDialog(DIALOG_SAVE, "Export image file...", outFileName, "*.png", "Image File (*.png)");
+                int result = GuiFileDialog(DIALOG_SAVE_FILE, "Export image file...", outFileName, "*.png", "Image File (*.png)");
 #endif
                 if (result == 1)
                 {
