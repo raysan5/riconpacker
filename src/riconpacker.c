@@ -4,9 +4,6 @@
 *
 *   CONFIGURATION:
 *
-*   #define VERSION_ONE
-*       Enable command-line usage and PRO features for the tool
-*
 *   #define COMMAND_LINE_ONLY
 *       Compile tool only for command line usage
 *
@@ -15,12 +12,16 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
+*       2.0-dev (Jun-2022)
+*           - Source code relicensed to open-source
+*           - Updated to raylib 4.2 and raygui 3.2
+*           - TODO: REDESIGNED: Main toolbar, for consistency with other tools
 *       1.5  (30-Dec-2021) Updated to raylib 4.0 and raygui 3.1
 *       1.0  (23-Mar-2019) First release
 *
 *   DEPENDENCIES:
-*       raylib 4.0              - Windowing/input management and drawing
-*       raygui 3.2-dev          - Immediate-mode GUI controls with custom styling and icons
+*       raylib 4.2              - Windowing/input management and drawing
+*       raygui 3.2              - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.0                - PNG chunks management
 *       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *
@@ -36,27 +37,35 @@
 *       Ramon Santamaria (@raysan5):   Developer, supervisor, updater and maintainer.
 *
 *
-*   LICENSE: Propietary License
+*   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2018-2022 raylib technologies (@raylibtech). All Rights Reserved.
+*   Copyright (c) 2018-2022 raylib technologies (@raylibtech) / Ramon Santamaria (@raysan5)
 *
-*   Unauthorized copying of this file, via any medium is strictly prohibited
-*   This project is proprietary and confidential unless the owner allows
-*   usage in any other form by expresely written permission.
+*   This software is provided "as-is", without any express or implied warranty. In no event
+*   will the authors be held liable for any damages arising from the use of this software.
+*
+*   Permission is granted to anyone to use this software for any purpose, including commercial
+*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
+*
+*     1. The origin of this software must not be misrepresented; you must not claim that you
+*     wrote the original software. If you use this software in a product, an acknowledgment
+*     in the product documentation would be appreciated but is not required.
+*
+*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
+*     as being the original software.
+*
+*     3. This notice may not be removed or altered from any source distribution.
 *
 **********************************************************************************************/
 
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
-#define TOOL_VERSION            "1.5"
+#define TOOL_VERSION            "2.0-dev"
 #define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
-#define TOOL_RELEASE_DATE       "Dec.2021"
+#define TOOL_RELEASE_DATE       "Jun.2022"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
 #include "raylib.h"
-
-#define RPNG_IMPLEMENTATION
-#include "external/rpng.h"                  // PNG chunks management
 
 #if defined(PLATFORM_WEB)
     #define CUSTOM_MODAL_DIALOGS            // Force custom modal dialogs usage
@@ -74,10 +83,24 @@
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
 
-#include <stdio.h>                      // Required for: fopen(), fclose(), fread()...
-#include <stdlib.h>                     // Required for: malloc(), free()
-#include <string.h>                     // Required for: strcmp(), strlen()
-#include <math.h>                       // Required for: ceil()
+//#define GUI_MAIN_TOOLBAR_IMPLEMENTATION
+//#include "gui_main_toolbar.h"               // GUI: Main toolbar
+
+// raygui embedded styles
+#include "styles/style_cyber.h"             // raygui style: cyber
+#include "styles/style_jungle.h"            // raygui style: jungle
+#include "styles/style_lavanda.h"           // raygui style: lavanda
+#include "styles/style_dark.h"              // raygui style: dark
+#include "styles/style_bluish.h"            // raygui style: bluish
+#include "styles/style_terminal.h"          // raygui style: terminal
+
+#define RPNG_IMPLEMENTATION
+#include "external/rpng.h"                  // PNG chunks management
+
+#include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
+#include <stdlib.h>                         // Required for: malloc(), free()
+#include <string.h>                         // Required for: strcmp(), strlen()
+#include <math.h>                           // Required for: ceil()
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -168,7 +191,7 @@ static int validCount = 0;                  // Valid ico images counter
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
-#if defined(VERSION_ONE) || defined(COMMAND_LINE_ONLY)
+#if defined(PLATFORM_DESKTOP) || defined(COMMAND_LINE_ONLY)
 static void ShowCommandLineInfo(void);                      // Show command line usage info
 static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
 #endif
@@ -203,7 +226,7 @@ int main(int argc, char *argv[])
 #if defined(COMMAND_LINE_ONLY)
     ProcessCommandLine(argc, argv);
 #else
-#if defined(VERSION_ONE)
+#if defined(PLATFORM_DESKTOP)
     // Command-line usage mode
     //--------------------------------------------------------------------------------------
     if (argc > 1)
@@ -224,7 +247,7 @@ int main(int argc, char *argv[])
             return 0;
         }
     }
-#endif      // VERSION_ONE
+#endif
 #if (!defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
@@ -249,6 +272,9 @@ int main(int argc, char *argv[])
     packs[1] = LoadIconPack(ICON_PLATFORM_FAVICON);
     packs[2] = LoadIconPack(ICON_PLATFORM_ANDROID);
     packs[3] = LoadIconPack(ICON_PLATFORM_IOS7);
+
+    int visualStyleActive = 0;
+    int prevVisualStyleActive = visualStyleActive;
 
     // GUI: Main Layout
     //----------------------------------------------------------------------------------
@@ -319,7 +345,6 @@ int main(int argc, char *argv[])
 
         // Keyboard shortcuts
         //------------------------------------------------------------------------------------
-
         // Show dialog: load input file (.ico, .png)
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) showLoadFileDialog = true;
 
@@ -431,6 +456,25 @@ int main(int argc, char *argv[])
 
         // WARNING: Some windows should lock the main screen controls when shown
         if (windowAboutState.windowActive || windowExitActive || showLoadFileDialog || showExportFileDialog || showExportImageDialog) GuiLock();
+
+        // Set new gui style if changed
+        if (visualStyleActive != prevVisualStyleActive)
+        {
+            GuiLoadStyleDefault();
+
+            switch (visualStyleActive)
+            {
+                case 1: GuiLoadStyleJungle(); break;
+                case 2: GuiLoadStyleDark(); break;
+                case 3: GuiLoadStyleLavanda(); break;
+                case 4: GuiLoadStyleCyber(); break;
+                case 5: GuiLoadStyleBluish(); break;
+                case 6: GuiLoadStyleTerminal(); break;
+                default: break;
+            }
+
+            prevVisualStyleActive = visualStyleActive;
+        }
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -627,7 +671,7 @@ int main(int argc, char *argv[])
 //--------------------------------------------------------------------------------------------
 // Module functions definition
 //--------------------------------------------------------------------------------------------
-#if defined(VERSION_ONE) || defined(COMMAND_LINE_ONLY)
+#if defined(PLATFORM_DESKTOP) || defined(COMMAND_LINE_ONLY)
 // Show command line usage info
 static void ShowCommandLineInfo(void)
 {
@@ -1022,7 +1066,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
     if (showUsageInfo) ShowCommandLineInfo();
 }
-#endif      // VERSION_ONE || COMMAND_LINE_ONLY
+#endif
 
 //--------------------------------------------------------------------------------------------
 // Load/Save/Export functions
@@ -1274,7 +1318,7 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
 
 /*
 // Apple ICNS icons loader
-// NOTE: Check for reference: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
+// NOTE: Format specs: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
 static Image *LoadICNS(const char *fileName, int *count)
 {
     Image *images = NULL;
