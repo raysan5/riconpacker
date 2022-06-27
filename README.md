@@ -38,7 +38,7 @@ Drag & drop your ICO/PNG files to unpack/add the different available image sizes
  > riconpacker.exe --help
 
 ## Building rIconPacker
-In order to build rIconpacker, you'll need raylib installed. On windows, install using the official installer, on linux, either build from source or use the package manager of choice.
+In order to build rIconpacker, you'll need raylib installed. On windows, install using the official installer, on linux, either build from source or use the package manager of choice. You'll also need raygui, rpng and tinyfiledialogs
 
 Building on linux
 ```sh
