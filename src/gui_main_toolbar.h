@@ -57,13 +57,15 @@ typedef struct {
     // Editor options
     bool platformEditMode;
     int platformActive;
+    int prevPlatformActive;
 
     // Tool options
     //...
 
     // Visual options
     int visualStyleActive;
-    int prevVisualStyleActive;
+    //int prevVisualStyleActive;
+    bool btnStylePressed;
     int languageActive;
 
     // Help options
@@ -142,13 +144,15 @@ GuiMainToolbarState InitGuiMainToolbar(void)
     // Edit options
     state.platformEditMode = false;
     state.platformActive = 0;
+    state.prevPlatformActive = 0;
 
     // Tool options
     //...
 
     // Visuals options
     state.visualStyleActive = 0;
-    state.prevVisualStyleActive = 0;
+    //state.prevVisualStyleActive = 0;
+    state.btnStylePressed = false;
     state.languageActive = 0;
 
     // Info options
@@ -165,14 +169,14 @@ GuiMainToolbarState InitGuiMainToolbar(void)
 
 void GuiMainToolbar(GuiMainToolbarState *state)
 {
-    int screenWidth = 500;  // WARNING: Screen width is hardcoded to avoid issues on screen scaling!
+    int screenWidth = 400;  // WARNING: Screen width is hardcoded to avoid issues on screen scaling!
 
     // Toolbar panels
-    state->anchorRight.x = screenWidth - 104;       // Update right-anchor panel
-    state->anchorVisuals.x = state->anchorRight.x - 120 + 1;    // Update right-anchor panel
+    state->anchorRight.x = screenWidth - 100;       // Update right-anchor panel
+    state->anchorVisuals.x = state->anchorRight.x - 44 + 1;    // Update right-anchor panel
 
     GuiPanel((Rectangle){ state->anchorFile.x, state->anchorFile.y, 130, 40 }, NULL);
-    GuiPanel((Rectangle){ state->anchorEdit.x, state->anchorEdit.y, 150, 40 }, NULL);
+    GuiPanel((Rectangle){ state->anchorEdit.x, state->anchorEdit.y, 130, 40 }, NULL);
     //GuiPanel((Rectangle){ state->anchorTools.x, state->anchorTools.y, state->anchorVisuals.x - state->anchorTools.x + 1, 40 }, NULL);
     GuiPanel((Rectangle){ state->anchorVisuals.x, state->anchorVisuals.y, 120, 40 }, NULL);
     GuiPanel((Rectangle){ state->anchorRight.x, state->anchorRight.y, 104, 40 }, NULL);
@@ -191,20 +195,21 @@ void GuiMainToolbar(GuiMainToolbarState *state)
 
     // Edit options
     //GuiLabel((Rectangle){ state->anchorEdit.x + 10, 8, 35, 24 }, "State:");
-    if (GuiDropdownBox((Rectangle){ state->anchorEdit.x + 10, 8, 100, 24 }, "Windows;Favicon;Android;iOS", &state->platformActive, state->platformEditMode)) state->platformEditMode = !state->platformEditMode;
+    if (GuiDropdownBox((Rectangle){ state->anchorEdit.x + 10, 8, 108, 24 }, "Windows;Favicon;Android;iOS", &state->platformActive, state->platformEditMode)) state->platformEditMode = !state->platformEditMode;
 
     // Tool options
     //...
 
     // Visuals options
     //GuiLabel((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 60, 24 }, "Style:");
-    state->visualStyleActive = GuiComboBox((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 100, 24 }, "Light;Dark;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish", state->visualStyleActive);
+    //state->visualStyleActive = GuiComboBox((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 100, 24 }, "Light;Dark;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish", state->visualStyleActive);
+    state->btnStylePressed = GuiButton((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 24, 24 }, "#25#");
 
     // Info options
-    state->btnHelpPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 72 - 8, state->anchorRight.y + 8, 24, 24 }, "#193#"); 
-    state->btnAboutPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 48 - 4, state->anchorRight.y + 8, 24, 24 }, "#191#");
+    state->btnHelpPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 70 - 8, state->anchorRight.y + 8, 24, 24 }, "#193#"); 
+    state->btnAboutPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 46 - 4, state->anchorRight.y + 8, 24, 24 }, "#191#");
     GuiDisable();
-    state->btnUserPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 24, state->anchorRight.y + 8, 24, 24 }, "#149#");
+    state->btnUserPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 22, state->anchorRight.y + 8, 24, 24 }, "#149#");
     GuiEnable();
 }
 

@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v1.5 - A simple and easy-to-use icons packer
+*   rIconPacker v2.0 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -12,12 +12,12 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
-*       2.0-dev (Jun-2022)
-*           - Source code relicensed to open-source
-*           - Updated to raylib 4.2 and raygui 3.2
-*           - TODO: REDESIGNED: Main toolbar, for consistency with other tools
-*       1.5  (30-Dec-2021) Updated to raylib 4.0 and raygui 3.1
-*       1.0  (23-Mar-2019) First release
+*       2.0  (03-Oct-2022)  Source code re-licensed to open-source
+*                           Updated to raylib 4.2 and raygui 3.2
+*                           ADDED: Main toolbar, for consistency with other tools
+*                           REVIEWED: Layout metrics
+*       1.5  (30-Dec-2021)  Updated to raylib 4.0 and raygui 3.1
+*       1.0  (23-Mar-2019)  First release
 *
 *   DEPENDENCIES:
 *       raylib 4.2              - Windowing/input management and drawing
@@ -60,9 +60,9 @@
 
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
-#define TOOL_VERSION            "2.0-dev"
+#define TOOL_VERSION            "2.0"
 #define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
-#define TOOL_RELEASE_DATE       "Jun.2022"
+#define TOOL_RELEASE_DATE       "Oct.2022"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
 #include "raylib.h"
@@ -78,21 +78,24 @@
 #undef RAYGUI_IMPLEMENTATION                // Avoid including raygui implementation again
 
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
-#include "gui_window_about.h"               // GUI: About window
+#include "gui_window_about.h"               // GUI: About Window
 
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
 
-//#define GUI_MAIN_TOOLBAR_IMPLEMENTATION
-//#include "gui_main_toolbar.h"               // GUI: Main toolbar
+#define GUI_MAIN_TOOLBAR_IMPLEMENTATION
+#include "gui_main_toolbar.h"               // GUI: Main toolbar
 
 // raygui embedded styles
-#include "styles/style_cyber.h"             // raygui style: cyber
-#include "styles/style_jungle.h"            // raygui style: jungle
-#include "styles/style_lavanda.h"           // raygui style: lavanda
+// NOTE: Inclusion order follows combobox order
 #include "styles/style_dark.h"              // raygui style: dark
-#include "styles/style_bluish.h"            // raygui style: bluish
+#include "styles/style_jungle.h"            // raygui style: jungle
+#include "styles/style_candy.h"             // raygui style: candy
+#include "styles/style_lavanda.h"           // raygui style: lavanda
+#include "styles/style_cyber.h"             // raygui style: cyber
 #include "styles/style_terminal.h"          // raygui style: terminal
+#include "styles/style_ashes.h"             // raygui style: ashes
+#include "styles/style_bluish.h"            // raygui style: bluish
 
 #define RPNG_IMPLEMENTATION
 #include "external/rpng.h"                  // PNG chunks management
@@ -175,6 +178,28 @@ typedef enum {
 static const char *toolName = TOOL_NAME;
 static const char *toolVersion = TOOL_VERSION;
 static const char *toolDescription = TOOL_DESCRIPTION;
+
+#define HELP_LINES_COUNT    16
+
+// Tool help info
+static const char *helpLines[HELP_LINES_COUNT] = {
+    "F1 - Show Help window",
+    "F2 - Show About window",
+    "F3 - Show User window",
+    "-File Controls",
+    "LCTRL + N - New icon file (.ico)",
+    "LCTRL + O - Open icon/image file (.ico/.png)",
+    "LCTRL + S - Save icon/image file (.ico/.png)",
+    "LCTRL + E - Export icon file",
+    "-Tool Controls",
+    "SUP - Remove current selected icon image",
+    "G - Generate selected icon image"
+    "-Tool Visuals",
+    "LEFT | RIGHT - Select style template",
+    "F - Toggle double screen size",
+    NULL,
+    "ESCAPE - Close Window/Exit"
+};
 
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
 static unsigned int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
@@ -264,8 +289,8 @@ int main(int argc, char *argv[])
     SetExitKey(0);
 
     // General pourpose variables
-    //Vector2 mousePoint = { 0.0f, 0.0f };
-    int framesCounter = 0;
+    Vector2 mousePos = { 0.0f, 0.0f };
+    int frameCounter = 0;
 
     // Initialize all icon packs (for all platforms)
     packs[0] = LoadIconPack(ICON_PLATFORM_WINDOWS);
@@ -277,29 +302,47 @@ int main(int argc, char *argv[])
     int prevVisualStyleActive = visualStyleActive;
 
     // GUI: Main Layout
-    //----------------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------------
     Vector2 anchorMain = { 0, 0 };
 
-    int platformActive = 0;
-    int prevPlatformActive = 0;
     int scaleAlgorythmActive = 1;
 
     bool btnGenIconImagePressed = false;
     bool btnClearIconImagePressed = false;
     bool btnSaveImagePressed = false;
+    
+    bool screenSizeActive = false;
+    bool helpWindowActive = false;      // Show window: help info 
+    bool userWindowActive = false;      // Show window: user registration
 
     GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
-    //----------------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------------
 
     // GUI: About Window
     //-----------------------------------------------------------------------------------
     GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
     //-----------------------------------------------------------------------------------
 
+    // GUI: Main toolbar panel (file and visualization)
+    //-----------------------------------------------------------------------------------
+    GuiMainToolbarState mainToolbarState = InitGuiMainToolbar();
+    //-----------------------------------------------------------------------------------
+
+    // GUI: Export Window
+    //-----------------------------------------------------------------------------------
+    bool exportWindowActive = false;
+       
+    int exportFormatActive = 0;         // ComboBox file type selection
+    char styleNameText[128] = "Unnamed"; // Style name text box
+    bool styleNameEditMode = false;     // Style name text box edit mode
+    bool embedFontChecked = true;       // Select to embed font into style file
+    bool styleChunkChecked = false;     // Select to embed style as a PNG chunk (rGSf)
+    //-----------------------------------------------------------------------------------
+
     // GUI: Exit Window
     //-----------------------------------------------------------------------------------
-    bool exitWindow = false;
-    bool windowExitActive = false;
+    bool closeWindow = false;
+    bool exitWindowActive = false;
     //-----------------------------------------------------------------------------------
 
     // GUI: Custom file dialogs
@@ -310,15 +353,17 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
-    if (inFileName[0] != '\0') LoadIconToPack(&packs[platformActive], inFileName);
+    if (inFileName[0] != '\0') LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);
 
-    SetTargetFPS(120);      // Increased for smooth pixel painting on edit mode
+    SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     // Main game loop
-    while (!exitWindow)     // Detect window close button or ESC key
+    while (!closeWindow)    // Detect window close button
     {
-        if (WindowShouldClose()) windowExitActive = true;
+        // WARNING: ASINCIFY requires this line, 
+        // it contains the call to emscripten_sleep() for PLATFORM_WEB
+        if (WindowShouldClose()) exitWindowActive = true;
 
         // Dropped files logic
         //----------------------------------------------------------------------------------
@@ -335,7 +380,7 @@ int main(int argc, char *argv[])
                     IsFileExtension(droppedFiles.paths[i], ".png"))
                 {
                     // Load images into IconPack
-                    LoadIconToPack(&packs[platformActive], droppedFiles.paths[i]);
+                    LoadIconToPack(&packs[mainToolbarState.platformActive], droppedFiles.paths[i]);
                 }
             }
 
@@ -344,7 +389,13 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
 
         // Keyboard shortcuts
-        //------------------------------------------------------------------------------------
+        //----------------------------------------------------------------------------------
+        // New style file, previous in/out files registeres are reseted
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_N)) || mainToolbarState.btnNewFilePressed)
+        {
+            // TODO: Reset icons
+        }
+
         // Show dialog: load input file (.ico, .png)
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) showLoadFileDialog = true;
 
@@ -357,17 +408,26 @@ int main(int argc, char *argv[])
         // Show dialog: export icon data
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || btnSaveImagePressed)
         {
-            if ((sizeListActive > 0) && (packs[platformActive].icons[sizeListActive - 1].valid)) showExportImageDialog = true;
+            if ((sizeListActive > 0) && (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) showExportImageDialog = true;
         }
 
         // Show window: about
         if (IsKeyPressed(KEY_F1)) windowAboutState.windowActive = true;
 
+        // Toggle window help
+        if (IsKeyPressed(KEY_F1)) helpWindowActive = !helpWindowActive;
+
+        // Toggle window about
+        if (IsKeyPressed(KEY_F2)) windowAboutState.windowActive = !windowAboutState.windowActive;
+
+        // Toggle window registered user
+        //if (IsKeyPressed(KEY_F3)) userWindowActive = !userWindowActive;
+
         // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
         {
-            if (sizeListActive == 0) for (int i = 0; i < packs[platformActive].count; i++) UnloadIconFromPack(&packs[platformActive], i);  // Delete all images in the series
-            else UnloadIconFromPack(&packs[platformActive], sizeListActive - 1);                                            // Delete one image
+            if (sizeListActive == 0) for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) UnloadIconFromPack(&packs[mainToolbarState.platformActive], i);  // Delete all images in the series
+            else UnloadIconFromPack(&packs[mainToolbarState.platformActive], sizeListActive - 1);                                            // Delete one image
         }
 
         // Generate icon
@@ -381,28 +441,68 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_ESCAPE))
         {
             if (windowAboutState.windowActive) windowAboutState.windowActive = false;
-#if !defined(PLATFORM_WEB)
-            else windowExitActive = !windowExitActive;
-#endif
+            else if (helpWindowActive) helpWindowActive = false;
+            else if (exportWindowActive) exportWindowActive = false;
+        #if defined(PLATFORM_DESKTOP)
+            //else if (save > 0) exitWindowActive = !exitWindowActive;
+            else closeWindow = true;
+        #else
+            else if (showLoadFileDialog) showLoadFileDialog = false;
+            else if (showSaveFileDialog) showSaveFileDialog = false;
+            else if (showExportFileDialog) showExportFileDialog = false;
+        #endif
         }
+        //----------------------------------------------------------------------------------
+        
+        // Main toolbar logic
+        //----------------------------------------------------------------------------------
+        // File options logic
+        if (mainToolbarState.btnLoadFilePressed) showLoadFileDialog = true;
+        //else if (mainToolbarState.btnSaveFilePressed) showSaveFileDialog = true;
+        else if (mainToolbarState.btnExportFilePressed) exportWindowActive = true;
+
+        // Visual options logic
+        if (mainToolbarState.btnStylePressed)
+        {
+            mainToolbarState.visualStyleActive++;
+            if (mainToolbarState.visualStyleActive > 8) mainToolbarState.visualStyleActive = 0;
+
+            GuiLoadStyleDefault();
+
+            switch (mainToolbarState.visualStyleActive)
+            {
+                case 1: GuiLoadStyleDark(); break;
+                case 2: GuiLoadStyleJungle(); break;
+                case 3: GuiLoadStyleCandy(); break;
+                case 4: GuiLoadStyleLavanda(); break;
+                case 5: GuiLoadStyleCyber(); break;
+                case 6: GuiLoadStyleTerminal(); break;
+                case 7: GuiLoadStyleAshes(); break;
+                case 8: GuiLoadStyleBluish(); break;
+                default: break;
+            }
+        }
+
+        // Help options logic
+        if (mainToolbarState.btnHelpPressed) helpWindowActive = true;               // Help button logic
+        if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true; // About window button logic
+        if (mainToolbarState.btnUserPressed) userWindowActive = true;               // User button logic
         //----------------------------------------------------------------------------------
 
         // Basic program flow logic
         //----------------------------------------------------------------------------------
-        framesCounter++;                    // General usage frames counter
-
         // Calculate valid images
         validCount = 0;
-        for (int i = 0; i < packs[platformActive].count; i++) if (packs[platformActive].icons[i].valid) validCount++;
+        for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
 
         // Generate new icon image (using biggest available image)
         if (btnGenIconImagePressed)
         {
             // Get bigger available icon
             int biggerValidSize = -1;
-            for (int i = 0; i < packs[platformActive].count; i++)
+            for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
             {
-                if (packs[platformActive].icons[i].valid) { biggerValidSize = i; break; }
+                if (packs[mainToolbarState.platformActive].icons[i].valid) { biggerValidSize = i; break; }
             }
 
             if (biggerValidSize >= 0)
@@ -410,71 +510,83 @@ int main(int argc, char *argv[])
                 if (sizeListActive == 0)
                 {
                     // Generate all missing images in the series
-                    for (int i = 0; i < packs[platformActive].count; i++)
+                    for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
                     {
-                        if (!packs[platformActive].icons[i].valid)
+                        if (!packs[mainToolbarState.platformActive].icons[i].valid)
                         {
-                            UnloadImage(packs[platformActive].icons[i].image);
-                            packs[platformActive].icons[i].image = ImageCopy(packs[platformActive].icons[biggerValidSize].image);
+                            UnloadImage(packs[mainToolbarState.platformActive].icons[i].image);
+                            packs[mainToolbarState.platformActive].icons[i].image = ImageCopy(packs[mainToolbarState.platformActive].icons[biggerValidSize].image);
 
-                            if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[platformActive].icons[i].image, packs[platformActive].icons[i].size, packs[platformActive].icons[i].size);
-                            else if (scaleAlgorythmActive == 1) ImageResize(&packs[platformActive].icons[i].image, packs[platformActive].icons[i].size, packs[platformActive].icons[i].size);
+                            if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].icons[i].image, packs[mainToolbarState.platformActive].icons[i].size, packs[mainToolbarState.platformActive].icons[i].size);
+                            else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].icons[i].image, packs[mainToolbarState.platformActive].icons[i].size, packs[mainToolbarState.platformActive].icons[i].size);
 
-                            UnloadTexture(packs[platformActive].icons[i].texture);
-                            packs[platformActive].icons[i].texture = LoadTextureFromImage(packs[platformActive].icons[i].image);
+                            UnloadTexture(packs[mainToolbarState.platformActive].icons[i].texture);
+                            packs[mainToolbarState.platformActive].icons[i].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].icons[i].image);
 
-                            packs[platformActive].icons[i].valid = true;
+                            packs[mainToolbarState.platformActive].icons[i].valid = true;
                         }
                     }
                 }
                 else
                 {
-                    if (!packs[platformActive].icons[sizeListActive - 1].valid)
+                    if (!packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)
                     {
-                        UnloadImage(packs[platformActive].icons[sizeListActive - 1].image);
-                        packs[platformActive].icons[sizeListActive - 1].image = ImageCopy(packs[platformActive].icons[biggerValidSize].image);
+                        UnloadImage(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image);
+                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image = ImageCopy(packs[mainToolbarState.platformActive].icons[biggerValidSize].image);
 
-                        if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[platformActive].icons[sizeListActive - 1].image, packs[platformActive].icons[sizeListActive - 1].size, packs[platformActive].icons[sizeListActive - 1].size);
-                        else if (scaleAlgorythmActive == 1) ImageResize(&packs[platformActive].icons[sizeListActive - 1].image, packs[platformActive].icons[sizeListActive - 1].size, packs[platformActive].icons[sizeListActive - 1].size);
+                        if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size);
+                        else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size);
 
-                        UnloadTexture(packs[platformActive].icons[sizeListActive - 1].texture);
-                        packs[platformActive].icons[sizeListActive - 1].texture = LoadTextureFromImage(packs[platformActive].icons[sizeListActive - 1].image);
+                        UnloadTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture);
+                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image);
 
-                        packs[platformActive].icons[sizeListActive - 1].valid = true;
+                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid = true;
                     }
                 }
             }
         }
 
         // Change active platform icons pack
-        if (platformActive != prevPlatformActive)
+        if (mainToolbarState.platformActive != mainToolbarState.prevPlatformActive)
         {
             // TODO: Check icons that can be populated from current platform to next platform
 
-            prevPlatformActive = platformActive;
+            mainToolbarState.prevPlatformActive = mainToolbarState.platformActive;
         }
+        //----------------------------------------------------------------------------------
+
+        // Screen scale logic (x2)
+        //----------------------------------------------------------------------------------
+        if (screenSizeActive)
+        {
+            // Screen size x2
+            if (GetScreenWidth() < screenWidth*2)
+            {
+                SetWindowSize(screenWidth*2, screenHeight*2);
+                SetMouseScale(0.5f, 0.5f);
+            }
+        }
+        else
+        {
+            // Screen size x1
+            if (screenWidth*2 >= GetScreenWidth())
+            {
+                SetWindowSize(screenWidth, screenHeight);
+                SetMouseScale(1.0f, 1.0f);
+            }
+        }
+        //----------------------------------------------------------------------------------
+        
 
         // WARNING: Some windows should lock the main screen controls when shown
-        if (windowAboutState.windowActive || windowExitActive || showLoadFileDialog || showExportFileDialog || showExportImageDialog) GuiLock();
-
-        // Set new gui style if changed
-        if (visualStyleActive != prevVisualStyleActive)
-        {
-            GuiLoadStyleDefault();
-
-            switch (visualStyleActive)
-            {
-                case 1: GuiLoadStyleJungle(); break;
-                case 2: GuiLoadStyleDark(); break;
-                case 3: GuiLoadStyleLavanda(); break;
-                case 4: GuiLoadStyleCyber(); break;
-                case 5: GuiLoadStyleBluish(); break;
-                case 6: GuiLoadStyleTerminal(); break;
-                default: break;
-            }
-
-            prevVisualStyleActive = visualStyleActive;
-        }
+        if (windowAboutState.windowActive || 
+            helpWindowActive ||
+            userWindowActive ||
+            exitWindowActive || 
+            exportWindowActive ||
+            showLoadFileDialog || 
+            showExportFileDialog || 
+            showExportImageDialog) GuiLock();
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -483,27 +595,14 @@ int main(int argc, char *argv[])
 
             ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
-            // GUI: Main Layout
+            // GUI: Main toolbar panel
+            //----------------------------------------------------------------------------------
+            GuiMainToolbar(&mainToolbarState);
+            //----------------------------------------------------------------------------------
+
+            // GUI: Main Layout: List view and icons viewer panel
             //--------------------------------------------------------------------------------------------------------------
-            GuiPanel((Rectangle){ anchorMain.x + 0, anchorMain.y + 0, 400, 40 }, NULL);
-
-            // Icon platform scheme selector
-            platformActive = GuiComboBox((Rectangle){ anchorMain.x + 8, anchorMain.y + 8, 115, 24 }, "Windows;Favicon;Android;iOS", platformActive);
-
-            if (validCount == 0) GuiDisable();
-            if (GuiButton((Rectangle) { anchorMain.x + 135, anchorMain.y + 8, 80, 24 }, "#7#Export")) showExportFileDialog = true;
-            GuiEnable();
-
-            if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnSaveImagePressed = GuiButton((Rectangle) { anchorMain.x + 220, anchorMain.y + 8, 80, 24 }, "#12#Save");
-            GuiEnable();
-
-            if (GuiButton((Rectangle) { anchorMain.x + 305, anchorMain.y + 8, 85, 24 }, "#191#ABOUT")) windowAboutState.windowActive = true;
-            //--------------------------------------------------------------------------------------------------------------
-
-            // Draw list view and icons viewer panel
-            //--------------------------------------------------------------------------------------------------------------
-            sizeListActive = GuiListView((Rectangle) { anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[platformActive]), NULL, sizeListActive);
+            sizeListActive = GuiListView((Rectangle) { anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[mainToolbarState.platformActive]), NULL, sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
 
             GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 52, 256, 256 }, NULL);
@@ -511,32 +610,32 @@ int main(int argc, char *argv[])
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < packs[platformActive].count; i++) DrawTexture(packs[platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
+                for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) DrawTexture(packs[mainToolbarState.platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
             }
             else if (sizeListActive > 0)
             {
-                DrawTexture(packs[platformActive].icons[sizeListActive - 1].texture,
-                            (int)anchorMain.x + 135 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.width/2,
-                            (int)anchorMain.y + 52 + 128 - packs[platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
+                            (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width/2,
+                            (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
             }
+
+            // Clear/generate selected icon image level 
+            // NOTE: Enabled buttons depend on several circunstances
+            if ((validCount == 0) || ((sizeListActive > 0) && !packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
+            btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 135 + 256 - 48 - 8, anchorMain.y + 52 + 256 - 24 - 4, 24, 24 }, "#143#");
+            GuiEnable();
+
+            if ((validCount == 0) || ((sizeListActive > 0) && packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
+            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 135 + 256 - 24 - 4, anchorMain.y + 52 + 256 - 24 - 4, 24, 24 }, "#142#");
+            GuiEnable();
             //--------------------------------------------------------------------------------------------------------------
 
-            // NOTE: Enabled buttons depend on several circunstances
-            if (GuiButton((Rectangle) { anchorMain.x + 135, anchorMain.y + 318, 80, 24 }, "#8#Load")) showLoadFileDialog = true;
-
-            if ((validCount == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 220, anchorMain.y + 318, 80, 25 }, "#9#Clear");
-            GuiEnable();
-
-            if ((validCount == 0) || ((sizeListActive > 0) && packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-            btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 305, anchorMain.y + 318, 85, 25 }, "#12#Generate");
-            GuiEnable();
-
-            // Draw status bar info
-            // TODO: Status information seems redundant... maybe other kind of information could be shown.
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 125, 24 }, (sizeListActive == 0) ? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", packs[platformActive].icons[sizeListActive - 1].size, packs[platformActive].icons[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 124, GetScreenHeight() - 24, 276, 24 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, packs[platformActive].count) : TextFormat("AVAILABLE: %i/1", packs[platformActive].icons[sizeListActive - 1].valid));
-
+            // GUI: Status bar
+            //----------------------------------------------------------------------------------------
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, packs[mainToolbarState.platformActive].count) : TextFormat("AVAILABLE: %i/1", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid));
+            //----------------------------------------------------------------------------------------
+            
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
             if (GuiIsLocked()) DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
 
@@ -544,18 +643,53 @@ int main(int argc, char *argv[])
             GuiUnlock();
 
             // GUI: About Window
-            //-----------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------
             GuiWindowAbout(&windowAboutState);
-            //-----------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------
+
+            // GUI: Help Window
+            //----------------------------------------------------------------------------------------
+            Rectangle helpWindowBounds = { (float)screenWidth/2 - 330/2, (float)screenHeight/2 - 400.0f/2, 330, 0 };
+            if (helpWindowActive) helpWindowActive = GuiHelpWindow(helpWindowBounds, GuiIconText(ICON_HELP, TextFormat("%s Shortcuts", TOOL_NAME)), helpLines, HELP_LINES_COUNT);
+            //----------------------------------------------------------------------------------------
+
+            // GUI: Export Window
+            //----------------------------------------------------------------------------------------
+            if (exportWindowActive)
+            {
+                Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 150, 248, 196 };
+                int result = GuiMessageBox(messageBox, "#7#Export Style File", " ", "#7# Export Style");
+
+                GuiLabel((Rectangle) { messageBox.x + 12, messageBox.y + 24 + 12, 106, 24 }, "Style Name:");
+                if (GuiTextBox((Rectangle) { messageBox.x + 12 + 92, messageBox.y + 24 + 12, 132, 24 }, styleNameText, 128, styleNameEditMode)) styleNameEditMode = !styleNameEditMode;
+
+                GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 48 + 8, 106, 24 }, "Style Format:");
+                exportFormatActive = GuiComboBox((Rectangle) { messageBox.x + 12 + 92, messageBox.y + 12 + 48 + 8, 132, 24 }, "Binary (.rgs);Code (.h);Image (.png)", exportFormatActive);
+
+                GuiDisable();   // Font embedded by default!
+                embedFontChecked = GuiCheckBox((Rectangle) { messageBox.x + 20, messageBox.y + 48 + 56, 16, 16 }, "Embed font atlas into style", embedFontChecked);
+                GuiEnable();
+                if (exportFormatActive != 2) GuiDisable();
+                styleChunkChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 72 + 32 + 24, 16, 16 }, "Embed style as rGSf chunk", styleChunkChecked);
+                GuiEnable();
+
+                if (result == 1)    // Export button pressed
+                {
+                    exportWindowActive = false;
+                    showExportFileDialog = true;
+                }
+                else if (result == 0) exportWindowActive = false;
+            }
+            //----------------------------------------------------------------------------------
 
             // GUI: Exit Window
             //----------------------------------------------------------------------------------------
-            if (windowExitActive)
+            if (exitWindowActive)
             {
-                int message = GuiMessageBox((Rectangle){ GetScreenWidth()/2.0f - 125, GetScreenHeight()/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
+                int result = GuiMessageBox((Rectangle){ GetScreenWidth()/2.0f - 125, GetScreenHeight()/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
 
-                if ((message == 0) || (message == 2)) windowExitActive = false;
-                else if (message == 1) exitWindow = true;
+                if ((result == 0) || (result == 2)) exitWindowActive = false;
+                else if (result == 1) closeWindow = true;
             }
             //----------------------------------------------------------------------------------------
 
@@ -568,7 +702,7 @@ int main(int argc, char *argv[])
 #else
                 int result = GuiFileDialog(DIALOG_OPEN_FILE, "Load icon or image file...", inFileName, "*.ico;*.png", "Icon or Image Files (*.ico, *.png)");
 #endif
-                if (result == 1) LoadIconToPack(&packs[platformActive], inFileName);   // Load icon file
+                if (result == 1) LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);   // Load icon file
 
                 if (result >= 0) showLoadFileDialog = false;
             }
@@ -592,16 +726,16 @@ int main(int argc, char *argv[])
 
                     // Verify icon pack valid images (not placeholder ones)
                     int validCount = 0;
-                    for (int i = 0; i < packs[platformActive].count; i++) if (packs[platformActive].icons[i].valid) validCount++;
+                    for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
 
                     Image *images = (Image *)calloc(validCount, sizeof(Image));
 
                     int imCount = 0;
-                    for (int i = 0; i < packs[platformActive].count; i++)
+                    for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
                     {
-                        if (packs[platformActive].icons[i].valid)
+                        if (packs[mainToolbarState.platformActive].icons[i].valid)
                         {
-                            images[imCount] = packs[platformActive].icons[i].image;
+                            images[imCount] = packs[mainToolbarState.platformActive].icons[i].image;
                             imCount++;
                         }
                     }
@@ -627,7 +761,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showExportImageDialog)
             {
-                strcpy(outFileName, TextFormat("icon_%ix%i.png", packs[platformActive].icons[sizeListActive - 1].image.width, packs[platformActive].icons[sizeListActive - 1].image.height));
+                strcpy(outFileName, TextFormat("icon_%ix%i.png", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image.width, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image.height));
 
 #if defined(CUSTOM_MODAL_DIALOGS)
                 int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export image file...", outFileName, "Ok;Cancel", NULL);
@@ -639,7 +773,7 @@ int main(int argc, char *argv[])
                     // Check for valid extension and make sure it is
                     if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
 
-                    ExportImage(packs[platformActive].icons[sizeListActive - 1].image, outFileName);
+                    ExportImage(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image, outFileName);
 
                 #if defined(PLATFORM_WEB)
                     // Download file from MEMFS (emscripten memory filesystem)
@@ -1316,6 +1450,30 @@ static void SaveICO(Image *images, int imageCount, const char *fileName)
     free(icoData);
 }
 
+// Draw help window with the provided lines
+static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount)
+{
+    int nextLineY = 0;
+
+    // Calculate window height if not externally provided a desired height
+    if (bounds.height == 0) bounds.height = (float)(helpLinesCount*24 + 24);
+
+    int helpWindowActive = !GuiWindowBox(bounds, title);
+    nextLineY += (24 + 2);
+
+    for (int i = 0; i < helpLinesCount; i++)
+    {
+        if (helpLines[i] == NULL) GuiLine((Rectangle) { bounds.x, bounds.y + nextLineY, 330, 12 }, helpLines[i]);
+        else if (helpLines[i][0] == '-') GuiLine((Rectangle) { bounds.x, bounds.y + nextLineY, 330, 24 }, helpLines[i] + 1);
+        else GuiLabel((Rectangle) { bounds.x + 12, bounds.y + nextLineY, 0, 24 }, helpLines[i]);
+
+        if (helpLines[i] == NULL) nextLineY += 12;
+        else nextLineY += 24;
+    }
+
+    return helpWindowActive;
+}
+
 /*
 // Apple ICNS icons loader
 // NOTE: Format specs: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
@@ -1344,17 +1502,17 @@ static Image *LoadICNS(const char *fileName, int *count)
     // we will only support and load a small subset and **only PNG data format**:
     //  OSType  Size        Details
     //---------------------------------------------------------------------------
-    // - icp4	16x16	    JPEG 2000† or PNG† format or 24-bit RGB icon[2]
-    // - icp5	32x32	    JPEG 2000† or PNG† format or 24-bit RGB icon[2]
-    // - icp6	48x48	    JPEG 2000† or PNG† format
-    // - ic07	128x128	    JPEG 2000 or PNG format
-    // - ic08	256x256	    JPEG 2000 or PNG format
-    // - ic09	512x512	    JPEG 2000 or PNG format
-    // - ic10	1024x1024   JPEG 2000 or PNG format (512x512@2x "retina" in 10.8)
-    // - ic11	32x32	    JPEG 2000 or PNG format (16x16@2x "retina")
-    // - ic12	64x64	    JPEG 2000 or PNG format (32x32@2x "retina")
-    // - ic13	256x256	    JPEG 2000 or PNG format (128x128@2x "retina")
-    // - ic14	512x512	    JPEG 2000 or PNG format (256x256@2x "retina")
+    // - icp4    16x16        JPEG 2000† or PNG† format or 24-bit RGB icon[2]
+    // - icp5    32x32        JPEG 2000† or PNG† format or 24-bit RGB icon[2]
+    // - icp6    48x48        JPEG 2000† or PNG† format
+    // - ic07    128x128        JPEG 2000 or PNG format
+    // - ic08    256x256        JPEG 2000 or PNG format
+    // - ic09    512x512        JPEG 2000 or PNG format
+    // - ic10    1024x1024   JPEG 2000 or PNG format (512x512@2x "retina" in 10.8)
+    // - ic11    32x32        JPEG 2000 or PNG format (16x16@2x "retina")
+    // - ic12    64x64        JPEG 2000 or PNG format (32x32@2x "retina")
+    // - ic13    256x256        JPEG 2000 or PNG format (128x128@2x "retina")
+    // - ic14    512x512        JPEG 2000 or PNG format (256x256@2x "retina")
     
     // App icon sizes (recommended)
     // https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-images/app-icon/
