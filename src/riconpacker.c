@@ -121,7 +121,7 @@ bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib
   #define LOG(...)
 #endif
 
-#define MAX_IMAGE_TEXT_SIZE  48
+#define MAX_IMAGE_TEXT_SIZE  32
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -194,7 +194,7 @@ static const char *helpLines[HELP_LINES_COUNT] = {
     "LCTRL + S - Save icon/image file (.ico/.png)",
     "LCTRL + E - Export icon file",
     "-Tool Controls",
-    "SUP - Remove current selected icon image",
+    "SUP - Remove selected icon image",
     "G - Generate selected icon image",
     "-Tool Visuals",
     "F - Toggle double screen size",
@@ -335,11 +335,10 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
     bool exportWindowActive = false;
        
-    int exportFormatActive = 0;         // ComboBox file type selection
-    char styleNameText[128] = "Unnamed"; // Style name text box
-    bool styleNameEditMode = false;     // Style name text box edit mode
-    bool embedFontChecked = true;       // Select to embed font into style file
-    bool styleChunkChecked = false;     // Select to embed style as a PNG chunk (rGSf)
+    int exportFormatActive = 0;         // ComboBox file type selection (.ico, .png)
+
+    bool exportImagesChecked = true;    // Select to export images separated
+    bool textChunkChecked = true;       // Select to embed text as a PNG chunk (rIPt)
     //-----------------------------------------------------------------------------------
 
     // GUI: Exit Window
@@ -628,6 +627,10 @@ int main(int argc, char *argv[])
             // Icon image text for embedding
             if (sizeListActive == 0) GuiDisable();
             if (GuiTextBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 52 + 256 + 8, 256, 26 }, (sizeListActive == 0)? "Add custom images text here" : packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text, MAX_IMAGE_TEXT_SIZE, iconTextEditMode)) iconTextEditMode = !iconTextEditMode;
+            //GuiLabel((Rectangle) { anchorMain.x + 135 + 256 - 38, anchorMain.y + 52 + 256 + 8, 36, 26 }, TextFormat("%i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1));
+            if (sizeListActive > 0) DrawTextEx(GuiGetFont(), TextFormat("%i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1),
+                       (Vector2){ anchorMain.x + 135 + 256 - 40, anchorMain.y + 52 + 256 + 8 + (26 - GuiGetStyle(DEFAULT, TEXT_SIZE))/2 }, 
+                       GuiGetStyle(DEFAULT, TEXT_SIZE), GuiGetStyle(DEFAULT, TEXT_SPACING), Fade(GetColor(GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL)), 0.4f));
             GuiEnable();
             //--------------------------------------------------------------------------------------------------------------
 
@@ -663,21 +666,14 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (exportWindowActive)
             {
-                Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 150, 248, 196 };
-                int result = GuiMessageBox(messageBox, "#7#Export Style File", " ", "#7# Export Style");
+                Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 200/2, 248, 164 };
+                int result = GuiMessageBox(messageBox, "#7#Export Icon File", " ", "#7#Export Icon");
 
-                GuiLabel((Rectangle) { messageBox.x + 12, messageBox.y + 24 + 12, 106, 24 }, "Style Name:");
-                if (GuiTextBox((Rectangle) { messageBox.x + 12 + 92, messageBox.y + 24 + 12, 132, 24 }, styleNameText, 128, styleNameEditMode)) styleNameEditMode = !styleNameEditMode;
+                GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 24, 106, 24 }, "Icon Format:");
+                exportFormatActive = GuiComboBox((Rectangle){ messageBox.x + 12 + 88, messageBox.y + 12 + 24, 136, 24 }, "Icon (.ico);Images (.png)", exportFormatActive);
 
-                GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 48 + 8, 106, 24 }, "Style Format:");
-                exportFormatActive = GuiComboBox((Rectangle) { messageBox.x + 12 + 92, messageBox.y + 12 + 48 + 8, 132, 24 }, "Binary (.rgs);Code (.h);Image (.png)", exportFormatActive);
-
-                GuiDisable();   // Font embedded by default!
-                embedFontChecked = GuiCheckBox((Rectangle) { messageBox.x + 20, messageBox.y + 48 + 56, 16, 16 }, "Embed font atlas into style", embedFontChecked);
-                GuiEnable();
-                if (exportFormatActive != 2) GuiDisable();
-                styleChunkChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 72 + 32 + 24, 16, 16 }, "Embed style as rGSf chunk", styleChunkChecked);
-                GuiEnable();
+                exportImagesChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export separate PNG images", exportImagesChecked);
+                textChunkChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 72 + 24, 16, 16 }, "Embed image text as rIPt chunk", textChunkChecked);
 
                 if (result == 1)    // Export button pressed
                 {
