@@ -248,6 +248,8 @@ static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array sep
 static IconPackEntry *LoadICO(const char *fileName, int *count);    // Load icon data
 static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName, bool imageOnly);  // Save icon data
 
+// Draw help window with the provided lines
+static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -273,7 +275,7 @@ int main(int argc, char *argv[])
             (strcmp(argv[1], "--help") != 0))       // One argument (file dropped over executable?)
         {
             if (IsFileExtension(argv[1], ".ico") ||
-                IsFileExtension(argv[1], ".png"))
+                IsFileExtension(argv[1], ".png;.bmp;.jpg;.qoi"))
             {
                 strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
             }
@@ -301,8 +303,8 @@ int main(int argc, char *argv[])
     SetExitKey(0);
 
     // General pourpose variables
-    Vector2 mousePos = { 0.0f, 0.0f };
-    int frameCounter = 0;
+    //Vector2 mousePos = { 0.0f, 0.0f };
+    //int frameCounter = 0;
 
     // Initialize all icon packs (for all platforms)
     packs[0] = InitIconPack(ICON_PLATFORM_WINDOWS);
@@ -383,7 +385,7 @@ int main(int argc, char *argv[])
             for (int i = 0; i < droppedFiles.count; i++)
             {
                 if (IsFileExtension(droppedFiles.paths[i], ".ico") ||
-                    IsFileExtension(droppedFiles.paths[i], ".png"))
+                    IsFileExtension(droppedFiles.paths[i], ".png;.bmp;.jpg;.qoi"))
                 {
                     // Load entries into IconPack
                     LoadIconToPack(&packs[mainToolbarState.platformActive], droppedFiles.paths[i]);
@@ -1026,7 +1028,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
             // Load all available entries in current file
             if (IsFileExtension(inputFiles[i], ".ico")) entries = LoadICO(inputFiles[i], &imCount);
-            else if (IsFileExtension(inputFiles[i], ".png"))
+            else if (IsFileExtension(inputFiles[i], ".png;.bmp;.jpg;.qoi"))
             {
                 imCount = 1;
                 entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
@@ -1047,7 +1049,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                     // TODO: Check if current image size is already available in the package!
 
                     // Force image to be RGBA
-                    ImageFormat(&entries[j], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+                    ImageFormat(&entries[j].image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
                     inputPack[inputPackCount].image = ImageCopy(entries[j].image);
                     //inputPack[inputPackCount].texture = LoadTextureFromImage(entries[j].image);   // Not required on the command-line
@@ -1264,7 +1266,7 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
 
     // Load all available entries
     if (IsFileExtension(fileName, ".ico")) entries = LoadICO(fileName, &imCount);
-    else if (IsFileExtension(fileName, ".png"))
+    else if (IsFileExtension(fileName, ".png;.bmp;.jpg;.qoi"))
     {
         imCount = 1;
         entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
@@ -1380,7 +1382,7 @@ static IconPackEntry *LoadICO(const char *fileName, int *count)
 
         for (int i = 0; i < icoHeader.imageCount; i++)
         {
-            unsigned char *icoImageData = (unsigned char *)RL_CALLOC(icoDirEntry[i].size, 1);
+            char *icoImageData = (char *)RL_CALLOC(icoDirEntry[i].size, 1);
             fread(icoImageData, icoDirEntry[i].size, 1, icoFile);    // Read icon image data
 
             // Reading image data from memory buffer
