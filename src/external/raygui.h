@@ -3109,13 +3109,13 @@ int GuiMessageBox(Rectangle bounds, const char *title, const char *message, cons
 int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, const char *buttons, char *text, int textMaxSize, int *secretViewActive)
 {
     #if !defined(RAYGUI_TEXTINPUTBOX_BUTTON_HEIGHT)
-        #define RAYGUI_TEXTINPUTBOX_BUTTON_HEIGHT      28
+        #define RAYGUI_TEXTINPUTBOX_BUTTON_HEIGHT      24
     #endif
     #if !defined(RAYGUI_TEXTINPUTBOX_BUTTON_PADDING)
         #define RAYGUI_TEXTINPUTBOX_BUTTON_PADDING     12
     #endif
     #if !defined(RAYGUI_TEXTINPUTBOX_HEIGHT)
-        #define RAYGUI_TEXTINPUTBOX_HEIGHT             28
+        #define RAYGUI_TEXTINPUTBOX_HEIGHT             26
     #endif
 
     // Used to enable text edit mode
@@ -3921,7 +3921,6 @@ static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color
 #endif
         //DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
         
-
         int size = strlen(text);
         float scaleFactor = (float)GuiGetStyle(DEFAULT, TEXT_SIZE)/guiFont.baseSize;
 
