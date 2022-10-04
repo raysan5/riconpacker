@@ -47,7 +47,7 @@ Drag & drop your ICO/PNG files to unpack/add the different available image sizes
 
 `rIconPacker` binaries are completely free for anyone willing to compile it directly from source.
 
-`rIconPacker Standalone` desktop tool is distributed as freeware. 
+`rIconPacker Standalone` desktop tool can be downloaded with a small donation.
 
 In any case, consider some donation to help the author keep working on software for games development.
 
