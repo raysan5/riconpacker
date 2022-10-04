@@ -320,7 +320,6 @@ int main(int argc, char *argv[])
 
     bool btnGenIconImagePressed = false;
     bool btnClearIconImagePressed = false;
-    bool btnSaveImagePressed = false;
 
     bool iconTextEditMode = false;
     
@@ -357,7 +356,7 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
     bool showLoadFileDialog = false;
     bool showExportFileDialog = false;
-    bool showExportImageDialog = false;
+    //bool showExportImageDialog = false;
     //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
@@ -419,9 +418,13 @@ int main(int argc, char *argv[])
         }
 
         // Show dialog: export icon data
-        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || btnSaveImagePressed)
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S))
         {
-            if ((sizeListActive > 0) && (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) showExportImageDialog = true;
+            exportFormatActive = 0;         // Icon (.ico)
+            exportImagesChecked = false;
+            exportTextChunkChecked = true;
+            strcpy(outFileName, "icon.ico");
+            showExportFileDialog = true;
         }
 
         // Toggle window help
@@ -602,8 +605,7 @@ int main(int argc, char *argv[])
             exitWindowActive || 
             exportWindowActive ||
             showLoadFileDialog || 
-            showExportFileDialog || 
-            showExportImageDialog) GuiLock();
+            showExportFileDialog) GuiLock();
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -740,11 +742,7 @@ int main(int argc, char *argv[])
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if (GetFileExtension(outFileName) == NULL)
-                    {
-                        if ((exportFormatActive == 0) && !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
-                        else if (!IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
-                    }
+                    if ((GetFileExtension(outFileName) == NULL) && !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
 
                     // Save into icon file provided pack entries
                     // NOTE: Only valid entries are exported, png zip packaging also done (if required)
@@ -754,8 +752,13 @@ int main(int argc, char *argv[])
                     // Download file from MEMFS (emscripten memory filesystem)
                     // NOTE: Second argument must be a simple filename (we can't use directories)
                     emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
-
-                    if (exportImagesChecked) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", TextFormat("%s.zip", outFileName), TextFormat("%s.zip", GetFileName(outFileName))));
+                    
+                    if (exportImagesChecked) 
+                    {
+                        char tempFileName[512] = { 0 };
+                        strcpy(tempFileName, TextFormat("%s.zip", outFileName));
+                        emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", tempFileName, GetFileName(tempFileName)));
+                    }
                 #endif
                 }
 
