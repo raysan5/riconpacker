@@ -12,10 +12,14 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
-*       2.0  (03-Oct-2022)  Source code re-licensed to open-source
+*       2.0  (04-Oct-2022)  ADDED: Support text info data for every icon image
+*                           ADDED: Export icon images as a .zip package
+*                           ADDED: Main toolbar to access File/Tools/Visual options
+*                           ADDED: Help window with keyboard shortcuts info
+*                           ADDED: Multiple new gui styles
+*                           REDESIGNED: UI to follow raylibtech UI conventions
 *                           Updated to raylib 4.2 and raygui 3.2
-*                           ADDED: Main toolbar, for consistency with other tools
-*                           REVIEWED: Layout metrics
+*                           Source code re-licensed to open-source
 *       1.5  (30-Dec-2021)  Updated to raylib 4.0 and raygui 3.1
 *       1.0  (23-Mar-2019)  First release
 *
@@ -24,6 +28,7 @@
 *       raygui 3.2              - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.0                - PNG chunks management
 *       tinyfiledialogs 3.8.8   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
+*       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
 *   COMPILATION (Windows - MinGW):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
@@ -100,6 +105,9 @@
 #define RPNG_IMPLEMENTATION
 #include "external/rpng.h"                  // PNG chunks management
 
+#include "external/miniz.h"
+#include "external/miniz.c"
+
 #include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                         // Required for: calloc(), free()
 #include <string.h>                         // Required for: strcmp(), strlen()
@@ -121,7 +129,7 @@ bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib
   #define LOG(...)
 #endif
 
-#define MAX_IMAGE_TEXT_SIZE  32
+#define MAX_IMAGE_TEXT_SIZE  64
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -131,7 +139,7 @@ bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib
 typedef struct {
     unsigned short reserved;    // Must always be 0.
     unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
-    unsigned short imageCount;  // Specifies number of images in the file.
+    unsigned short imageCount;  // Specifies number of entries in the file.
 } IcoHeader;
 
 // Icon Entry info (16 bytes)
@@ -191,8 +199,8 @@ static const char *helpLines[HELP_LINES_COUNT] = {
     "-File Controls",
     "LCTRL + N - New icon file (.ico)",
     "LCTRL + O - Open icon/image file (.ico/.png)",
-    "LCTRL + S - Save icon/image file (.ico/.png)",
-    "LCTRL + E - Export icon file",
+    "LCTRL + S - Save icon file (.ico)",
+    "LCTRL + E - Export icon/image file(s)",
     "-Tool Controls",
     "SUP - Remove selected icon image",
     "G - Generate selected icon image",
@@ -211,8 +219,11 @@ static unsigned int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 }; 
 #if !defined(COMMAND_LINE_ONLY)
 static IconPack packs[4] = { 0 };           // Icon packs, one for every platform
 static int sizeListActive = 0;              // Current list text entry
-static int validCount = 0;                  // Valid ico images counter
+static int validCount = 0;                  // Valid ico entries counter
 #endif
+
+static bool exportImagesChecked = true;     // Flag to export entries separated
+static bool exportTextChunkChecked = true;  // Flag to embed text as a PNG chunk (rIPt)
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -234,8 +245,8 @@ static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array sep
 #endif
 
 // Load/Save/Export data functions
-static Image *LoadICO(const char *fileName, int *count);    // Load icon data
-static void SaveICO(Image *images, int imageCount, const char *fileName);  // Save icon data
+static IconPackEntry *LoadICO(const char *fileName, int *count);    // Load icon data
+static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName, bool imageOnly);  // Save icon data
 
 
 //------------------------------------------------------------------------------------
@@ -299,9 +310,6 @@ int main(int argc, char *argv[])
     packs[2] = InitIconPack(ICON_PLATFORM_ANDROID);
     packs[3] = InitIconPack(ICON_PLATFORM_IOS7);
 
-    int visualStyleActive = 0;
-    int prevVisualStyleActive = visualStyleActive;
-
     // GUI: Main Layout
     //-----------------------------------------------------------------------------------
     Vector2 anchorMain = { 0, 0 };
@@ -334,11 +342,7 @@ int main(int argc, char *argv[])
     // GUI: Export Window
     //-----------------------------------------------------------------------------------
     bool exportWindowActive = false;
-       
     int exportFormatActive = 0;         // ComboBox file type selection (.ico, .png)
-
-    bool exportImagesChecked = true;    // Select to export images separated
-    bool textChunkChecked = true;       // Select to embed text as a PNG chunk (rIPt)
     //-----------------------------------------------------------------------------------
 
     // GUI: Exit Window
@@ -381,7 +385,7 @@ int main(int argc, char *argv[])
                 if (IsFileExtension(droppedFiles.paths[i], ".ico") ||
                     IsFileExtension(droppedFiles.paths[i], ".png"))
                 {
-                    // Load images into IconPack
+                    // Load entries into IconPack
                     LoadIconToPack(&packs[mainToolbarState.platformActive], droppedFiles.paths[i]);
                 }
             }
@@ -395,7 +399,8 @@ int main(int argc, char *argv[])
         // New style file, previous in/out files registeres are reseted
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_N)) || mainToolbarState.btnNewFilePressed)
         {
-            // TODO: Reset icons
+            CloseIconPack(&packs[mainToolbarState.platformActive]);
+            packs[mainToolbarState.platformActive] = InitIconPack(mainToolbarState.platformActive);
         }
 
         // Show dialog: load input file (.ico, .png)
@@ -425,7 +430,7 @@ int main(int argc, char *argv[])
         // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
         {
-            if (sizeListActive == 0) for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) UnloadIconFromPack(&packs[mainToolbarState.platformActive], i);  // Delete all images in the series
+            if (sizeListActive == 0) for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) UnloadIconFromPack(&packs[mainToolbarState.platformActive], i);  // Delete all entries in the series
             else UnloadIconFromPack(&packs[mainToolbarState.platformActive], sizeListActive - 1);                                            // Delete one image
         }
 
@@ -456,7 +461,13 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         // File options logic
         if (mainToolbarState.btnLoadFilePressed) showLoadFileDialog = true;
-        //else if (mainToolbarState.btnSaveFilePressed) showSaveFileDialog = true;
+        else if (mainToolbarState.btnSaveFilePressed)
+        {
+            exportFormatActive = 0;         // Icon (.ico)
+            exportImagesChecked = false;
+            exportTextChunkChecked = true;
+            showExportFileDialog = true;
+        }
         else if (mainToolbarState.btnExportFilePressed) exportWindowActive = true;
 
         // Visual options logic
@@ -491,7 +502,7 @@ int main(int argc, char *argv[])
 
         // Basic program flow logic
         //----------------------------------------------------------------------------------
-        // Calculate valid images
+        // Calculate valid entries
         validCount = 0;
         for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
 
@@ -509,7 +520,7 @@ int main(int argc, char *argv[])
             {
                 if (sizeListActive == 0)
                 {
-                    // Generate all missing images in the series
+                    // Generate all missing entries in the series
                     for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
                     {
                         if (!packs[mainToolbarState.platformActive].icons[i].valid)
@@ -626,11 +637,7 @@ int main(int argc, char *argv[])
 
             // Icon image text for embedding
             if (sizeListActive == 0) GuiDisable();
-            if (GuiTextBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 52 + 256 + 8, 256, 26 }, (sizeListActive == 0)? "Add custom images text here" : packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text, MAX_IMAGE_TEXT_SIZE, iconTextEditMode)) iconTextEditMode = !iconTextEditMode;
-            //GuiLabel((Rectangle) { anchorMain.x + 135 + 256 - 38, anchorMain.y + 52 + 256 + 8, 36, 26 }, TextFormat("%i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1));
-            if (sizeListActive > 0) DrawTextEx(GuiGetFont(), TextFormat("%i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1),
-                       (Vector2){ anchorMain.x + 135 + 256 - 40, anchorMain.y + 52 + 256 + 8 + (26 - GuiGetStyle(DEFAULT, TEXT_SIZE))/2 }, 
-                       GuiGetStyle(DEFAULT, TEXT_SIZE), GuiGetStyle(DEFAULT, TEXT_SPACING), Fade(GetColor(GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL)), 0.4f));
+            if (GuiTextBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 52 + 256 + 8, 256, 26 }, (sizeListActive == 0)? "Add custom image text here!" : packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text, MAX_IMAGE_TEXT_SIZE, iconTextEditMode)) iconTextEditMode = !iconTextEditMode;
             GuiEnable();
             //--------------------------------------------------------------------------------------------------------------
 
@@ -641,8 +648,8 @@ int main(int argc, char *argv[])
 
             // GUI: Status bar
             //----------------------------------------------------------------------------------------
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "SELECTED: ALL" : TextFormat("SELECTED: %ix%i", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive == 0)? TextFormat("AVAILABLE: %i/%i", validCount, packs[mainToolbarState.platformActive].count) : TextFormat("AVAILABLE: %i/1", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid));
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "IMAGE: ALL" : TextFormat("IMAGE: %ix%i", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive > 0)? TextFormat("IMAGE TEXT LENGTH: %i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
             //----------------------------------------------------------------------------------------
             
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
@@ -672,8 +679,10 @@ int main(int argc, char *argv[])
                 GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 24, 106, 24 }, "Icon Format:");
                 exportFormatActive = GuiComboBox((Rectangle){ messageBox.x + 12 + 88, messageBox.y + 12 + 24, 136, 24 }, "Icon (.ico);Images (.png)", exportFormatActive);
 
-                exportImagesChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export separate PNG images", exportImagesChecked);
-                textChunkChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 72 + 24, 16, 16 }, "Embed image text as rIPt chunk", textChunkChecked);
+                if (exportFormatActive == 1) { exportImagesChecked = true; GuiDisable(); }
+                exportImagesChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export individual PNG images", exportImagesChecked);
+                GuiEnable();
+                exportTextChunkChecked = GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 72 + 24, 16, 16 }, "Embed image text as rIPt chunk", exportTextChunkChecked);
 
                 if (result == 1)    // Export button pressed
                 {
@@ -714,44 +723,34 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showExportFileDialog)
             {
-                strcpy(outFileName, "icon.ico");
+                strcpy(outFileName, TextFormat("icon.%s", (exportFormatActive == 0)? "ico" : "png"));
 
 #if defined(CUSTOM_MODAL_DIALOGS)
-                int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export icon file...", outFileName, "Ok;Cancel", NULL);
+                int result = GuiFileDialog(DIALOG_TEXTINPUT, (exportFormatActive == 0)? "Export icon file..." : "Export image files...", outFileName, "Ok;Cancel", NULL);
 #else
-                int result = GuiFileDialog(DIALOG_SAVE_FILE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
+                int result = -1;
+                if (exportFormatActive == 0) result = GuiFileDialog(DIALOG_SAVE_FILE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
+                else result = GuiFileDialog(DIALOG_SAVE_FILE, "Export image files...", outFileName, "*.png", "Image Files (*.png)");
 #endif
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
-
-                    // Verify icon pack valid images (not placeholder ones)
-                    int validCount = 0;
-                    for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
-
-                    Image *images = (Image *)RL_CALLOC(validCount, sizeof(Image));
-
-                    int imCount = 0;
-                    for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
+                    if (GetFileExtension(outFileName) == NULL)
                     {
-                        if (packs[mainToolbarState.platformActive].icons[i].valid)
-                        {
-                            images[imCount] = packs[mainToolbarState.platformActive].icons[i].image;
-                            imCount++;
-                        }
+                        if ((exportFormatActive == 0) && !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+                        else if (!IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
                     }
-                    
-                    // Check for valid extension and make sure it is
-                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
-                    SaveICO(images, imCount, outFileName);      // Export valid images to output ICO file
 
-                    RL_FREE(images);
+                    // Save into icon file provided pack entries
+                    // NOTE: Only valid entries are exported, png zip packaging also done (if required)
+                    SaveICO(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName, exportFormatActive);
 
                 #if defined(PLATFORM_WEB)
                     // Download file from MEMFS (emscripten memory filesystem)
                     // NOTE: Second argument must be a simple filename (we can't use directories)
                     emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
+
+                    if (exportImagesChecked) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", TextFormat("%s.zip", GetFileNameWithoutExt(outFileName)), TextFormat("%s.zip", GetFileNameWithoutExt(outFileName))));
                 #endif
                 }
 
@@ -761,6 +760,7 @@ int main(int argc, char *argv[])
 
             // GUI: Export Image Dialog (and saving logic)
             //----------------------------------------------------------------------------------------
+            /*
             if (showExportImageDialog)
             {
                 strcpy(outFileName, TextFormat("icon_%ix%i.png", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image.width, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image.height));
@@ -786,6 +786,8 @@ int main(int argc, char *argv[])
 
                 if (result >= 0) showExportImageDialog = false;
             }
+            */
+            //----------------------------------------------------------------------------------------
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -1011,8 +1013,8 @@ static void ProcessCommandLine(int argc, char *argv[])
 
         #define MAX_ICONS_PACK      64
 
-        IconPackEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon images array
-        int inputPackCount = 0;                          // Icon images array counter
+        IconPackEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon entries array
+        int inputPackCount = 0;                          // Icon entries array counter
 
         printf(" > PROCESSING INPUT FILES\n");
 
@@ -1020,36 +1022,38 @@ static void ProcessCommandLine(int argc, char *argv[])
         for (int i = 0; i < inputFilesCount; i++)
         {
             int imCount = 0;
-            Image *images = NULL;
+            IconPackEntry *entries = NULL;
 
-            // Load all available images in current file
-            if (IsFileExtension(inputFiles[i], ".ico")) images = LoadICO(inputFiles[i], &imCount);
+            // Load all available entries in current file
+            if (IsFileExtension(inputFiles[i], ".ico")) entries = LoadICO(inputFiles[i], &imCount);
             else if (IsFileExtension(inputFiles[i], ".png"))
             {
                 imCount = 1;
-                images = (Image *)RL_CALLOC(imCount, sizeof(Image));
-                images[0] = LoadImage(inputFiles[i]);
+                entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
+                entries[0].image = LoadImage(inputFiles[i]);
             }
 
             printf("\nInput file: %s / Images loaded: %i\n", inputFiles[i], imCount);
 
-            // Process all loaded images
+            // Process all loaded entries
             for (int j = 0; j < imCount; j++)
             {
                 printf(" > Processing image: %i ", j);
 
-                // Check if provided image size is valid (only squared images supported)
-                if (images[j].width != images[j].height) printf("WARNING: Image is not squared as expected (%i x %i)", images[j].width, images[j].height);
+                // Check if provided image size is valid (only squared entries supported)
+                if (entries[j].image.width != entries[j].image.height) printf("WARNING: Image is not squared as expected (%i x %i)", entries[j].image.width, entries[j].image.height);
                 else
                 {
                     // TODO: Check if current image size is already available in the package!
 
                     // Force image to be RGBA
-                    ImageFormat(&images[j], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+                    ImageFormat(&entries[j], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
-                    inputPack[inputPackCount].image = ImageCopy(images[j]);
-                    inputPack[inputPackCount].size = images[j].width;
+                    inputPack[inputPackCount].image = ImageCopy(entries[j].image);
+                    //inputPack[inputPackCount].texture = LoadTextureFromImage(entries[j].image);   // Not required on the command-line
+                    inputPack[inputPackCount].size = entries[j].image.width;
                     inputPack[inputPackCount].valid = true;
+                    memcpy(inputPack[inputPackCount].text, entries[j].text, strlen(entries[j].text));
 
                     // NOTE: inputPack[inputPackCount].texture NOT required!
 
@@ -1058,11 +1062,11 @@ static void ProcessCommandLine(int argc, char *argv[])
                     inputPackCount++;
                 }
 
-                UnloadImage(images[j]);
+                UnloadImage(entries[j].image);
                 printf("\n");
             }
 
-            RL_FREE(images);
+            RL_FREE(entries);
             RL_FREE(inputFiles[i]);    // Free input file name memory
         }
 
@@ -1144,18 +1148,16 @@ static void ProcessCommandLine(int argc, char *argv[])
 
             printf("\n");
 
-            // Save output icon file
-            Image *outImages = (Image *)RL_CALLOC(outPackCount, sizeof(Image));
-            for (int i = 0; i < outPackCount; i++) outImages[i] = outPack[i].image;
-            SaveICO(outImages, outPackCount, outFileName);
-            RL_FREE(outImages);
+            // Save into icon file provided pack entries
+            // NOTE: Only valid entries are exported, png zip packaging also done (if required)
+            SaveICO(outPack, outPackCount, outFileName, false);
         }
         else printf("WARNING: No output sizes defined\n");
 
-        // Extract required images: all or provided sizes (only available ones)
+        // Extract required entries: all or provided sizes (only available ones)
         if (extractAll)
         {
-            // Extract all input pack images
+            // Extract all input pack entries
             for (int i = 0; i < inputPackCount; i++)
             {
                 if (inputPack[i].valid)
@@ -1225,7 +1227,7 @@ static IconPack InitIconPack(int platform)
 
     pack.icons = (IconPackEntry *)RL_CALLOC(pack.count, sizeof(IconPackEntry));
 
-    // Generate placeholder images
+    // Generate placeholder entries
     for (int i = 0; i < pack.count; i++)
     {
         pack.icons[i].size = pack.sizes[i];
@@ -1258,30 +1260,30 @@ static void CloseIconPack(IconPack *pack)
 static void LoadIconToPack(IconPack *pack, const char *fileName)
 {
     int imCount = 0;
-    Image *images = NULL;
+    IconPackEntry *entries = NULL;
 
-    // Load all available images
-    if (IsFileExtension(fileName, ".ico")) images = LoadICO(fileName, &imCount);
+    // Load all available entries
+    if (IsFileExtension(fileName, ".ico")) entries = LoadICO(fileName, &imCount);
     else if (IsFileExtension(fileName, ".png"))
     {
         imCount = 1;
-        images = (Image *)RL_CALLOC(imCount, sizeof(Image));
-        images[0] = LoadImage(fileName);
+        entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
+        entries[0].image = LoadImage(fileName);
     }
 
-    // Process all loaded images
+    // Process all loaded entries
     for (int i = 0; i < imCount; i++)
     {
         int index = -1;
 
-        // Check if provided image size is valid (only squared images supported)
-        if (images[i].width != images[i].height) printf("WARNING: Image is not squared as expected (%i x %i)\n", images[i].width, images[i].height);
+        // Check if provided image size is valid (only squared entries supported)
+        if (entries[i].image.width != entries[i].image.height) printf("WARNING: Image is not squared as expected (%i x %i)\n", entries[i].image.width, entries[i].image.height);
         else
         {
-            // Validate loaded images for current platform
+            // Validate loaded entries for current platform
             for (int k = 0; k < pack->count; k++)
             {
-                if (images[i].width == pack->sizes[k]) { index = k; break; }
+                if (entries[i].image.width == pack->sizes[k]) { index = k; break; }
             }
         }
 
@@ -1289,29 +1291,30 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
         if ((index >= 0) && !pack->icons[index].valid)
         {
             // Force image to be RGBA
-            ImageFormat(&images[i], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+            ImageFormat(&entries[i].image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
             // Re-load image/texture from ico pack
             UnloadImage(pack->icons[index].image);
             UnloadTexture(pack->icons[index].texture);
 
-            pack->icons[index].image = ImageCopy(images[i]);
+            pack->icons[index].image = ImageCopy(entries[i].image);
             pack->icons[index].texture = LoadTextureFromImage(pack->icons[index].image);
             pack->icons[index].size = pack->sizes[index];
             pack->icons[index].valid = true;
+            memcpy(pack->icons[index].text, entries[i].text, strlen(entries[i].text));
         }
         else
         {
-            printf("WARNING: Image size not supported (%i x %i)\n", images[i].width, images[i].height);
+            printf("WARNING: Image size not supported (%i x %i)\n", entries[i].image.width, entries[i].image.height);
 
             // TODO: Re-scale image to the closer supported ico size
             //ImageResize(&image, newWidth, newHeight);
         }
 
-        UnloadImage(images[i]);
+        UnloadImage(entries[i].image);
     }
 
-    RL_FREE(images);
+    RL_FREE(entries);
 }
 
 // Unload one icon from the pack
@@ -1355,10 +1358,10 @@ static char *GetTextIconSizes(IconPack pack)
 #endif      // !COMMAND_LINE_ONLY
 
 // Icon data loader
-// NOTE: Returns an array of images
-static Image *LoadICO(const char *fileName, int *count)
+// NOTE: Returns an array of entries
+static IconPackEntry *LoadICO(const char *fileName, int *count)
 {
-    Image *images = NULL;
+    IconPackEntry *entries = NULL;
 
     FILE *icoFile = fopen(fileName, "rb");
 
@@ -1368,7 +1371,7 @@ static Image *LoadICO(const char *fileName, int *count)
         IcoHeader icoHeader = { 0 };
         fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
 
-        images = (Image *)RL_CALLOC(icoHeader.imageCount, sizeof(Image));
+        entries = (IconPackEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IconPackEntry));
         *count = icoHeader.imageCount;
 
         IcoDirEntry *icoDirEntry = (IcoDirEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IcoDirEntry));
@@ -1386,12 +1389,14 @@ static Image *LoadICO(const char *fileName, int *count)
             //  - PNG format, stored in its entirety
             // NOTE: We are only supporting the PNG format
             // TODO: Support BMP data
-            ((Image *)images)[i] = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
+            entries[i].image = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
+            entries[i].size = entries[i].image.width;   // Icon size (expected squared)
+            entries[i].valid = false;                   // Not valid until it is checked against the current package (sizes)
 
-            // Read rIconPacker text custom PNG chunk
-            //rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
-            //if (chunk.length < MAX_IMAGE_TEXT_SIZE) memcpy(iconpack.text, chunk.data, chunk.length);
-            //RPNG_FREE(chunk.data);
+            // Read custom rIconPacker text chunk from PNG
+            rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
+            memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+            RPNG_FREE(chunk.data);
 
             RL_FREE(icoImageData);
         }
@@ -1401,78 +1406,104 @@ static Image *LoadICO(const char *fileName, int *count)
         fclose(icoFile);
     }
 
-    return images;
+    return entries;
 }
 
 // Icon saver
-// NOTE: Make sure images array sizes are valid!
-static void SaveICO(Image *images, int imageCount, const char *fileName)
+// NOTE: Make sure entries array sizes are valid!
+static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName, bool imageOnly)
 {
-    IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = imageCount };
+    // Verify icon pack valid entries (not placeholder ones)
+    int validCount = 0;
+    for (int i = 0; i < entryCount; i++) if (entries[i].valid) validCount++;
+
+    if (validCount == 0) return;
+
+    // Define ico file header and entry
+    IcoHeader icoHeader = { .reserved = 0, .imageType = 1, .imageCount = validCount };
     IcoDirEntry *icoDirEntry = (IcoDirEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-    char **icoData = (char **)RL_CALLOC(icoHeader.imageCount, sizeof(char *));     // Pointers array to PNG image data
+    char **pngDataPtrs = (char **)RL_CALLOC(icoHeader.imageCount, sizeof(char *));     // Pointers array to PNG image data
     int offset = 6 + 16*icoHeader.imageCount;
 
-    for (int i = 0; i < imageCount; i++)
+    // Get image png data (and pointers to each image)
+    // NOTE: In case of PNG export as ZIP, files are directly packed in the loop, one by one
+    for (int i = 0, k = 0; i < entryCount; i++)
     {
-        int fileSize = 0;           // Store generated png file size (with rIPt chunk)
-        int tempFileSize = 0;       // Store generated png file size (no text chunk)
-        int colorChannels = 0;
-
-        // Compress images data into PNG file data streams
-        // Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
-        if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8) colorChannels = 3;
-        else if (images[i].format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) colorChannels = 4;
-
-        // NOTE: Memory is allocated internally using RPNG_MALLOC(), must be freed with RPNG_FREE()
-        char *tempIcoData = rpng_save_image_to_memory(images[i].data, images[i].width, images[i].height, colorChannels, 8, &tempFileSize);
-
-        /*
-        if (images[i].text[0] != '\0')
+        if (entries[i].valid)
         {
-            rpng_chunk chunk = { 0 };
-            chunk.data = images[i].text;
-            chunk.length = strlen(images[i].text);
-            icoData = rpng_chunk_write_from_memory(tempIcoData, chunk, &fileSize);
-        }
-        else
-        */
-        {
-            icoData[i] = tempIcoData;
-            fileSize = tempFileSize;
-        }
+            int fileSize = 0;           // Store generated png file size (with rIPt chunk)
+            int tempFileSize = 0;       // Store generated png file size (no text chunk)
+            int colorChannels = 0;
 
-        icoDirEntry[i].width = (images[i].width == 256)? 0 : images[i].width;
-        icoDirEntry[i].height = (images[i].width == 256)? 0 : images[i].width;
-        icoDirEntry[i].bpp = 32;
-        icoDirEntry[i].size = fileSize;
-        icoDirEntry[i].offset = offset;
+            // Compress entries data into PNG file data streams
+            // Image data format could be RGB (3 bytes) instead of RGBA (4 bytes)
+            if (entries[i].image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8) colorChannels = 3;
+            else if (entries[i].image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) colorChannels = 4;
 
-        offset += fileSize;
+            // NOTE: Memory is allocated internally using RPNG_MALLOC(), must be freed with RPNG_FREE()
+            char *tempPngData = rpng_save_image_to_memory(entries[i].image.data, entries[i].image.width, entries[i].image.height, colorChannels, 8, &tempFileSize);
+
+            // Check if exporting text chunks is required
+            if (exportTextChunkChecked && (entries[i].text[0] != '\0'))
+            {
+                // Add image text chunks to generated PNGs
+                rpng_chunk chunk = { 0 };
+                chunk.data = entries[i].text;
+                chunk.length = strlen(entries[i].text);
+                memcpy(chunk.type, "rIPt", 4);
+                pngDataPtrs[k] = rpng_chunk_write_from_memory(tempPngData, chunk, &fileSize);
+            }
+            else
+            {
+                pngDataPtrs[k] = tempPngData;
+                fileSize = tempFileSize;
+            }
+
+            // Check if exporting png entries is required (as a .zip)
+            if (exportImagesChecked)
+            {
+                // Package every image into an output ZIP file (fileName.zip)
+                // NOTE: A comment is optional text information that is embedded in a Zip file
+                mz_bool status = mz_zip_add_mem_to_archive_file_in_place(TextFormat("%s.zip", fileName), TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(fileName), entries[i].image.width, entries[i].image.height), pngDataPtrs[i], fileSize, "This is a comment", strlen("This is a comment"), MZ_BEST_SPEED); //MZ_BEST_COMPRESSION, MZ_DEFAULT_COMPRESSION
+                if (!status) LOG("WARNING: Zip accumulation process failed\n");
+            }
+
+            icoDirEntry[k].width = (entries[i].image.width == 256)? 0 : entries[i].image.width;
+            icoDirEntry[k].height = (entries[i].image.width == 256)? 0 : entries[i].image.width;
+            icoDirEntry[k].bpp = 32;
+            icoDirEntry[k].size = fileSize;
+            icoDirEntry[k].offset = offset;
+
+            offset += fileSize;
+            k++;
+        }
     }
 
-    FILE *icoFile = fopen(fileName, "wb");
-
-    if (icoFile != NULL)
+    if (!imageOnly)     // In case not images only export required, pack .ico
     {
-        // Write ico header
-        fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+        FILE *icoFile = fopen(fileName, "wb");
 
-        // Write icon images entries data
-        for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+        if (icoFile != NULL)
+        {
+            // Write ico header
+            fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
 
-        // Write icon png data
-        for (int i = 0; i < icoHeader.imageCount; i++) fwrite(icoData[i], 1, icoDirEntry[i].size, icoFile);
+            // Write icon entries entries data
+            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
 
-        fclose(icoFile);
+            // Write icon png data
+            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(pngDataPtrs[i], 1, icoDirEntry[i].size, icoFile);
+
+            fclose(icoFile);
+        }
     }
 
-    // Free used data
-    for (int i = 0; i < icoHeader.imageCount; i++) RPNG_FREE(icoData[i]);
+    // Free used data (pngs data)
+    for (int i = 0; i < icoHeader.imageCount; i++) RPNG_FREE(pngDataPtrs[i]);
 
     RL_FREE(icoDirEntry);
-    RL_FREE(icoData);
+    RL_FREE(pngDataPtrs);
 }
 
 // Draw help window with the provided lines
@@ -1488,9 +1519,9 @@ static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpL
 
     for (int i = 0; i < helpLinesCount; i++)
     {
-        if (helpLines[i] == NULL) GuiLine((Rectangle) { bounds.x, bounds.y + nextLineY, 330, 12 }, helpLines[i]);
-        else if (helpLines[i][0] == '-') GuiLine((Rectangle) { bounds.x, bounds.y + nextLineY, 330, 24 }, helpLines[i] + 1);
-        else GuiLabel((Rectangle) { bounds.x + 12, bounds.y + nextLineY, 0, 24 }, helpLines[i]);
+        if (helpLines[i] == NULL) GuiLine((Rectangle){ bounds.x, bounds.y + nextLineY, 330, 12 }, helpLines[i]);
+        else if (helpLines[i][0] == '-') GuiLine((Rectangle){ bounds.x, bounds.y + nextLineY, 330, 24 }, helpLines[i] + 1);
+        else GuiLabel((Rectangle){ bounds.x + 12, bounds.y + nextLineY, bounds.width, 24 }, helpLines[i]);
 
         if (helpLines[i] == NULL) nextLineY += 12;
         else nextLineY += 24;
@@ -1504,7 +1535,7 @@ static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpL
 // NOTE: Format specs: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
 static Image *LoadICNS(const char *fileName, int *count)
 {
-    Image *images = NULL;
+    Image *entries = NULL;
 
     int icnsCount = 0;
 
@@ -1540,7 +1571,7 @@ static Image *LoadICNS(const char *fileName, int *count)
     // - ic14    512x512        JPEG 2000 or PNG format (256x256@2x "retina")
     
     // App icon sizes (recommended)
-    // https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-images/app-icon/
+    // https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-entries/app-icon/
     // - 512x512 (512x512@1x, 1024x1024@2x)
     // - 256x256 (256x256@1x, 512x512@2x)
     // - 128x128 (128x128@1x, 256x256@2x)
@@ -1554,11 +1585,11 @@ static Image *LoadICNS(const char *fileName, int *count)
     // TODO: Check file size to keep track of data read... until end of available data
 
     // TODO: Load all icons data found
-    images = (Image *)RL_CALLOC(icnsCount, 1);
+    entries = (Image *)RL_CALLOC(icnsCount, 1);
     *count = icnsCount;
 
     fclose(icnsFile);
 
-    return images;
+    return entries;
 }
 */

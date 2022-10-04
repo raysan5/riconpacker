@@ -1999,13 +1999,13 @@ bool GuiDropdownBox(Rectangle bounds, const char *text, int *active, bool editMo
 bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
 {
     GuiState state = guiState;
+    Rectangle textBounds = GetTextBounds(TEXTBOX, bounds);
+
     bool pressed = false;
     int textWidth = GetTextWidth(text);
-    Rectangle textBounds = GetTextBounds(TEXTBOX, bounds);
-    int textAlignment = editMode && textWidth >= textBounds.width ? TEXT_ALIGN_RIGHT : GuiGetStyle(TEXTBOX, TEXT_ALIGNMENT);
 
     Rectangle cursor = {
-        bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + GetTextWidth(text) + 2,
+        bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + textWidth + 2,
         bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE),
         4,
         (float)GuiGetStyle(DEFAULT, TEXT_SIZE)*2
@@ -2057,10 +2057,6 @@ bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
             }
 
             if (IsKeyPressed(KEY_ENTER) || (!CheckCollisionPointRec(mousePoint, bounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) pressed = true;
-
-            // Check text alignment to position cursor properly
-            if (textAlignment == TEXT_ALIGN_CENTER) cursor.x = bounds.x + GetTextWidth(text)/2 + bounds.width/2 + 1;
-            else if (textAlignment == TEXT_ALIGN_RIGHT) cursor.x = bounds.x + bounds.width - GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING) - GuiGetStyle(TEXTBOX, BORDER_WIDTH);
         }
         else
         {
@@ -2085,15 +2081,21 @@ bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
     }
     else GuiDrawRectangle(bounds, 1, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha), BLANK);
 
-    // in case we edit and text does not fit in the textbox show right aligned and character clipped, slower but working
-    while (editMode && textWidth >= textBounds.width && *text)
+    if (editMode)
     {
-        int bytes = 0;
-        GetCodepoint(text, &bytes);
-        text += bytes;
-        textWidth = GetTextWidth(text);
+        // In case we edit and text does not fit in the textbox,
+        // we move text pointer to a position it fits inside the text box
+        while ((textWidth >= textBounds.width) && (text[0] != '\0'))
+        {
+            int codepointSize = 0;
+            GetCodepoint(text, &codepointSize);
+            text += codepointSize;
+            textWidth = GetTextWidth(text);
+            cursor.x = textBounds.x + textWidth + 2;
+        }
     }
-    GuiDrawText(text, textBounds, textAlignment, Fade(GetColor(GuiGetStyle(TEXTBOX, TEXT + (state*3))), guiAlpha));
+
+    GuiDrawText(text, textBounds, GuiGetStyle(TEXTBOX, TEXT_ALIGNMENT), Fade(GetColor(GuiGetStyle(TEXTBOX, TEXT + (state*3))), guiAlpha));
 
     // Draw cursor
     if (editMode) GuiDrawRectangle(cursor, 0, BLANK, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER_COLOR_PRESSED)), guiAlpha));
@@ -3793,7 +3795,7 @@ static Rectangle GetTextBounds(int control, Rectangle bounds)
 
     textBounds.x = bounds.x + GuiGetStyle(control, BORDER_WIDTH);
     textBounds.y = bounds.y + GuiGetStyle(control, BORDER_WIDTH);
-    textBounds.width = bounds.width - 2*GuiGetStyle(control, BORDER_WIDTH);
+    textBounds.width = bounds.width - 2*GuiGetStyle(control, BORDER_WIDTH) - 2*GuiGetStyle(control, TEXT_PADDING);
     textBounds.height = bounds.height - 2*GuiGetStyle(control, BORDER_WIDTH);
 
     // Consider TEXT_PADDING properly, depends on control type and TEXT_ALIGNMENT
@@ -3917,7 +3919,45 @@ static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color
             position.x += (RAYGUI_ICON_SIZE*guiIconScale + ICON_TEXT_PADDING);
         }
 #endif
-        DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
+        //DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
+        
+
+        int size = strlen(text);
+        float scaleFactor = (float)GuiGetStyle(DEFAULT, TEXT_SIZE)/guiFont.baseSize;
+
+        int textOffsetY = 0;
+        float textOffsetX = 0.0f;
+        for (int i = 0, codepointSize = 0; i < size; i += codepointSize)
+        {
+            int codepoint = GetCodepointNext(&text[i], &codepointSize);
+            int index = GetGlyphIndex(guiFont, codepoint);
+
+            // NOTE: Normally we exit the decoding sequence as soon as a bad byte is found (and return 0x3f)
+            // but we need to draw all of the bad bytes using the '?' symbol moving one byte
+            if (codepoint == 0x3f) codepointSize = 1;
+
+            if (codepoint == '\n')
+            {
+                // NOTE: Fixed line spacing of 1.5 line-height
+                textOffsetY += (int)((guiFont.baseSize + guiFont.baseSize/2.0f)*scaleFactor);
+                textOffsetX = 0.0f;
+            }
+            else
+            {
+                if ((codepoint != ' ') && (codepoint != '\t'))
+                {
+                    // TODO: Draw only required text glyphs fitting the bounds.width, '...' can be appended at the end of the text
+                    if (textOffsetX < bounds.width)
+                    {
+                        DrawTextCodepoint(guiFont, codepoint, (Vector2) { position.x + textOffsetX, position.y + textOffsetY }, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), tint);
+                    }
+                }
+
+                if (guiFont.glyphs[index].advanceX == 0) textOffsetX += ((float)guiFont.recs[index].width*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                else textOffsetX += ((float)guiFont.glyphs[index].advanceX*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+            }
+        }
+        
         //---------------------------------------------------------------------------------
     }
 }
