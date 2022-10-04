@@ -12,12 +12,14 @@ rGuiIcons can be used for free as a [WebAssembly online tool](https://raylibtech
 
 ## rIconPacker Features
 
- - **Pack** your custom images into an icon
- - Input image formats supported: `.bmp`, `.png`, `.jpg` and `.qoi`
- - **Unpack** icon to check available image sizes
- - **Generate** missing icon sizes for selected platform
- - **Extract icon images** as PNG files
- - **4 predefined platforms: Windows, Favicon, Android, iOS**
+ - **Icon template platforms**: Windows, Favicon, Android, iOS
+ - **Pack** your icon images into an icon file (`.ico`)
+ - Define **custom text data** per icon image
+ - **Generate** missing icon sizes automatically
+ - Input image formats supported: `.png`, `.bmp`, `.jpg` and `.qoi`
+ - **Extract icon images** as `.png` files
+ - Multiple GUI styles with support for custom ones (`.rgs`)
+ - **Completely free and open-source**
 
 ### rIconPacker Standalone Additional Features
 
@@ -27,11 +29,13 @@ rGuiIcons can be used for free as a [WebAssembly online tool](https://raylibtech
 
 ## rIconPacker Screenshot
 
-![rIconPacker](screenshots/riconpacker_v100_shot02.png)
+![rIconPacker](screenshots/riconpacker_v200_shot01.png)
 
 ## rIconPacker Usage
 
 Drag & drop your ICO/PNG files to unpack/add the different available image sizes, missing sizes could also be generated (using biggest available size).
+
+**Custom image text data** can be added per icon image and it will be embedded in the `.ico` file, useful for copyright data or nice _icon-poems_. 
 
 `rIconPacker Standalone` comes with command-line support for batch conversion. For usage help:
 
