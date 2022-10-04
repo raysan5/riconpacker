@@ -203,9 +203,9 @@ static const char *helpLines[HELP_LINES_COUNT] = {
     "LCTRL + E - Export icon/image file(s)",
     "-Tool Controls",
     "SUP - Remove selected icon image",
-    "G - Generate selected icon image",
+    "LCTRL + G - Generate selected icon image",
     "-Tool Visuals",
-    "F - Toggle double screen size",
+    "RIGHT - Select style template",
     NULL,
     "ESCAPE - Close Window/Exit"
 };
@@ -426,6 +426,11 @@ int main(int argc, char *argv[])
             strcpy(outFileName, "icon.ico");
             showExportFileDialog = true;
         }
+        
+#if defined(PLATFORM_DESKTOP)
+        // Toggle screen size (x2) mode
+        //if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
+#endif
 
         // Toggle window help
         if (IsKeyPressed(KEY_F1)) helpWindowActive = !helpWindowActive;
@@ -463,6 +468,9 @@ int main(int argc, char *argv[])
             else if (showExportFileDialog) showExportFileDialog = false;
         #endif
         }
+        
+        // Change current style template
+        if (IsKeyPressed(KEY_RIGHT)) mainToolbarState.btnStylePressed = true;
         //----------------------------------------------------------------------------------
         
         // Main toolbar logic
@@ -516,7 +524,7 @@ int main(int argc, char *argv[])
         for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
 
         // Generate new icon image (using biggest available image)
-        if (btnGenIconImagePressed)
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_G)) || btnGenIconImagePressed)
         {
             // Get bigger available icon
             int biggerValidSize = -1;
@@ -575,8 +583,9 @@ int main(int argc, char *argv[])
         }
         //----------------------------------------------------------------------------------
 
-        // Screen scale logic (x2)
+        // Screen scale logic (x2) -> Not used in this tool
         //----------------------------------------------------------------------------------
+        /*
         if (screenSizeActive)
         {
             // Screen size x2
@@ -595,6 +604,7 @@ int main(int argc, char *argv[])
                 SetMouseScale(1.0f, 1.0f);
             }
         }
+        */
         //----------------------------------------------------------------------------------
         
 
