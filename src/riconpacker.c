@@ -467,6 +467,7 @@ int main(int argc, char *argv[])
             exportFormatActive = 0;         // Icon (.ico)
             exportImagesChecked = false;
             exportTextChunkChecked = true;
+            strcpy(outFileName, "icon.ico");
             showExportFileDialog = true;
         }
         else if (mainToolbarState.btnExportFilePressed) exportWindowActive = true;
