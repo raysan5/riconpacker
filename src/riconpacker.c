@@ -755,7 +755,7 @@ int main(int argc, char *argv[])
                     // NOTE: Second argument must be a simple filename (we can't use directories)
                     emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
 
-                    if (exportImagesChecked) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", TextFormat("%s.zip", GetFileNameWithoutExt(outFileName)), TextFormat("%s.zip", GetFileNameWithoutExt(outFileName))));
+                    if (exportImagesChecked) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", TextFormat("%s.zip", outFileName), TextFormat("%s.zip", GetFileName(outFileName))));
                 #endif
                 }
 
