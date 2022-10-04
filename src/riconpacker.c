@@ -724,10 +724,8 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showExportFileDialog)
             {
-                strcpy(outFileName, TextFormat("icon.%s", (exportFormatActive == 0)? "ico" : "png"));
-
 #if defined(CUSTOM_MODAL_DIALOGS)
-                int result = GuiFileDialog(DIALOG_TEXTINPUT, (exportFormatActive == 0)? "Export icon file..." : "Export image files...", outFileName, "Ok;Cancel", NULL);
+                int result = GuiTextInputBox((Rectangle){ screenWidth/2 - 280/2, screenHeight/2 - 112/2 - 30, 280, 112 }, (exportFormatActive == 0)? "#7#Export icon file..." : "#7#Export image files...", NULL, "#7#Export", outFileName, 512, NULL);
 #else
                 int result = -1;
                 if (exportFormatActive == 0) result = GuiFileDialog(DIALOG_SAVE_FILE, "Export icon file...", outFileName, "*.ico", "Icon File (*.ico)");
@@ -877,7 +875,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
     int inputFilesCount = 0;
     char **inputFiles = NULL;           // Input file names
-    char outFileName[256] = { 0 };      // Output file name
+    char outFileName[512] = { 0 };      // Output file name
 
     int outPlatform = 0;                // Output platform sizes scheme
 
