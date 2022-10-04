@@ -411,7 +411,11 @@ int main(int argc, char *argv[])
         // Show dialog: save icon file (.ico)
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E))
         {
-            if (validCount > 0) showExportFileDialog = true;
+            if (validCount > 0)
+            {
+                strcpy(outFileName, "icon.ico");
+                showExportFileDialog = true;
+            }
         }
 
         // Show dialog: export icon data
@@ -689,6 +693,7 @@ int main(int argc, char *argv[])
                 if (result == 1)    // Export button pressed
                 {
                     exportWindowActive = false;
+                    strcpy(outFileName, "icon.ico");
                     showExportFileDialog = true;
                 }
                 else if (result == 0) exportWindowActive = false;
