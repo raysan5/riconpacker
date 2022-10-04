@@ -453,7 +453,6 @@ int main(int argc, char *argv[])
             else exitWindowActive = !exitWindowActive;
         #else
             else if (showLoadFileDialog) showLoadFileDialog = false;
-            else if (showSaveFileDialog) showSaveFileDialog = false;
             else if (showExportFileDialog) showExportFileDialog = false;
         #endif
         }
