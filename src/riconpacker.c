@@ -322,9 +322,9 @@ int main(int argc, char *argv[])
     bool btnClearIconImagePressed = false;
 
     bool iconTextEditMode = false;
-    
+
     bool screenSizeActive = false;
-    bool helpWindowActive = false;      // Show window: help info 
+    bool helpWindowActive = false;      // Show window: help info
     bool userWindowActive = false;      // Show window: user registration
 
     GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
     // Main game loop
     while (!closeWindow)    // Detect window close button
     {
-        // WARNING: ASINCIFY requires this line, 
+        // WARNING: ASINCIFY requires this line,
         // it contains the call to emscripten_sleep() for PLATFORM_WEB
         if (WindowShouldClose()) exitWindowActive = true;
 
@@ -426,7 +426,7 @@ int main(int argc, char *argv[])
             strcpy(outFileName, "icon.ico");
             showExportFileDialog = true;
         }
-        
+
 #if defined(PLATFORM_DESKTOP)
         // Toggle screen size (x2) mode
         //if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
@@ -468,11 +468,11 @@ int main(int argc, char *argv[])
             else if (showExportFileDialog) showExportFileDialog = false;
         #endif
         }
-        
+
         // Change current style template
         if (IsKeyPressed(KEY_RIGHT)) mainToolbarState.btnStylePressed = true;
         //----------------------------------------------------------------------------------
-        
+
         // Main toolbar logic
         //----------------------------------------------------------------------------------
         // File options logic
@@ -606,15 +606,15 @@ int main(int argc, char *argv[])
         }
         */
         //----------------------------------------------------------------------------------
-        
+
 
         // WARNING: Some windows should lock the main screen controls when shown
-        if (windowAboutState.windowActive || 
+        if (windowAboutState.windowActive ||
             helpWindowActive ||
             userWindowActive ||
-            exitWindowActive || 
+            exitWindowActive ||
             exportWindowActive ||
-            showLoadFileDialog || 
+            showLoadFileDialog ||
             showExportFileDialog) GuiLock();
         //----------------------------------------------------------------------------------
 
@@ -643,7 +643,7 @@ int main(int argc, char *argv[])
                             (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
             }
 
-            // Clear/generate selected icon image level 
+            // Clear/generate selected icon image level
             // NOTE: Enabled buttons depend on several circunstances
             if ((validCount == 0) || ((sizeListActive > 0) && !packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
             btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 135 + 256 - 48 - 8, anchorMain.y + 52 + 256 - 24 - 4, 24, 24 }, "#143#");
@@ -669,7 +669,7 @@ int main(int argc, char *argv[])
             GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "IMAGE: ALL" : TextFormat("IMAGE: %ix%i", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size));
             GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive > 0)? TextFormat("IMAGE TEXT LENGTH: %i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
             //----------------------------------------------------------------------------------------
-            
+
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
             if (GuiIsLocked()) DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
 
@@ -762,8 +762,8 @@ int main(int argc, char *argv[])
                     // Download file from MEMFS (emscripten memory filesystem)
                     // NOTE: Second argument must be a simple filename (we can't use directories)
                     emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
-                    
-                    if (exportImagesChecked) 
+
+                    if (exportImagesChecked)
                     {
                         char tempFileName[512] = { 0 };
                         strcpy(tempFileName, TextFormat("%s.zip", outFileName));
@@ -1571,7 +1571,7 @@ static Image *LoadICNS(const char *fileName, int *count)
         unsigned int dataSize;      // Length of data, in bytes (including type and length), msb first
         unsigned char *data;        // Icon data
     } IcnsData;
-    
+
     // ICNS support a long list of OSType icon data formats,
     // we will only support and load a small subset and **only PNG data format**:
     //  OSType  Size        Details
@@ -1587,7 +1587,7 @@ static Image *LoadICNS(const char *fileName, int *count)
     // - ic12    64x64        JPEG 2000 or PNG format (32x32@2x "retina")
     // - ic13    256x256        JPEG 2000 or PNG format (128x128@2x "retina")
     // - ic14    512x512        JPEG 2000 or PNG format (256x256@2x "retina")
-    
+
     // App icon sizes (recommended)
     // https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-entries/app-icon/
     // - 512x512 (512x512@1x, 1024x1024@2x)
