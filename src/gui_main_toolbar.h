@@ -71,6 +71,7 @@ typedef struct {
     // Help options
     bool btnHelpPressed;
     bool btnAboutPressed;
+    bool btnSponsorPressed;
     bool btnUserPressed;
     bool btnQuitPressed;
 
@@ -158,6 +159,7 @@ GuiMainToolbarState InitGuiMainToolbar(void)
     // Info options
     state.btnHelpPressed = false;
     state.btnAboutPressed = false;
+    state.btnSponsorPressed = false;
     state.btnUserPressed = false;
     state.btnQuitPressed = false;
 
@@ -187,12 +189,6 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     state->btnSaveFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 48 + 8, state->anchorFile.y + 8, 24, 24 }, "#6#");
     state->btnExportFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 72 + 12, state->anchorFile.y + 8, 24, 24 }, "#7#");
 
-    /*
-        if ((validCount == 0) || (sizeListActive == 0) || ((sizeListActive > 0) && !packs[platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
-        btnSaveImagePressed = GuiButton((Rectangle) { anchorMain.x + 220, anchorMain.y + 8, 80, 24 }, "#12#Save");
-        GuiEnable();
-    */
-
     // Edit options
     //GuiLabel((Rectangle){ state->anchorEdit.x + 10, 8, 35, 24 }, "State:");
     if (GuiDropdownBox((Rectangle){ state->anchorEdit.x + 10, 8, 108, 24 }, "Windows;Favicon;Android;iOS", &state->platformActive, state->platformEditMode)) state->platformEditMode = !state->platformEditMode;
@@ -208,9 +204,7 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     // Info options
     state->btnHelpPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 70 - 8, state->anchorRight.y + 8, 24, 24 }, "#193#"); 
     state->btnAboutPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 46 - 4, state->anchorRight.y + 8, 24, 24 }, "#191#");
-    GuiDisable();
-    state->btnUserPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 22, state->anchorRight.y + 8, 24, 24 }, "#149#");
-    GuiEnable();
+    state->btnSponsorPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 22, state->anchorRight.y + 8, 24, 24 }, "#186#");
 }
 
 #endif // GUI_MAIN_TOOLBAR_IMPLEMENTATION

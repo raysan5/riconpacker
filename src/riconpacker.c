@@ -12,6 +12,8 @@
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
+*       2.1  (06-Oct-2022)  ADDED: Sponsor window for tools support
+*                           Updated to raygui 3.5-dev
 *       2.0  (04-Oct-2022)  ADDED: Support text info data for every icon image
 *                           ADDED: Export icon images as a .zip package
 *                           ADDED: Main toolbar to access File/Tools/Visual options
@@ -85,6 +87,9 @@
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"               // GUI: About Window
 
+#define GUI_WINDOW_SPONSOR_IMPLEMENTATION
+#include "gui_window_sponsor.h"             // GUI: Sponsor Window
+
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
 
@@ -92,7 +97,7 @@
 #include "gui_main_toolbar.h"               // GUI: Main toolbar
 
 // raygui embedded styles
-// NOTE: Inclusion order follows combobox order
+// NOTE: Following same order as selector
 #include "styles/style_dark.h"              // raygui style: dark
 #include "styles/style_jungle.h"            // raygui style: jungle
 #include "styles/style_candy.h"             // raygui style: candy
@@ -108,6 +113,7 @@
 #include "external/miniz.h"
 #include "external/miniz.c"
 
+// Standard C libraries
 #include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                         // Required for: calloc(), free()
 #include <string.h>                         // Required for: strcmp(), strlen()
@@ -117,16 +123,17 @@
 // Defines and Macros
 //----------------------------------------------------------------------------------
 #if (!defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
-bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib)
+// WARNING: Comment if LOG() output is required for this tool
+bool __stdcall FreeConsole(void);           // Close console from code (kernel32.lib)
 #endif
 
 // Simple log system to avoid printf() calls if required
 // NOTE: Avoiding those calls, also avoids const strings memory usage
 #define SUPPORT_LOG_INFO
-#if defined(SUPPORT_LOG_INFO)
-  #define LOG(...) printf(__VA_ARGS__)
+#if defined(SUPPORT_LOG_INFO) && defined(_DEBUG)
+    #define LOG(...) printf(__VA_ARGS__)
 #else
-  #define LOG(...)
+    #define LOG(...)
 #endif
 
 #define MAX_IMAGE_TEXT_SIZE  64
@@ -190,12 +197,13 @@ static const char *toolName = TOOL_NAME;
 static const char *toolVersion = TOOL_VERSION;
 static const char *toolDescription = TOOL_DESCRIPTION;
 
-#define HELP_LINES_COUNT    14
+#define HELP_LINES_COUNT    15
 
 // Tool help info
 static const char *helpLines[HELP_LINES_COUNT] = {
     "F1 - Show Help window",
     "F2 - Show About window",
+    "F3 - Show Sponsor window",
     "-File Controls",
     "LCTRL + N - New icon file (.ico)",
     "LCTRL + O - Open icon/image file (.ico/.png)",
@@ -291,6 +299,7 @@ int main(int argc, char *argv[])
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
     // and closing console (FreeConsole()) when changing to GUI interface
+    // WARNING: Comment in case LOG() output is required for this tool
     FreeConsole();
 #endif
 
@@ -334,6 +343,11 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
     GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
     //-----------------------------------------------------------------------------------
+    
+    // GUI: Sponsor Window
+    //-----------------------------------------------------------------------------------
+    GuiWindowSponsorState windowSponsorState = InitGuiWindowSponsor();
+    //-----------------------------------------------------------------------------------
 
     // GUI: Main toolbar panel (file and visualization)
     //-----------------------------------------------------------------------------------
@@ -362,11 +376,11 @@ int main(int argc, char *argv[])
     // Check if an icon input file has been provided on command line
     if (inFileName[0] != '\0') LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);
 
-    SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
+    SetTargetFPS(60);       // Set our game frames-per-second
     //--------------------------------------------------------------------------------------
 
     // Main game loop
-    while (!closeWindow)    // Detect window close button
+    while (!closeWindow)    // Program must finish
     {
         // WARNING: ASINCIFY requires this line,
         // it contains the call to emscripten_sleep() for PLATFORM_WEB
@@ -431,15 +445,14 @@ int main(int argc, char *argv[])
         // Toggle screen size (x2) mode
         //if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
 #endif
-
-        // Toggle window help
+        // Toggle window: help
         if (IsKeyPressed(KEY_F1)) helpWindowActive = !helpWindowActive;
 
-        // Toggle window about
+        // Toggle window: about
         if (IsKeyPressed(KEY_F2)) windowAboutState.windowActive = !windowAboutState.windowActive;
 
-        // Toggle window registered user
-        //if (IsKeyPressed(KEY_F3)) userWindowActive = !userWindowActive;
+        // Toggle window: sponsor
+        if (IsKeyPressed(KEY_F3)) windowSponsorState.windowActive = !windowSponsorState.windowActive;
 
         // Delete selected icon from list
         if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
@@ -459,6 +472,7 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_ESCAPE))
         {
             if (windowAboutState.windowActive) windowAboutState.windowActive = false;
+            else if (windowSponsorState.windowActive) windowSponsorState.windowActive = false;
             else if (helpWindowActive) helpWindowActive = false;
             else if (exportWindowActive) exportWindowActive = false;
         #if defined(PLATFORM_DESKTOP)
@@ -512,9 +526,10 @@ int main(int argc, char *argv[])
         }
 
         // Help options logic
-        if (mainToolbarState.btnHelpPressed) helpWindowActive = true;               // Help button logic
-        if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true; // About window button logic
-        if (mainToolbarState.btnUserPressed) userWindowActive = true;               // User button logic
+        if (mainToolbarState.btnHelpPressed) helpWindowActive = true;                   // Help button logic
+        if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true;     // About window button logic
+        if (mainToolbarState.btnSponsorPressed) windowSponsorState.windowActive = true; // User sponsor logic
+        //if (mainToolbarState.btnUserPressed) userWindowActive = true;                 // User button logic
         //----------------------------------------------------------------------------------
 
         // Basic program flow logic
@@ -610,6 +625,7 @@ int main(int argc, char *argv[])
 
         // WARNING: Some windows should lock the main screen controls when shown
         if (windowAboutState.windowActive ||
+            windowSponsorState.windowActive ||
             helpWindowActive ||
             userWindowActive ||
             exitWindowActive ||
@@ -681,9 +697,15 @@ int main(int argc, char *argv[])
             GuiWindowAbout(&windowAboutState);
             //----------------------------------------------------------------------------------------
 
+            // GUI: Sponsor Window
+            //----------------------------------------------------------------------------------------
+            windowSponsorState.position = (Vector2){ (float)screenWidth/2 - windowSponsorState.windowWidth/2, (float)screenHeight/2 - windowSponsorState.windowHeight/2 - 20 };
+            GuiWindowSponsor(&windowSponsorState);
+            //----------------------------------------------------------------------------------------
+
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
-            Rectangle helpWindowBounds = { (float)screenWidth/2 - 330/2, (float)screenHeight/2 - 368.0f/2, 330, 0 };
+            Rectangle helpWindowBounds = { (float)screenWidth/2 - 330/2, (float)screenHeight/2 - 380.0f/2, 330, 0 };
             if (helpWindowActive) helpWindowActive = GuiHelpWindow(helpWindowBounds, GuiIconText(ICON_HELP, TextFormat("%s Shortcuts", TOOL_NAME)), helpLines, HELP_LINES_COUNT);
             //----------------------------------------------------------------------------------------
 
