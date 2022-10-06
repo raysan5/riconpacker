@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   raygui v3.2 - A simple and easy-to-use immediate-mode gui library
+*   raygui v3.5-dev - A simple and easy-to-use immediate-mode gui library
 *
 *   DESCRIPTION:
 *
@@ -111,6 +111,10 @@
 *
 *
 *   VERSIONS HISTORY:
+*       3.5 (xx-xxx-2022) REDESIGNED: GuiDrawText() to divide drawing by lines
+*                         REMOVED: MeasureTextEx() dependency, logic directly implemented
+*                         REMOVED: DrawTextEx() dependency, logic directly implemented
+*                         ADDED: Helper functions to split text in separate lines
 *       3.2 (22-May-2022) RENAMED: Some enum values, for unification, avoiding prefixes
 *                         REMOVED: GuiScrollBar(), only internal
 *                         REDESIGNED: GuiPanel() to support text parameter
@@ -1723,7 +1727,7 @@ bool GuiToggle(Rectangle bounds, const char *text, bool active)
     return active;
 }
 
-// Toggle Group control, returns toggled button index
+// Toggle Group control, returns toggled button codepointIndex
 int GuiToggleGroup(Rectangle bounds, const char *text, int active)
 {
     #if !defined(RAYGUI_TOGGLEGROUP_MAX_ITEMS)
@@ -1816,7 +1820,7 @@ bool GuiCheckBox(Rectangle bounds, const char *text, bool checked)
     return checked;
 }
 
-// Combo Box control, returns selected item index
+// Combo Box control, returns selected item codepointIndex
 int GuiComboBox(Rectangle bounds, const char *text, int active)
 {
     GuiState state = guiState;
@@ -3784,54 +3788,29 @@ static int GetTextWidth(const char *text)
         // Custom MeasureText() implementation
         if ((guiFont.texture.id > 0) && (text != NULL))
         {
-            int size = strlen(text);        // Get size in bytes of text
-            int tempByteCounter = 0;        // Used to count longer text line num chars
-            int byteCounter = 0;
-
-            float textWidth = 0.0f;
-            float tempTextWidth = 0.0f;     // Used to count longer text line width
-
-            float textHeight = (float)guiFont.baseSize;
-            float scaleFactor = fontSize/(float)guiFont.baseSize;
-
-            int letter = 0;                 // Current character
-            int index = 0;                  // Index position in sprite font
-
-            for (int i = 0; i < size; i++)
+            // Get size in bytes of text, considering end of line and line break
+            int size = 0;
+            for (int i = 0; i < MAX_LINE_BUFFER_SIZE; i++)
             {
-                byteCounter++;
-
-                int next = 0;
-                letter = GetCodepointNext(&text[i], &next);
-                index = GetGlyphIndex(guiFont, letter);
-
-                // NOTE: normally we exit the decoding sequence as soon as a bad byte is found (and return 0x3f)
-                // but we need to draw all of the bad bytes using the '?' symbol so to not skip any we set next = 1
-                if (letter == 0x3f) next = 1;
-                i += next - 1;
-
-                if (letter != '\n')
-                {
-                    if (guiFont.glyphs[index].advanceX != 0) textWidth += guiFont.glyphs[index].advanceX;
-                    else textWidth += (guiFont.recs[index].width + guiFont.glyphs[index].offsetX);
-                }
-                else
-                {
-                    if (tempTextWidth < textWidth) tempTextWidth = textWidth;
-                    byteCounter = 0;
-                    textWidth = 0;
-                    textHeight += ((float)guiFont.baseSize*1.5f); // NOTE: Fixed line spacing of 1.5 lines
-                }
-
-                if (tempByteCounter < byteCounter) tempByteCounter = byteCounter;
+                if ((text[i] != '\0') && (text[i] != '\n')) size++;
+                else break;
             }
 
-            if (tempTextWidth < textWidth) tempTextWidth = textWidth;
+            float scaleFactor = fontSize/(float)guiFont.baseSize;
+            textSize.y = (float)guiFont.baseSize*scaleFactor;
+            float glyphWidth = 0.0f;
 
-            textSize.x = tempTextWidth*scaleFactor + (float)((tempByteCounter - 1)*(float)GuiGetStyle(DEFAULT, TEXT_SPACING)); // Adds chars spacing to measure
-            textSize.y = textHeight*scaleFactor;
+            for (int i = 0, codepointSize = 0; i < size; i += codepointSize)
+            {
+                int codepoint = GetCodepointNext(&text[i], &codepointSize);
+                int codepointIndex = GetGlyphIndex(guiFont, codepoint);
+
+                if (guiFont.glyphs[codepointIndex].advanceX == 0) glyphWidth = ((float)guiFont.recs[codepointIndex].width*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                else glyphWidth = ((float)guiFont.glyphs[codepointIndex].advanceX*scaleFactor + GuiGetStyle(DEFAULT, TEXT_SPACING));
+
+                textSize.x += glyphWidth;
+            }
         }
-
 
         if (textIconOffset > 0) textSize.x += (RAYGUI_ICON_SIZE - ICON_TEXT_PADDING);
     }
@@ -3900,6 +3879,39 @@ static const char *GetTextIcon(const char *text, int *iconId)
     return text;
 }
 
+// Get text divided into lines (by line-breaks '\n')
+char **GetTextLines(char *text, int *count)
+{
+#define RAYGUI_MAX_TEXT_LINES   128
+
+    static char *lines[RAYGUI_MAX_TEXT_LINES] = { 0 };
+    memset(lines, 0, sizeof(char *));
+
+    int textLen = strlen(text);
+
+    lines[0] = text;
+    int len = 0;
+    *count = 1;
+    int lineSize = 0;   // Stores current line size, not returned
+
+    for (int i = 0, k = 0; (i < textLen) && (*count < RAYGUI_MAX_TEXT_LINES); i++)
+    {
+        if (text[i] == '\n')
+        {
+            lineSize = len;
+            k++;
+            lines[k] = &text[i + 1];     // WARNING: next value is valid?
+            len = 0;
+            *count += 1;
+        }
+        else len++;
+    }
+
+    //lines[*count - 1].size = len;
+
+    return lines;
+}
+
 // Gui draw text using default font
 static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color tint)
 {
@@ -3909,104 +3921,117 @@ static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color
         #define ICON_TEXT_PADDING   4
     #endif
 
+    // We process the text lines one by one
     if ((text != NULL) && (text[0] != '\0'))
     {
-        int iconId = 0;
-        text = GetTextIcon(text, &iconId);      // Check text for icon and move cursor
+        // Get text lines ('\n' delimiter) to process lines individually
+        // NOTE: We can't use GuiTextSplit() because it can be already use before calling
+        // GuiDrawText() and static buffer would be overriden :(
+        int lineCount = 0;
+        char **lines = GetTextLines(text, &lineCount);
 
-        // Get text position depending on alignment and iconId
-        //---------------------------------------------------------------------------------
-        Vector2 position = { bounds.x, bounds.y };
+        Rectangle textBounds = GetTextBounds(LABEL, bounds);
+        float totalHeight = lineCount*GuiGetStyle(DEFAULT, TEXT_SIZE) + (lineCount - 1)*GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        float posOffsetY = 0;
 
-        // TODO: We get text size after icon has been processed -> Also processed by GetTextWidth()?
-        int textSizeX = GetTextWidth(text, 0);
-        int textSizeY = GuiGetStyle(DEFAULT, TEXT_SIZE);
-
-        // If text requires an icon, add size to measure
-        if (iconId >= 0)
+        for (int i = 0; i < lineCount; i++)
         {
-            textSizeX += RAYGUI_ICON_SIZE*guiIconScale;
+            int iconId = 0;
+            lines[i] = GetTextIcon(lines[i], &iconId);      // Check text for icon and move cursor
 
-            // WARNING: If only icon provided, text could be pointing to EOF character: '\0'
-            if ((text != NULL) && (text[0] != '\0')) textSizeX += ICON_TEXT_PADDING;
-        }
+            // Get text position depending on alignment and iconId
+            //---------------------------------------------------------------------------------
+            Vector2 position = { bounds.x, bounds.y };
 
-        // Check guiTextAlign global variables
-        switch (alignment)
-        {
-            case TEXT_ALIGN_LEFT:
+            // TODO: We get text size after icon has been processed
+            // WARNING: GetTextWidth() also processes text icon to get width! -> Really needed?
+            int textSizeX = GetTextWidth(lines[i]);
+
+            // If text requires an icon, add size to measure
+            if (iconId >= 0)
             {
-                position.x = bounds.x;
-                position.y = bounds.y + bounds.height/2 - textSizeY/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
-            } break;
-            case TEXT_ALIGN_CENTER:
-            {
-                position.x = bounds.x + bounds.width/2 - textSizeX/2;
-                position.y = bounds.y + bounds.height/2 - textSizeY/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
-            } break;
-            case TEXT_ALIGN_RIGHT:
-            {
-                position.x = bounds.x + bounds.width - textSizeX;
-                position.y = bounds.y + bounds.height/2 - textSizeY/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
-            } break;
-            default: break;
-        }
+                textSizeX += RAYGUI_ICON_SIZE*guiIconScale;
 
-        // NOTE: Make sure we get pixel-perfect coordinates,
-        // In case of decimals we got weird text positioning
-        position.x = (float)((int)position.x);
-        position.y = (float)((int)position.y);
-        //---------------------------------------------------------------------------------
-
-        // Draw text (with icon if available)
-        //---------------------------------------------------------------------------------
-#if !defined(RAYGUI_NO_ICONS)
-        if (iconId >= 0)
-        {
-            // NOTE: We consider icon height, probably different than text size
-            GuiDrawIcon(iconId, (int)position.x, (int)(bounds.y + bounds.height/2 - RAYGUI_ICON_SIZE*guiIconScale/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height)), guiIconScale, tint);
-            position.x += (RAYGUI_ICON_SIZE*guiIconScale + ICON_TEXT_PADDING);
-        }
-#endif
-        //DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
-        
-        int size = strlen(text);
-        float scaleFactor = (float)GuiGetStyle(DEFAULT, TEXT_SIZE)/guiFont.baseSize;
-
-        int textOffsetY = 0;
-        float textOffsetX = 0.0f;
-        for (int i = 0, codepointSize = 0; i < size; i += codepointSize)
-        {
-            int codepoint = GetCodepointNext(&text[i], &codepointSize);
-            int index = GetGlyphIndex(guiFont, codepoint);
-
-            // NOTE: Normally we exit the decoding sequence as soon as a bad byte is found (and return 0x3f)
-            // but we need to draw all of the bad bytes using the '?' symbol moving one byte
-            if (codepoint == 0x3f) codepointSize = 1;
-
-            if (codepoint == '\n')
-            {
-                // NOTE: Fixed line spacing of 1.5 line-height
-                textOffsetY += (int)((guiFont.baseSize + guiFont.baseSize/2.0f)*scaleFactor);
-                textOffsetX = 0.0f;
+                // WARNING: If only icon provided, text could be pointing to EOF character: '\0'
+                if ((lines[i] != NULL) && (lines[i][0] != '\0')) textSizeX += ICON_TEXT_PADDING;
             }
-            else
+
+            // Check guiTextAlign global variables
+            switch (alignment)
             {
-                if ((codepoint != ' ') && (codepoint != '\t'))
+                case TEXT_ALIGN_LEFT:
                 {
-                    // TODO: Draw only required text glyphs fitting the bounds.width, '...' can be appended at the end of the text
-                    if (textOffsetX < bounds.width)
-                    {
-                        DrawTextCodepoint(guiFont, codepoint, (Vector2) { position.x + textOffsetX, position.y + textOffsetY }, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), tint);
-                    }
-                }
-
-                if (guiFont.glyphs[index].advanceX == 0) textOffsetX += ((float)guiFont.recs[index].width*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
-                else textOffsetX += ((float)guiFont.glyphs[index].advanceX*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                    position.x = bounds.x;
+                    position.y = bounds.y + posOffsetY + bounds.height/2 - totalHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                } break;
+                case TEXT_ALIGN_CENTER:
+                {
+                    position.x = bounds.x +  bounds.width/2 - textSizeX/2;
+                    position.y = bounds.y + posOffsetY + bounds.height/2 - totalHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                } break;
+                case TEXT_ALIGN_RIGHT:
+                {
+                    position.x = bounds.x + bounds.width - textSizeX;
+                    position.y = bounds.y + posOffsetY + bounds.height/2 - totalHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                } break;
+                default: break;
             }
+
+            // NOTE: Make sure we get pixel-perfect coordinates,
+            // In case of decimals we got weird text positioning
+            position.x = (float)((int)position.x);
+            position.y = (float)((int)position.y);
+            //---------------------------------------------------------------------------------
+
+            // Draw text (with icon if available)
+            //---------------------------------------------------------------------------------
+#if !defined(RAYGUI_NO_ICONS)
+            if (iconId >= 0)
+            {
+                // NOTE: We consider icon height, probably different than text size
+                GuiDrawIcon(iconId, (int)position.x, (int)(bounds.y + bounds.height/2 - RAYGUI_ICON_SIZE*guiIconScale/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height)), guiIconScale, tint);
+                position.x += (RAYGUI_ICON_SIZE*guiIconScale + ICON_TEXT_PADDING);
+            }
+#endif
+            //DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
+
+            // Get size in bytes of text, 
+            // considering end of line and line break
+            int size = 0;
+            for (int c = 0; (lines[i][c] != '\0') && (lines[i][c] != '\n'); c++, size++){ }
+            float scaleFactor = (float)GuiGetStyle(DEFAULT, TEXT_SIZE)/guiFont.baseSize;
+
+            int textOffsetY = 0;
+            float textOffsetX = 0.0f;
+            for (int c = 0, codepointSize = 0; c < size; c += codepointSize)
+            {
+                int codepoint = GetCodepointNext(&lines[i][c], &codepointSize);
+                int index = GetGlyphIndex(guiFont, codepoint);
+
+                // NOTE: Normally we exit the decoding sequence as soon as a bad byte is found (and return 0x3f)
+                // but we need to draw all of the bad bytes using the '?' symbol moving one byte
+                if (codepoint == 0x3f) codepointSize = 1;
+
+                if (codepoint == '\n') break;   // WARNING: Lines are already processed manually, no need to keep drawing after this codepoint
+                else
+                {
+                    if ((codepoint != ' ') && (codepoint != '\t'))
+                    {
+                        // TODO: Draw only required text glyphs fitting the bounds.width, '...' can be appended at the end of the text
+                        if (textOffsetX < bounds.width)
+                        {
+                            DrawTextCodepoint(guiFont, codepoint, (Vector2) { position.x + textOffsetX, position.y + textOffsetY }, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), tint);
+                        }
+                    }
+
+                    if (guiFont.glyphs[index].advanceX == 0) textOffsetX += ((float)guiFont.recs[index].width*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                    else textOffsetX += ((float)guiFont.glyphs[index].advanceX*scaleFactor + (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                }
+            }
+
+            posOffsetY += (float)GuiGetStyle(DEFAULT, TEXT_SIZE)*1.5f;    // TODO: GuiGetStyle(DEFAULT, TEXT_LINE_SPACING)?
+            //---------------------------------------------------------------------------------
         }
-        
-        //---------------------------------------------------------------------------------
     }
 }
 
