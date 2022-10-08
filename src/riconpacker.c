@@ -97,7 +97,8 @@
 #include "gui_main_toolbar.h"               // GUI: Main toolbar
 
 // raygui embedded styles
-// NOTE: Following same order as selector
+// NOTE: Included in the same order as selector
+#define MAX_GUI_STYLES_AVAILABLE   9
 #include "styles/style_dark.h"              // raygui style: dark
 #include "styles/style_jungle.h"            // raygui style: jungle
 #include "styles/style_candy.h"             // raygui style: candy
