@@ -42,7 +42,7 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-#define MAX_SPONSOR_SLOTS   2
+#define MAX_SPONSOR_SLOTS   3
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -80,8 +80,8 @@ extern "C" {            // Prevents name mangling of functions
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 GuiWindowSponsorState InitGuiWindowSponsor(void);
-void GuiWindowSponsorAdd(Texture2D logo, const char *link);
 void GuiWindowSponsor(GuiWindowSponsorState *state);
+void GuiWindowSponsorAdd(GuiWindowSponsorState *state, Texture2D logo, const char *link);
 
 #ifdef __cplusplus
 }
