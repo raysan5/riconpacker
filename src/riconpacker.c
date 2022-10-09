@@ -11,6 +11,10 @@
 *       Use custom raygui generated modal dialogs instead of native OS ones
 *       NOTE: Avoids including tinyfiledialogs depencency library
 *
+*   LIMITATIONS:
+*     - Only ICO files supported and only containing .PNG image data (not .BMP file data)
+*     - No ICNS file format supported (it includes sizes >256 pixels)
+*
 *   VERSIONS HISTORY:
 *       2.1  (06-Oct-2022)  ADDED: Sponsor window for tools support
 *                           Updated to raygui 3.5-dev
