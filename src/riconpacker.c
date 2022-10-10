@@ -16,8 +16,8 @@
 *     - No ICNS file format supported (it includes sizes >256 pixels)
 *
 *   VERSIONS HISTORY:
-*       2.1  (06-Oct-2022)  ADDED: Sponsor window for tools support
-*                           Updated to raygui 3.5-dev
+*       2.1  (10-Oct-2022)  ADDED: Sponsor window for tools support
+*                           Updated to raylib 4.5-dev and raygui 3.5-dev
 *       2.0  (04-Oct-2022)  ADDED: Support text info data for every icon image
 *                           ADDED: Export icon images as a .zip package
 *                           ADDED: Main toolbar to access File/Tools/Visual options
@@ -71,7 +71,7 @@
 
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
-#define TOOL_VERSION            "2.0"
+#define TOOL_VERSION            "2.1"
 #define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
 #define TOOL_RELEASE_DATE       "Oct.2022"
 #define TOOL_LOGO_COLOR         0xffc800ff
