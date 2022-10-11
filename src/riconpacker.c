@@ -647,7 +647,7 @@ int main(int argc, char *argv[])
 
             // GUI: Main Layout: List view and icons viewer panel
             //--------------------------------------------------------------------------------------------------------------
-            sizeListActive = GuiListView((Rectangle) { anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[mainToolbarState.platformActive]), NULL, sizeListActive);
+            sizeListActive = GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[mainToolbarState.platformActive]), NULL, sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
 
             GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 52, 256, 256 }, NULL);
