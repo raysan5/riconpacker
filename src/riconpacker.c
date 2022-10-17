@@ -262,7 +262,7 @@ static IconPackEntry *LoadICO(const char *fileName, int *count);    // Load icon
 static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName, bool imageOnly);  // Save icon data
 
 // Draw help window with the provided lines
-static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount);
+static int GuiWindowHelp(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -704,14 +704,13 @@ int main(int argc, char *argv[])
 
             // GUI: Sponsor Window
             //----------------------------------------------------------------------------------------
-            windowSponsorState.position = (Vector2){ (float)screenWidth/2 - windowSponsorState.windowWidth/2, (float)screenHeight/2 - windowSponsorState.windowHeight/2 - 20 };
             GuiWindowSponsor(&windowSponsorState);
             //----------------------------------------------------------------------------------------
 
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
             Rectangle helpWindowBounds = { (float)screenWidth/2 - 330/2, (float)screenHeight/2 - 380.0f/2, 330, 0 };
-            if (windowHelpActive) windowHelpActive = GuiHelpWindow(helpWindowBounds, GuiIconText(ICON_HELP, TextFormat("%s Shortcuts", TOOL_NAME)), helpLines, HELP_LINES_COUNT);
+            if (windowHelpActive) windowHelpActive = GuiWindowHelp(helpWindowBounds, GuiIconText(ICON_HELP, TextFormat("%s Shortcuts", TOOL_NAME)), helpLines, HELP_LINES_COUNT);
             //----------------------------------------------------------------------------------------
 
             // GUI: Export Window
@@ -1552,7 +1551,7 @@ static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName
 }
 
 // Draw help window with the provided lines
-static int GuiHelpWindow(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount)
+static int GuiWindowHelp(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount)
 {
     int nextLineY = 0;
 
