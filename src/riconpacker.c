@@ -88,6 +88,12 @@
 
 #undef RAYGUI_IMPLEMENTATION                // Avoid including raygui implementation again
 
+#define GUI_MAIN_TOOLBAR_IMPLEMENTATION
+#include "gui_main_toolbar.h"               // GUI: Main toolbar
+
+#define GUI_WINDOW_HELP_IMPLEMENTATION
+#include "gui_window_help.h"                // GUI: Help Window
+
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"               // GUI: About Window
 
@@ -96,9 +102,6 @@
 
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
-
-#define GUI_MAIN_TOOLBAR_IMPLEMENTATION
-#include "gui_main_toolbar.h"               // GUI: Main toolbar
 
 // raygui embedded styles
 // NOTE: Included in the same order as selector
@@ -115,8 +118,8 @@
 #define RPNG_IMPLEMENTATION
 #include "external/rpng.h"                  // PNG chunks management
 
-#include "external/miniz.h"
-#include "external/miniz.c"
+#include "external/miniz.h"                 // ZIP packaging functions definition
+#include "external/miniz.c"                 // ZIP packaging implementation
 
 // Standard C libraries
 #include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
@@ -146,7 +149,6 @@ bool __stdcall FreeConsole(void);           // Close console from code (kernel32
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
-
 // Icon File Header (6 bytes)
 typedef struct {
     unsigned short reserved;    // Must always be 0.
@@ -202,27 +204,6 @@ static const char *toolName = TOOL_NAME;
 static const char *toolVersion = TOOL_VERSION;
 static const char *toolDescription = TOOL_DESCRIPTION;
 
-#define HELP_LINES_COUNT    15
-
-// Tool help info
-static const char *helpLines[HELP_LINES_COUNT] = {
-    "F1 - Show Help window",
-    "F2 - Show About window",
-    "F3 - Show Sponsor window",
-    "-File Controls",
-    "LCTRL + N - New icon file (.ico)",
-    "LCTRL + O - Open icon/image file (.ico/.png)",
-    "LCTRL + S - Save icon file (.ico)",
-    "LCTRL + E - Export icon/image file(s)",
-    "-Tool Controls",
-    "SUP - Remove selected icon image",
-    "LCTRL + G - Generate selected icon image",
-    "-Tool Visuals",
-    "RIGHT - Select style template",
-    NULL,
-    "ESCAPE - Close Window/Exit"
-};
-
 // NOTE: Default icon sizes by platform: http://iconhandbook.co.uk/reference/chart/
 static unsigned int icoSizesWindows[8] = { 256, 128, 96, 64, 48, 32, 24, 16 };              // Windows app icons
 static unsigned int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 24, 16 };   // Favicon for multiple devices
@@ -261,8 +242,6 @@ static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array sep
 static IconPackEntry *LoadICO(const char *fileName, int *count);    // Load icon data
 static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName, bool imageOnly);  // Save icon data
 
-// Draw help window with the provided lines
-static int GuiWindowHelp(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -336,12 +315,19 @@ int main(int argc, char *argv[])
     bool btnClearIconImagePressed = false;
 
     bool iconTextEditMode = false;
-
     bool screenSizeActive = false;
-    bool windowHelpActive = false;      // Show window: help info
-    bool userWindowActive = false;      // Show window: user registration
 
     GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
+    //-----------------------------------------------------------------------------------
+
+    // GUI: Main toolbar panel (file and visualization)
+    //-----------------------------------------------------------------------------------
+    GuiMainToolbarState mainToolbarState = InitGuiMainToolbar();
+    //-----------------------------------------------------------------------------------
+
+    // GUI: Help Window
+    //-----------------------------------------------------------------------------------
+    GuiWindowHelpState windowHelpState = InitGuiWindowHelp();
     //-----------------------------------------------------------------------------------
 
     // GUI: About Window
@@ -352,11 +338,6 @@ int main(int argc, char *argv[])
     // GUI: Sponsor Window
     //-----------------------------------------------------------------------------------
     GuiWindowSponsorState windowSponsorState = InitGuiWindowSponsor();
-    //-----------------------------------------------------------------------------------
-
-    // GUI: Main toolbar panel (file and visualization)
-    //-----------------------------------------------------------------------------------
-    GuiMainToolbarState mainToolbarState = InitGuiMainToolbar();
     //-----------------------------------------------------------------------------------
 
     // GUI: Export Window
@@ -451,7 +432,7 @@ int main(int argc, char *argv[])
         //if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
 #endif
         // Toggle window: help
-        if (IsKeyPressed(KEY_F1)) windowHelpActive = !windowHelpActive;
+        if (IsKeyPressed(KEY_F1)) windowHelpState.windowActive = !windowHelpState.windowActive;
 
         // Toggle window: about
         if (IsKeyPressed(KEY_F2)) windowAboutState.windowActive = !windowAboutState.windowActive;
@@ -476,9 +457,9 @@ int main(int argc, char *argv[])
         // Show closing window on ESC
         if (IsKeyPressed(KEY_ESCAPE))
         {
-            if (windowAboutState.windowActive) windowAboutState.windowActive = false;
+            if (windowHelpState.windowActive) windowHelpState.windowActive = false;
+            else if (windowAboutState.windowActive) windowAboutState.windowActive = false;
             else if (windowSponsorState.windowActive) windowSponsorState.windowActive = false;
-            else if (windowHelpActive) windowHelpActive = false;
             else if (windowExportActive) windowExportActive = false;
         #if defined(PLATFORM_DESKTOP)
             else windowExitActive = !windowExitActive;
@@ -531,10 +512,9 @@ int main(int argc, char *argv[])
         }
 
         // Help options logic
-        if (mainToolbarState.btnHelpPressed) windowHelpActive = true;                   // Help button logic
+        if (mainToolbarState.btnHelpPressed) windowHelpState.windowActive = true;                   // Help button logic
         if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true;     // About window button logic
         if (mainToolbarState.btnSponsorPressed) windowSponsorState.windowActive = true; // User sponsor logic
-        //if (mainToolbarState.btnUserPressed) userWindowActive = true;                 // User button logic
         //----------------------------------------------------------------------------------
 
         // Basic program flow logic
@@ -629,10 +609,9 @@ int main(int argc, char *argv[])
 
 
         // WARNING: Some windows should lock the main screen controls when shown
-        if (windowAboutState.windowActive ||
+        if (windowHelpState.windowActive ||
+            windowAboutState.windowActive ||
             windowSponsorState.windowActive ||
-            windowHelpActive ||
-            userWindowActive ||
             windowExitActive ||
             windowExportActive ||
             showLoadFileDialog ||
@@ -696,6 +675,11 @@ int main(int argc, char *argv[])
 
             // WARNING: Before drawing the windows, we unlock them
             GuiUnlock();
+            
+            // GUI: Help Window
+            //----------------------------------------------------------------------------------------
+            GuiWindowHelp(&windowHelpState);
+            //----------------------------------------------------------------------------------------
 
             // GUI: About Window
             //----------------------------------------------------------------------------------------
@@ -705,12 +689,6 @@ int main(int argc, char *argv[])
             // GUI: Sponsor Window
             //----------------------------------------------------------------------------------------
             GuiWindowSponsor(&windowSponsorState);
-            //----------------------------------------------------------------------------------------
-
-            // GUI: Help Window
-            //----------------------------------------------------------------------------------------
-            Rectangle helpWindowBounds = { (float)screenWidth/2 - 330/2, (float)screenHeight/2 - 380.0f/2, 330, 0 };
-            if (windowHelpActive) windowHelpActive = GuiWindowHelp(helpWindowBounds, GuiIconText(ICON_HELP, TextFormat("%s Shortcuts", TOOL_NAME)), helpLines, HELP_LINES_COUNT);
             //----------------------------------------------------------------------------------------
 
             // GUI: Export Window
@@ -1548,30 +1526,6 @@ static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName
 
     RL_FREE(icoDirEntry);
     RL_FREE(pngDataPtrs);
-}
-
-// Draw help window with the provided lines
-static int GuiWindowHelp(Rectangle bounds, const char *title, const char **helpLines, int helpLinesCount)
-{
-    int nextLineY = 0;
-
-    // Calculate window height if not externally provided a desired height
-    if (bounds.height == 0) bounds.height = (float)(helpLinesCount*24 + 24);
-
-    int windowHelpActive = !GuiWindowBox(bounds, title);
-    nextLineY += (24 + 2);
-
-    for (int i = 0; i < helpLinesCount; i++)
-    {
-        if (helpLines[i] == NULL) GuiLine((Rectangle){ bounds.x, bounds.y + nextLineY, 330, 12 }, helpLines[i]);
-        else if (helpLines[i][0] == '-') GuiLine((Rectangle){ bounds.x, bounds.y + nextLineY, 330, 24 }, helpLines[i] + 1);
-        else GuiLabel((Rectangle){ bounds.x + 12, bounds.y + nextLineY, bounds.width, 24 }, helpLines[i]);
-
-        if (helpLines[i] == NULL) nextLineY += 12;
-        else nextLineY += 24;
-    }
-
-    return windowHelpActive;
 }
 
 /*
