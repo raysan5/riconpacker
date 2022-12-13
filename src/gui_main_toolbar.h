@@ -11,7 +11,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2019-2022 raylib technologies (@raylibtech).
+*   Copyright (c) 2019-2022 raylib technologies (@raylibtech) / Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -31,8 +31,6 @@
 **********************************************************************************************/
 
 #include "raylib.h"
-
-#include <stdint.h>
 
 // WARNING: raygui implementation is expected to be defined before including this header
 
@@ -68,12 +66,11 @@ typedef struct {
     bool btnStylePressed;
     int languageActive;
 
-    // Help options
+    // Info options
     bool btnHelpPressed;
     bool btnAboutPressed;
     bool btnSponsorPressed;
     bool btnUserPressed;
-    bool btnQuitPressed;
 
     // Custom variables
     // TODO.
@@ -161,10 +158,12 @@ GuiMainToolbarState InitGuiMainToolbar(void)
     state.btnAboutPressed = false;
     state.btnSponsorPressed = false;
     state.btnUserPressed = false;
-    state.btnQuitPressed = false;
-
+	
     // Custom variables
     // TODO.
+
+    // Enable tooltips by default
+    GuiEnableTooltip();
 
     return state;
 }
@@ -184,9 +183,13 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     GuiPanel((Rectangle){ state->anchorRight.x, state->anchorRight.y, 100, 40 }, NULL);
 
     // Project/File options
+    GuiSetTooltip("Create new icons package (LCTRL+N)");
     state->btnNewFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12, state->anchorFile.y + 8, 24, 24 }, "#8#");
+    GuiSetTooltip("Load image to icons package  (LCTRL+O)");
     state->btnLoadFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 24 + 4, state->anchorFile.y + 8, 24, 24 }, "#5#");
+    GuiSetTooltip("Save current icons package (LCTRL+S)");
     state->btnSaveFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 48 + 8, state->anchorFile.y + 8, 24, 24 }, "#6#");
+    GuiSetTooltip("Export current icon package (LCTRL+E)");
     state->btnExportFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 72 + 12, state->anchorFile.y + 8, 24, 24 }, "#7#");
 
     // Edit options
@@ -199,12 +202,18 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     // Visuals options
     //GuiLabel((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 60, 24 }, "Style:");
     //state->visualStyleActive = GuiComboBox((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 100, 24 }, "Light;Dark;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish", state->visualStyleActive);
+    GuiSetTooltip("Select visual UI style");
     state->btnStylePressed = GuiButton((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 24, 24 }, "#25#");
 
     // Info options
+    GuiSetTooltip("Show help window (F1)");
     state->btnHelpPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 70 - 8, state->anchorRight.y + 8, 24, 24 }, "#193#"); 
+    GuiSetTooltip("Show info window (F2)");
     state->btnAboutPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 46 - 4, state->anchorRight.y + 8, 24, 24 }, "#191#");
+    GuiSetTooltip("Show sponsors window (F3)");
     state->btnSponsorPressed = GuiButton((Rectangle){ state->anchorRight.x + (screenWidth - state->anchorRight.x) - 12 - 22, state->anchorRight.y + 8, 24, 24 }, "#186#");
+
+    GuiSetTooltip(NULL);
 }
 
 #endif // GUI_MAIN_TOOLBAR_IMPLEMENTATION
