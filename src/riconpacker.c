@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v2.1 - A simple and easy-to-use icons packer
+*   rIconPacker v2.2 - A simple and easy-to-use icons packer
 *
 *   CONFIGURATION:
 *
@@ -16,6 +16,9 @@
 *     - No ICNS file format supported (it includes sizes >256 pixels)
 *
 *   VERSIONS HISTORY:
+*       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
+*                           REDESIGNED: Main toolbar to add tooltips
+*                           REVIEWED: Help window implementation
 *       2.1  (10-Oct-2022)  ADDED: Sponsor window for tools support
 *                           Updated to raylib 4.5-dev and raygui 3.5-dev
 *       2.0  (04-Oct-2022)  ADDED: Support text info data for every icon image
