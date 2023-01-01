@@ -13,7 +13,7 @@ BEGIN
       VALUE "FileDescription", "rIconPacker - A simple and easy-to-use icon packer"
       VALUE "FileVersion", "2.1"
       VALUE "InternalName", "riconpacker"
-      VALUE "LegalCopyright", "(c) 2022 raylib technologies (@raylibtech)"
+      VALUE "LegalCopyright", "(c) 2023 raylib technologies (@raylibtech)"
       //VALUE "OriginalFilename", "rfxgen.exe"
       VALUE "ProductName", "rIconPacker"
       VALUE "ProductVersion", "2.1"
