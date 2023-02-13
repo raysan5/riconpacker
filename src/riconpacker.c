@@ -2,6 +2,17 @@
 *
 *   rIconPacker v2.2 - A simple and easy-to-use icons packer
 *
+*   FEATURES:
+*       - Pack icon images into as icon file (.ico)
+*       - Input image formats supported: .png, .bmp, .jpg and .qoi
+*       - EDIT: Define custom text data per icon image
+*       - EDIT: Generate missing icon sizes automatically
+*       - Extract icon images as .png files
+*
+*   POSSIBLE IMPROVEMENTS:
+*       - Support any-size input images, scaled to closest size
+*       - CLI: Support custom text per icon
+*
 *   CONFIGURATION:
 *
 *   #define COMMAND_LINE_ONLY
@@ -337,7 +348,7 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
     GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
     //-----------------------------------------------------------------------------------
-    
+
     // GUI: Sponsor Window
     //-----------------------------------------------------------------------------------
     GuiWindowSponsorState windowSponsorState = InitGuiWindowSponsor();
@@ -678,7 +689,7 @@ int main(int argc, char *argv[])
 
             // WARNING: Before drawing the windows, we unlock them
             GuiUnlock();
-            
+
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
             GuiWindowHelp(&windowHelpState);
