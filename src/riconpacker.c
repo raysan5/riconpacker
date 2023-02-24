@@ -1523,13 +1523,13 @@ static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName
         if (icoFile != NULL)
         {
             // Write ico header
-            fwrite(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+            fwrite(&icoHeader, sizeof(IcoHeader), 1, icoFile);
 
             // Write icon entries entries data
-            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(&icoDirEntry[i], sizeof(IcoDirEntry), 1, icoFile);
 
             // Write icon png data
-            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(pngDataPtrs[i], 1, icoDirEntry[i].size, icoFile);
+            for (int i = 0; i < icoHeader.imageCount; i++) fwrite(pngDataPtrs[i], icoDirEntry[i].size, 1, icoFile);
 
             fclose(icoFile);
         }
