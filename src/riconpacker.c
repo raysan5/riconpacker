@@ -1405,19 +1405,19 @@ static IconPackEntry *LoadICO(const char *fileName, int *count)
     {
         // Load .ico information
         IcoHeader icoHeader = { 0 };
-        fread(&icoHeader, 1, sizeof(IcoHeader), icoFile);
+        fread(&icoHeader, sizeof(IcoHeader), 1, icoFile);
 
         entries = (IconPackEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IconPackEntry));
         *count = icoHeader.imageCount;
 
         IcoDirEntry *icoDirEntry = (IcoDirEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IcoDirEntry));
 
-        for (int i = 0; i < icoHeader.imageCount; i++) fread(&icoDirEntry[i], 1, sizeof(IcoDirEntry), icoFile);
+        for (int i = 0; i < icoHeader.imageCount; i++) fread(&icoDirEntry[i], sizeof(IcoDirEntry), 1, icoFile);
 
         for (int i = 0; i < icoHeader.imageCount; i++)
         {
             char *icoImageData = (char *)RL_CALLOC(icoDirEntry[i].size, 1);
-            fread(icoImageData, icoDirEntry[i].size, 1, icoFile);    // Read icon image data
+            fread(icoImageData, 1, icoDirEntry[i].size, icoFile);    // Read icon image data
 
             // Reading image data from memory buffer
             // WARNING: Image data on th IcoDirEntry may be in either:
@@ -1592,7 +1592,7 @@ static Image *LoadICNS(const char *fileName, int *count)
 
     // Load .icns information
     IcnsHeader icnsHeader = { 0 };
-    fread(&icnsHeader, 1, sizeof(IcnsHeader), icnsFile);
+    fread(&icnsHeader, sizeof(IcnsHeader), 1, icnsFile);
 
     // TODO: Check file size to keep track of data read... until end of available data
 
