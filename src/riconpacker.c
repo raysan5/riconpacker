@@ -13,18 +13,17 @@
 *       - Support any-size input images, scaled to closest size
 *       - CLI: Support custom text per icon
 *
-*   CONFIGURATION:
-*
-*   #define COMMAND_LINE_ONLY
-*       Compile tool only for command line usage
-*
-*   #define CUSTOM_MODAL_DIALOGS
-*       Use custom raygui generated modal dialogs instead of native OS ones
-*       NOTE: Avoids including tinyfiledialogs depencency library
-*
 *   LIMITATIONS:
-*     - Only ICO files supported and only containing .PNG image data (not .BMP file data)
-*     - No ICNS file format supported (it includes sizes >256 pixels)
+*       - Only ICO files supported and only containing .PNG image data (not .BMP file data)
+*       - No ICNS file format supported (it includes sizes >256 pixels)
+*
+*   CONFIGURATION:
+*       #define COMMAND_LINE_ONLY
+*           Compile tool only for command line usage
+*   
+*       #define CUSTOM_MODAL_DIALOGS
+*           Use custom raygui generated modal dialogs instead of native OS ones
+*           NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
@@ -50,11 +49,12 @@
 *       tinyfiledialogs 3.9.0   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
-*   COMPILATION (Windows - MinGW):
+*   BUILDING: 
+*     - Windows (MinGW-w64):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
 *           -lraylib -lopengl32 -lgdi32 -lcomdlg32 -lole32 -std=c99 -Wall
 *
-*   COMPILATION (Linux - GCC):
+*     - Linux (GCC):
 *       gcc -o riconpacker riconpacker.c external/tinyfiledialogs.c -s -Iexternal -no-pie -D_DEFAULT_SOURCE /
 *           -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 *
