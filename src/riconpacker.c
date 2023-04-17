@@ -20,7 +20,7 @@
 *   CONFIGURATION:
 *       #define COMMAND_LINE_ONLY
 *           Compile tool only for command line usage
-*   
+*
 *       #define CUSTOM_MODAL_DIALOGS
 *           Use custom raygui generated modal dialogs instead of native OS ones
 *           NOTE: Avoids including tinyfiledialogs depencency library
@@ -49,7 +49,7 @@
 *       tinyfiledialogs 3.9.0   - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
-*   BUILDING: 
+*   BUILDING:
 *     - Windows (MinGW-w64):
 *       gcc -o riconpacker.exe riconpacker.c external/tinyfiledialogs.c -s riconpacker.rc.data -Iexternal /
 *           -lraylib -lopengl32 -lgdi32 -lcomdlg32 -lole32 -std=c99 -Wall
