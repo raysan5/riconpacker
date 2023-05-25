@@ -175,7 +175,7 @@ bool __stdcall FreeConsole(void);           // Close console from code (kernel32
     #define LOG(...)
 #endif
 
-#define MAX_IMAGE_TEXT_SIZE  64
+#define MAX_IMAGE_TEXT_SIZE  40             // Maximum text size for text poem lines
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -249,8 +249,9 @@ static int sizeListActive = 0;              // Current list text entry
 static int validCount = 0;                  // Valid ico entries counter
 #endif
 
-static bool exportImagesChecked = true;     // Flag to export entries separated
+// WARNING: This global is required by export functions
 static bool exportTextChunkChecked = true;  // Flag to embed text as a PNG chunk (rIPt)
+
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -263,7 +264,7 @@ static void ProcessCommandLine(int argc, char *argv[]);     // Process command l
 #if !defined(COMMAND_LINE_ONLY)
 // Icon pack management functions
 static IconPack InitIconPack(int platform);     // Load icon pack for a specific platform
-static void CloseIconPack(IconPack *pack);     // Unload icon pack
+static void CloseIconPack(IconPack *pack);      // Unload icon pack
 
 static void LoadIconToPack(IconPack *pack, const char *fileName); // Load icon file into pack
 static void UnloadIconFromPack(IconPack *pack, int index);        // Unload one icon from the pack
@@ -272,13 +273,13 @@ static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array sep
 #endif
 
 // Load/Save/Export data functions
-static IconPackEntry *LoadICO(const char *fileName, int *count);    // Load ico file data
-static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName);      // Save ico file data
+static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count);                    // Load icon pack from .ico file
+static void SaveIconPackToICO(IconPackEntry *entries, int entryCount, const char *fileName);    // Save icon pack to.ico file
 
-static void SaveImages(IconPackEntry *entries, int entryCount, const char *fileName);   // Save images pack
+static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const char *fileName); // Export icon pack to multiple .png images
 
-static IconPackEntry *LoadICNS(const char *fileName, int *count);   // Load icns file data
-static void SaveICNS(IconPackEntry *entries, int entryCount, const char *fileName);     // Save icns file data
+static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count);                   // Load icon pack from .icns file
+static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -354,8 +355,6 @@ int main(int argc, char *argv[])
 
     bool iconTextEditMode = false;
     bool screenSizeActive = false;
-
-    GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
     //-----------------------------------------------------------------------------------
 
     // GUI: Main toolbar panel (file and visualization)
@@ -395,6 +394,8 @@ int main(int argc, char *argv[])
     bool showLoadFileDialog = false;
     bool showExportFileDialog = false;
     //bool showExportImageDialog = false;
+     
+    bool windowIconPoemActive = false;
     //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
@@ -450,7 +451,11 @@ int main(int argc, char *argv[])
         {
             if (validCount > 0)
             {
-                strcpy(outFileName, "icon.ico");
+                memset(outFileName, 0, 512);
+
+                if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS) strcpy(outFileName, "icon.icns");
+                else strcpy(outFileName, "icon.ico");
+
                 showExportFileDialog = true;
             }
         }
@@ -458,11 +463,27 @@ int main(int argc, char *argv[])
         // Show dialog: export icon data
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S))
         {
-            exportFormatActive = 0;         // Icon (.ico)
-            exportImagesChecked = false;
+            memset(outFileName, 0, 512);
+
+            if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS)
+            {
+                exportFormatActive = 1; // macOS icon (.icns)
+                strcpy(outFileName, "icon.icns");
+            }
+            else
+            {
+                exportFormatActive = 0; // Icon (.ico)
+                strcpy(outFileName, "icon.ico");
+            }
+
             exportTextChunkChecked = true;
-            strcpy(outFileName, "icon.ico");
             showExportFileDialog = true;
+        }
+
+        // Show window: icon poem
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_P))
+        {
+            windowIconPoemActive = true;
         }
 
 #if defined(PLATFORM_DESKTOP)
@@ -517,10 +538,20 @@ int main(int argc, char *argv[])
         if (mainToolbarState.btnLoadFilePressed) showLoadFileDialog = true;
         else if (mainToolbarState.btnSaveFilePressed)
         {
-            exportFormatActive = 0;         // Icon (.ico)
-            exportImagesChecked = false;
+            memset(outFileName, 0, 512);
+
+            if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS)
+            {
+                exportFormatActive = 1; // macOS icon (.icns)
+                strcpy(outFileName, "icon.icns");
+            }
+            else
+            {
+                exportFormatActive = 0; // Icon (.ico)
+                strcpy(outFileName, "icon.ico");
+            }
+
             exportTextChunkChecked = true;
-            strcpy(outFileName, "icon.ico");
             showExportFileDialog = true;
         }
         else if (mainToolbarState.btnExportFilePressed) windowExportActive = true;
@@ -664,6 +695,7 @@ int main(int argc, char *argv[])
 
             // GUI: Main Layout: List view and icons viewer panel
             //--------------------------------------------------------------------------------------------------------------
+            GuiSetStyle(LISTVIEW, LIST_ITEMS_HEIGHT, 24);
             GuiListView((Rectangle){ anchorMain.x + 10, anchorMain.y + 52, 115, 290 }, GetTextIconSizes(packs[mainToolbarState.platformActive]), NULL, &sizeListActive);
             if (sizeListActive < 0) sizeListActive = 0;
 
@@ -743,6 +775,20 @@ int main(int argc, char *argv[])
 
             // WARNING: Before drawing the windows, we unlock them
             GuiUnlock();
+
+            // GUI: Icon poem Window
+            //----------------------------------------------------------------------------------------
+            if (windowIconPoemActive)
+            {
+                Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 100 };
+                windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 }, "#10#Icon Poem");
+
+                if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 110, 240, 30 }, "#10#Love it!"))
+                {
+                    windowExportActive = false;
+                }
+            }
+            //----------------------------------------------------------------------------------------
 
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
@@ -836,21 +882,14 @@ int main(int argc, char *argv[])
                     }
 
                     // Save into icon file provided pack entries
-                    if (exportFormatActive == 0) SaveICO(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
-                    else if (exportFormatActive == 1) SaveImages(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
-                    else if (exportFormatActive == 2) SaveICNS(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
+                    if (exportFormatActive == 0) SaveIconPackToICO(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
+                    else if (exportFormatActive == 1) ExportIconPackImages(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
+                    else if (exportFormatActive == 2) SaveIconPackToICNS(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
 
                 #if defined(PLATFORM_WEB)
                     if (exportFormatActive == 1)
                     {
-                        
-
-                        // Package every image into an output ZIP file (fileName.zip)
-                        // NOTE: A comment is optional text information that is embedded in a Zip file
-                        //mz_bool status = mz_zip_add_mem_to_archive_file_in_place(TextFormat("%s.zip", fileName), TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(fileName), entries[i].image.width, entries[i].image.height), pngDataPtrs[i], fileSize, NULL, 0, MZ_BEST_SPEED); //MZ_BEST_COMPRESSION, MZ_DEFAULT_COMPRESSION
-                        //if (!status) LOG("WARNING: Zip accumulation process failed\n");
-
-                        // Package created image files into a .zip to be exported
+                        // Package all created image files (in browser File-System) into a .zip to be exported
                         mz_zip_archive zip = { 0 };
                         mz_bool mz_ret = mz_zip_writer_init_file(&zip, TextFormat("%s.zip", fileName), 0);
                         if (!mz_ret) printf("Could not initialize zip archive\n");
@@ -863,18 +902,17 @@ int main(int argc, char *argv[])
 
                         mz_ret = mz_zip_writer_end(&zip);
                         if (!mz_ret) printf("Could not finalize zip writer\n");
-                    }
 
-                    // Download file from MEMFS (emscripten memory filesystem)
-                    // NOTE: Second argument must be a simple filename (we can't use directories)
-                    // NOTE: Included security check to (partially) avoid malicious code on PLATFORM_WEB
-                    if (strchr(outFileName, '\'') == NULL) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
-
-                    if (exportImagesChecked)
-                    {
                         char tempFileName[512] = { 0 };
                         strcpy(tempFileName, TextFormat("%s.zip", outFileName));
                         emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", tempFileName, GetFileName(tempFileName)));
+                    }
+                    else
+                    {
+                        // Download file from MEMFS (emscripten memory filesystem)
+                        // NOTE: Second argument must be a simple filename (we can't use directories)
+                        // NOTE: Included security check to (partially) avoid malicious code on PLATFORM_WEB
+                        if (strchr(outFileName, '\'') == NULL) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
                     }
                 #endif
                 }
@@ -1152,8 +1190,8 @@ static void ProcessCommandLine(int argc, char *argv[])
             IconPackEntry *entries = NULL;
 
             // Load all available entries in current file
-            if (IsFileExtension(inputFiles[i], ".ico")) entries = LoadICO(inputFiles[i], &imCount);
-            if (IsFileExtension(inputFiles[i], ".icns")) entries = LoadICNS(inputFiles[i], &imCount);
+            if (IsFileExtension(inputFiles[i], ".ico")) entries = LoadIconPackFromICO(inputFiles[i], &imCount);
+            if (IsFileExtension(inputFiles[i], ".icns")) entries = LoadIconPackFromICNS(inputFiles[i], &imCount);
             else if (IsFileExtension(inputFiles[i], ".png;.bmp;.qoi"))
             {
                 imCount = 1;
@@ -1279,8 +1317,8 @@ static void ProcessCommandLine(int argc, char *argv[])
 
             // Save into icon file provided pack entries
             // NOTE: Only valid entries are exported, png zip packaging also done (if required)
-            if (outPlatform == 1) SaveICNS(outPack, outPackCount, outFileName);
-            else SaveICO(outPack, outPackCount, outFileName);
+            if (outPlatform == 1) SaveIconPackToICNS(outPack, outPackCount, outFileName);
+            else SaveIconPackToICO(outPack, outPackCount, outFileName);
         }
         else printf("WARNING: No output sizes defined\n");
 
@@ -1394,8 +1432,8 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
     IconPackEntry *entries = NULL;
 
     // Load all available entries
-    if (IsFileExtension(fileName, ".ico")) entries = LoadICO(fileName, &imCount);
-    if (IsFileExtension(fileName, ".icns")) entries = LoadICNS(fileName, &imCount);
+    if (IsFileExtension(fileName, ".ico")) entries = LoadIconPackFromICO(fileName, &imCount);
+    if (IsFileExtension(fileName, ".icns")) entries = LoadIconPackFromICNS(fileName, &imCount);
     else if (IsFileExtension(fileName, ".png;.bmp;.qoi"))
     {
         imCount = 1;
@@ -1490,7 +1528,7 @@ static char *GetTextIconSizes(IconPack pack)
 #endif      // !COMMAND_LINE_ONLY
 
 // Icon data loader
-static IconPackEntry *LoadICO(const char *fileName, int *count)
+static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
 {
     IconPackEntry *entries = NULL;
 
@@ -1541,7 +1579,7 @@ static IconPackEntry *LoadICO(const char *fileName, int *count)
 
 // Save icon (.ico)
 // NOTE: Make sure entries array sizes are valid!
-static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName)
+static void SaveIconPackToICO(IconPackEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
@@ -1625,7 +1663,7 @@ static void SaveICO(IconPackEntry *entries, int entryCount, const char *fileName
 }
 
 // Save images as .png
-static void SaveImages(IconPackEntry *entries, int entryCount, const char *fileName)
+static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
@@ -1689,7 +1727,7 @@ static void SaveImages(IconPackEntry *entries, int entryCount, const char *fileN
 
 // Icns data loader
 // NOTE: ARGB and JPEG2000 image data formats not supported, only PNG
-static IconPackEntry *LoadICNS(const char *fileName, int *count)
+static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 {
     #define MAX_ICNS_IMAGE_SUPPORTED    32
 
@@ -1819,7 +1857,7 @@ static IconPackEntry *LoadICNS(const char *fileName, int *count)
 //  - No TOC or additional chunks supported
 //  - Main focus on .app package icns generation
 // REF: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-static void SaveICNS(IconPackEntry *entries, int entryCount, const char *fileName)
+static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
