@@ -122,7 +122,7 @@ static const char *helpLines[] = {
     "SUP - Remove selected icon image",
     "LCTRL + G - Generate selected icon image",
     "-Tool Visuals",
-    "LCTRL + P - Show full icon-poem",
+    "LCTRL + SPACE - Show icon-poem (if available)",
     "RIGHT - Select style template",
     "-",
     "ESCAPE - Close Window/Exit",
