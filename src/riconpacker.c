@@ -31,7 +31,7 @@
 *   VERSIONS HISTORY:
 *       3.0  (xx-May-2023)  ADDED: New platform template: macOS
 *                           ADDED: Support for load/save .icns files
-*                           TODO: ---> ADDED: Icon-poem window on icon loading
+*                           ADDED: Icon-poem window on icon text loading
 *                           ADDED: SaveImages() to export .png image pack
 *                           REMOVED: Input file format .jpg 
 *                           REVIEWED: Updated UI to raygui 4.0-dev
@@ -215,9 +215,9 @@ typedef struct {
 
 // Icon pack
 typedef struct {
-    IconPackEntry *icons;       // Pack icons
+    IconPackEntry *entries;     // Pack entries
     unsigned int *sizes;        // Icon sizes pointer
-    int count;                  // Pack icon count
+    int count;                  // Pack entries count
 } IconPack;
 
 // Icon platform type
@@ -252,7 +252,6 @@ static int validCount = 0;                  // Valid ico entries counter
 // WARNING: This global is required by export functions
 static bool exportTextChunkChecked = true;  // Flag to embed text as a PNG chunk (rIPt)
 
-
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
@@ -280,6 +279,9 @@ static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const c
 
 static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count);                   // Load icon pack from .icns file
 static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
+
+// Misc functions
+const char **GetIconPackTextLines(IconPack pack, int *count);      // Get text lines available on icon pack
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -399,7 +401,18 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
-    if (inFileName[0] != '\0') LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);
+    if (inFileName[0] != '\0')
+    {
+        LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);
+
+        if (IsFileExtension(inFileName, ".ico;.icns"))
+        {
+            // Check if loaded icon contains a poem!
+            int textLinesCount = 0;
+            GetIconPackTextLines(packs[mainToolbarState.platformActive], &textLinesCount);
+            if (textLinesCount > 0) windowIconPoemActive = true;
+        }
+    }
 
     SetTargetFPS(60);       // Set our game frames-per-second
     //--------------------------------------------------------------------------------------
@@ -422,11 +435,19 @@ int main(int argc, char *argv[])
 
             for (int i = 0; i < droppedFiles.count; i++)
             {
-                if (IsFileExtension(droppedFiles.paths[i], ".ico") ||
+                if (IsFileExtension(droppedFiles.paths[i], ".ico;.icns") ||
                     IsFileExtension(droppedFiles.paths[i], ".png;.bmp;.qoi"))
                 {
                     // Load entries into IconPack
                     LoadIconToPack(&packs[mainToolbarState.platformActive], droppedFiles.paths[i]);
+
+                    if (IsFileExtension(droppedFiles.paths[i], ".ico;.icns"))
+                    {
+                        // Check if loaded icon contains a poem!
+                        int textLinesCount = 0;
+                        GetIconPackTextLines(packs[mainToolbarState.platformActive], &textLinesCount);
+                        if (textLinesCount > 0) windowIconPoemActive = true;
+                    }
                 }
             }
 
@@ -481,9 +502,9 @@ int main(int argc, char *argv[])
         }
 
         // Show window: icon poem
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_P))
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_SPACE))
         {
-            windowIconPoemActive = true;
+            windowIconPoemActive = !windowIconPoemActive;
         }
 
 #if defined(PLATFORM_DESKTOP)
@@ -520,6 +541,7 @@ int main(int argc, char *argv[])
             else if (windowAboutState.windowActive) windowAboutState.windowActive = false;
             else if (windowSponsorState.windowActive) windowSponsorState.windowActive = false;
             else if (windowExportActive) windowExportActive = false;
+            else if (windowIconPoemActive) windowIconPoemActive = false;
         #if defined(PLATFORM_DESKTOP)
             else windowExitActive = !windowExitActive;
         #else
@@ -590,7 +612,7 @@ int main(int argc, char *argv[])
         //----------------------------------------------------------------------------------
         // Calculate valid entries
         validCount = 0;
-        for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].icons[i].valid) validCount++;
+        for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) if (packs[mainToolbarState.platformActive].entries[i].valid) validCount++;
 
         // Generate new icon image (using biggest available image)
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_G)) || btnGenIconImagePressed)
@@ -599,7 +621,7 @@ int main(int argc, char *argv[])
             int biggerValidSize = -1;
             for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
             {
-                if (packs[mainToolbarState.platformActive].icons[i].valid) { biggerValidSize = i; break; }
+                if (packs[mainToolbarState.platformActive].entries[i].valid) { biggerValidSize = i; break; }
             }
 
             if (biggerValidSize >= 0)
@@ -609,35 +631,35 @@ int main(int argc, char *argv[])
                     // Generate all missing entries in the series
                     for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++)
                     {
-                        if (!packs[mainToolbarState.platformActive].icons[i].valid)
+                        if (!packs[mainToolbarState.platformActive].entries[i].valid)
                         {
-                            UnloadImage(packs[mainToolbarState.platformActive].icons[i].image);
-                            packs[mainToolbarState.platformActive].icons[i].image = ImageCopy(packs[mainToolbarState.platformActive].icons[biggerValidSize].image);
+                            UnloadImage(packs[mainToolbarState.platformActive].entries[i].image);
+                            packs[mainToolbarState.platformActive].entries[i].image = ImageCopy(packs[mainToolbarState.platformActive].entries[biggerValidSize].image);
 
-                            if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].icons[i].image, packs[mainToolbarState.platformActive].icons[i].size, packs[mainToolbarState.platformActive].icons[i].size);
-                            else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].icons[i].image, packs[mainToolbarState.platformActive].icons[i].size, packs[mainToolbarState.platformActive].icons[i].size);
+                            if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].entries[i].image, packs[mainToolbarState.platformActive].entries[i].size, packs[mainToolbarState.platformActive].entries[i].size);
+                            else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].entries[i].image, packs[mainToolbarState.platformActive].entries[i].size, packs[mainToolbarState.platformActive].entries[i].size);
 
-                            UnloadTexture(packs[mainToolbarState.platformActive].icons[i].texture);
-                            packs[mainToolbarState.platformActive].icons[i].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].icons[i].image);
+                            UnloadTexture(packs[mainToolbarState.platformActive].entries[i].texture);
+                            packs[mainToolbarState.platformActive].entries[i].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].entries[i].image);
 
-                            packs[mainToolbarState.platformActive].icons[i].valid = true;
+                            packs[mainToolbarState.platformActive].entries[i].valid = true;
                         }
                     }
                 }
                 else
                 {
-                    if (!packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)
+                    if (!packs[mainToolbarState.platformActive].entries[sizeListActive - 1].valid)
                     {
-                        UnloadImage(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image);
-                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image = ImageCopy(packs[mainToolbarState.platformActive].icons[biggerValidSize].image);
+                        UnloadImage(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].image);
+                        packs[mainToolbarState.platformActive].entries[sizeListActive - 1].image = ImageCopy(packs[mainToolbarState.platformActive].entries[biggerValidSize].image);
 
-                        if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size);
-                        else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size);
+                        if (scaleAlgorythmActive == 0) ImageResizeNN(&packs[mainToolbarState.platformActive].entries[sizeListActive - 1].image, packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size, packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size);
+                        else if (scaleAlgorythmActive == 1) ImageResize(&packs[mainToolbarState.platformActive].entries[sizeListActive - 1].image, packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size, packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size);
 
-                        UnloadTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture);
-                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].image);
+                        UnloadTexture(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture);
+                        packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture = LoadTextureFromImage(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].image);
 
-                        packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid = true;
+                        packs[mainToolbarState.platformActive].entries[sizeListActive - 1].valid = true;
                     }
                 }
             }
@@ -681,6 +703,7 @@ int main(int argc, char *argv[])
         if (windowHelpState.windowActive ||
             windowAboutState.windowActive ||
             windowSponsorState.windowActive ||
+            windowIconPoemActive ||
             windowExitActive ||
             windowExportActive ||
             showLoadFileDialog ||
@@ -705,7 +728,7 @@ int main(int argc, char *argv[])
             if (sizeListActive == 0)
             {
                 // macOS supports icns up to 1024x1024 and 512x512, bigger sizes are not drawn on ALL icons mode
-                for (int i = ((mainToolbarState.platformActive == ICON_PLATFORM_MACOS)? 2: 0); i < packs[mainToolbarState.platformActive].count; i++) DrawTexture(packs[mainToolbarState.platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
+                for (int i = ((mainToolbarState.platformActive == ICON_PLATFORM_MACOS)? 2: 0); i < packs[mainToolbarState.platformActive].count; i++) DrawTexture(packs[mainToolbarState.platformActive].entries[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
             }
             else if (sizeListActive > 0)
             {
@@ -714,48 +737,48 @@ int main(int argc, char *argv[])
                     // macOS supports icns up to 1024x1024 and 512x512, those sizes require a special drawing
                     if (sizeListActive == 1)        // 1024x1024
                     {
-                        DrawTextureEx(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
-                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width*0.25f/2),
-                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height*0.25f/2) }, 0.0f, 0.25f, WHITE);
+                        DrawTextureEx(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture,
+                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.width*0.25f/2),
+                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.height*0.25f/2) }, 0.0f, 0.25f, WHITE);
                     
                         DrawText("SCALE: 1/4", (int)anchorMain.x + 135 + 10, (int)anchorMain.y + 52 + 256 - 24, 20, GREEN);
                     }
                     else if (sizeListActive == 2)   // 512x512
                     {
-                        DrawTextureEx(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
-                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width*0.5f/2),
-                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height*0.5f/2) }, 0.0f, 0.5f, WHITE);
+                        DrawTextureEx(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture,
+                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.width*0.5f/2),
+                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.height*0.5f/2) }, 0.0f, 0.5f, WHITE);
                     
                         DrawText("SCALE: 1/2", (int)anchorMain.x + 135 + 10, (int)anchorMain.y + 52 + 256 - 24, 20, GREEN);
                     }
                     else
                     {
-                        DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
-                            (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width/2,
-                            (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                        DrawTexture(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture,
+                            (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.width/2,
+                            (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.height/2, WHITE);
                     }
                 }
                 else
                 {
-                    DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
-                        (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width/2,
-                        (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                    DrawTexture(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture,
+                        (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.width/2,
+                        (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].entries[sizeListActive - 1].texture.height/2, WHITE);
                 }
             }
 
             // Clear/generate selected icon image level
             // NOTE: Enabled buttons depend on several circunstances
-            if ((validCount == 0) || ((sizeListActive > 0) && !packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
+            if ((validCount == 0) || ((sizeListActive > 0) && !packs[mainToolbarState.platformActive].entries[sizeListActive - 1].valid)) GuiDisable();
             btnClearIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 135 + 256 - 48 - 8, anchorMain.y + 52 + 256 - 24 - 4, 24, 24 }, "#143#");
             GuiEnable();
 
-            if ((validCount == 0) || ((sizeListActive > 0) && packs[mainToolbarState.platformActive].icons[sizeListActive - 1].valid)) GuiDisable();
+            if ((validCount == 0) || ((sizeListActive > 0) && packs[mainToolbarState.platformActive].entries[sizeListActive - 1].valid)) GuiDisable();
             btnGenIconImagePressed = GuiButton((Rectangle){ anchorMain.x + 135 + 256 - 24 - 4, anchorMain.y + 52 + 256 - 24 - 4, 24, 24 }, "#142#");
             GuiEnable();
 
             // Icon image text for embedding
-            if (sizeListActive == 0) GuiDisable();
-            if (GuiTextBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 52 + 256 + 8, 256, 26 }, (sizeListActive == 0)? "Add custom image text here!" : packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text, MAX_IMAGE_TEXT_SIZE, iconTextEditMode)) iconTextEditMode = !iconTextEditMode;
+            if ((sizeListActive == 0) || !packs[mainToolbarState.platformActive].entries[sizeListActive - 1].valid) GuiDisable();
+            if (GuiTextBox((Rectangle){ anchorMain.x + 135, anchorMain.y + 52 + 256 + 8, 256, 26 }, (sizeListActive == 0)? "Add custom image text here!" : packs[mainToolbarState.platformActive].entries[sizeListActive - 1].text, MAX_IMAGE_TEXT_SIZE, iconTextEditMode)) iconTextEditMode = !iconTextEditMode;
             GuiEnable();
             //--------------------------------------------------------------------------------------------------------------
 
@@ -766,8 +789,8 @@ int main(int argc, char *argv[])
 
             // GUI: Status bar
             //----------------------------------------------------------------------------------------
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "IMAGE: ALL" : TextFormat("IMAGE: %ix%i", packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size, packs[mainToolbarState.platformActive].icons[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive > 0)? TextFormat("IMAGE TEXT LENGTH: %i/%i", strlen(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "IMAGE: ALL" : TextFormat("IMAGE: %ix%i", packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size, packs[mainToolbarState.platformActive].entries[sizeListActive - 1].size));
+            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive > 0)? TextFormat("IMAGE TEXT LENGTH: %i/%i", strlen(packs[mainToolbarState.platformActive].entries[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
             //----------------------------------------------------------------------------------------
 
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
@@ -780,8 +803,17 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (windowIconPoemActive)
             {
-                Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 100 };
-                windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 }, "#10#Icon Poem");
+                int textLinesCount = 0;
+                const char **textLines = GetIconPackTextLines(packs[mainToolbarState.platformActive], &textLinesCount);
+                Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 160/2 };
+                windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 + textLinesCount*20 }, "#10#Found Icon Poem!");
+
+                GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
+                for (int i = 0; i < textLinesCount; i++)
+                {
+                    GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 60, 260 - 24, 20 }, textLines[i]);
+                }
+                GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
 
                 if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 110, 240, 30 }, "#10#Love it!"))
                 {
@@ -850,7 +882,18 @@ int main(int argc, char *argv[])
 #else
                 int result = GuiFileDialog(DIALOG_OPEN_FILE, "Load icon or image file...", inFileName, "*.ico;*.icns;*.png;*.bmp;*.qoi", "Icon or Image Files");
 #endif
-                if (result == 1) LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);   // Load icon file
+                if (result == 1)
+                {
+                    LoadIconToPack(&packs[mainToolbarState.platformActive], inFileName);   // Load icon file
+
+                    if (IsFileExtension(inFileName, ".ico;.icns"))
+                    {
+                        // Check if loaded icon contains a poem!
+                        int textLinesCount = 0;
+                        GetIconPackTextLines(packs[mainToolbarState.platformActive], &textLinesCount);
+                        if (textLinesCount > 0) windowIconPoemActive = true;
+                    }
+                }
 
                 if (result >= 0) showLoadFileDialog = false;
             }
@@ -882,9 +925,9 @@ int main(int argc, char *argv[])
                     }
 
                     // Save into icon file provided pack entries
-                    if (exportFormatActive == 0) SaveIconPackToICO(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
-                    else if (exportFormatActive == 1) ExportIconPackImages(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
-                    else if (exportFormatActive == 2) SaveIconPackToICNS(packs[mainToolbarState.platformActive].icons, packs[mainToolbarState.platformActive].count, outFileName);
+                    if (exportFormatActive == 0) SaveIconPackToICO(packs[mainToolbarState.platformActive].entries, packs[mainToolbarState.platformActive].count, outFileName);
+                    else if (exportFormatActive == 1) ExportIconPackImages(packs[mainToolbarState.platformActive].entries, packs[mainToolbarState.platformActive].count, outFileName);
+                    else if (exportFormatActive == 2) SaveIconPackToICNS(packs[mainToolbarState.platformActive].entries, packs[mainToolbarState.platformActive].count, outFileName);
 
                 #if defined(PLATFORM_WEB)
                     if (exportFormatActive == 1)
@@ -1394,17 +1437,17 @@ static IconPack InitIconPack(int platform)
         default: break;
     }
 
-    pack.icons = (IconPackEntry *)RL_CALLOC(pack.count, sizeof(IconPackEntry));
+    pack.entries = (IconPackEntry *)RL_CALLOC(pack.count, sizeof(IconPackEntry));
 
     // Generate placeholder entries
     for (int i = 0; i < pack.count; i++)
     {
-        pack.icons[i].size = pack.sizes[i];
-        pack.icons[i].image = GenImageColor(pack.icons[i].size, pack.icons[i].size, DARKGRAY);
-        ImageDrawRectangle(&pack.icons[i].image, 1, 1, pack.icons[i].size - 2, pack.icons[i].size - 2, GRAY);
+        pack.entries[i].size = pack.sizes[i];
+        pack.entries[i].image = GenImageColor(pack.entries[i].size, pack.entries[i].size, DARKGRAY);
+        ImageDrawRectangle(&pack.entries[i].image, 1, 1, pack.entries[i].size - 2, pack.entries[i].size - 2, GRAY);
 
-        pack.icons[i].texture = LoadTextureFromImage(pack.icons[i].image);
-        pack.icons[i].valid = false;
+        pack.entries[i].texture = LoadTextureFromImage(pack.entries[i].image);
+        pack.entries[i].valid = false;
         //memset(pack.icons[i].text, 0, MAX_IMAGE_TEXT_SIZE);
     }
 
@@ -1418,8 +1461,8 @@ static void CloseIconPack(IconPack *pack)
     {
         for (int i = 0; i < pack->count; i++)
         {
-            UnloadImage(pack->icons[i].image);
-            UnloadTexture(pack->icons[i].texture);
+            UnloadImage(pack->entries[i].image);
+            UnloadTexture(pack->entries[i].texture);
         }
     }
 }
@@ -1458,20 +1501,20 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
         }
 
         // Load image into pack slot only if it's empty
-        if ((index >= 0) && !pack->icons[index].valid)
+        if ((index >= 0) && !pack->entries[index].valid)
         {
             // Force image to be RGBA
             ImageFormat(&entries[i].image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
             // Re-load image/texture from ico pack
-            UnloadImage(pack->icons[index].image);
-            UnloadTexture(pack->icons[index].texture);
+            UnloadImage(pack->entries[index].image);
+            UnloadTexture(pack->entries[index].texture);
 
-            pack->icons[index].image = ImageCopy(entries[i].image);
-            pack->icons[index].texture = LoadTextureFromImage(pack->icons[index].image);
-            pack->icons[index].size = pack->sizes[index];
-            pack->icons[index].valid = true;
-            memcpy(pack->icons[index].text, entries[i].text, strlen(entries[i].text));
+            pack->entries[index].image = ImageCopy(entries[i].image);
+            pack->entries[index].texture = LoadTextureFromImage(pack->entries[index].image);
+            pack->entries[index].size = pack->sizes[index];
+            pack->entries[index].valid = true;
+            memcpy(pack->entries[index].text, entries[i].text, strlen(entries[i].text));
         }
         else
         {
@@ -1491,15 +1534,15 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
 // NOTE: A placeholder image is re-generated
 static void UnloadIconFromPack(IconPack *pack, int index)
 {
-    if (pack->icons[index].valid)
+    if (pack->entries[index].valid)
     {
-        UnloadImage(pack->icons[index].image);
-        UnloadTexture(pack->icons[index].texture);
+        UnloadImage(pack->entries[index].image);
+        UnloadTexture(pack->entries[index].texture);
 
-        pack->icons[index].image = GenImageColor(pack->icons[index].size, pack->icons[index].size, DARKGRAY);
-        ImageDrawRectangle(&pack->icons[index].image, 1, 1, pack->icons[index].size - 2, pack->icons[index].size - 2, GRAY);
-        pack->icons[index].texture = LoadTextureFromImage(pack->icons[index].image);
-        pack->icons[index].valid = false;
+        pack->entries[index].image = GenImageColor(pack->entries[index].size, pack->entries[index].size, DARKGRAY);
+        ImageDrawRectangle(&pack->entries[index].image, 1, 1, pack->entries[index].size - 2, pack->entries[index].size - 2, GRAY);
+        pack->entries[index].texture = LoadTextureFromImage(pack->entries[index].image);
+        pack->entries[index].valid = false;
     }
 }
 
@@ -1552,19 +1595,30 @@ static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
             char *icoImageData = (char *)RL_CALLOC(icoDirEntry[i].size, 1);
             fread(icoImageData, 1, icoDirEntry[i].size, icoFile);    // Read icon image data
 
-            // Reading image data from memory buffer
-            // WARNING: Image data on th IcoDirEntry may be in either:
-            //  - Windows BMP format, excluding the BITMAPFILEHEADER structure
-            //  - PNG format, stored in its entirety
-            // NOTE: We are only supporting the PNG format, not BMP data
-            entries[i].image = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
-            entries[i].size = entries[i].image.width;   // Icon size (expected squared)
-            entries[i].valid = false;                   // Not valid until it is checked against the current package (sizes)
+            // Verify PNG signature for loaded image data
+            if ((icoImageData[0] == 0x89) &&
+                (icoImageData[1] == 0x50) &&
+                (icoImageData[2] == 0x4e) &&
+                (icoImageData[3] == 0x47) &&
+                (icoImageData[4] == 0x0d) &&
+                (icoImageData[5] == 0x0a) &&
+                (icoImageData[6] == 0x1a) &&
+                (icoImageData[7] == 0x0a))
+            {
+                // Reading image data from memory buffer
+                // WARNING: Image data on th IcoDirEntry may be in either:
+                //  - Windows BMP format, excluding the BITMAPFILEHEADER structure
+                //  - PNG format, stored in its entirety
+                // NOTE: We are only supporting the PNG format, not BMP data
+                entries[i].image = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
+                entries[i].size = entries[i].image.width;   // Icon size (expected squared)
+                entries[i].valid = false;                   // Not valid until it is checked against the current package (sizes)
 
-            // Read custom rIconPacker text chunk from PNG
-            rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
-            memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
-            RPNG_FREE(chunk.data);
+                // Read custom rIconPacker text chunk from PNG
+                rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
+                memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+                RPNG_FREE(chunk.data);
+            }
 
             RL_FREE(icoImageData);
         }
@@ -1796,13 +1850,13 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 
                     // Verify PNG signature for loaded image data
                     if ((incData[0] == 0x89) &&
-                        (incData[0] == 0x50) &&
-                        (incData[0] == 0x4e) &&
-                        (incData[0] == 0x47) &&
-                        (incData[0] == 0x0d) &&
-                        (incData[0] == 0x0a) &&
-                        (incData[0] == 0x1a) &&
-                        (incData[0] == 0x0a))
+                        (incData[1] == 0x50) &&
+                        (incData[2] == 0x4e) &&
+                        (incData[3] == 0x47) &&
+                        (incData[4] == 0x0d) &&
+                        (incData[5] == 0x0a) &&
+                        (incData[6] == 0x1a) &&
+                        (incData[7] == 0x0a))
                     {
                         // Data contains a valid PNG file, we can load it
                         entries[imageCounter].image = LoadImageFromMemory(".png", incData, icnSize);
@@ -2003,4 +2057,25 @@ static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const cha
 
     RL_FREE(pngDataPtrs);
     RL_FREE(pngDataSizes);
+}
+
+// Get text lines available on icon pack
+// NOTE: Only valid icons considered
+const char **GetIconPackTextLines(IconPack pack, int *count)
+{
+    static const char *textLines[16] = { 0 }; // Pointers array to possible text lines
+
+    int counter = 0;
+
+    for (int i = 0; i < pack.count; i++)
+    {
+        if (pack.entries[i].valid && (strlen(pack.entries[i].text) > 0))
+        {
+            textLines[counter] = pack.entries[i].text;
+            counter++;
+        }
+    }
+
+    *count = counter;
+    return textLines;
 }
