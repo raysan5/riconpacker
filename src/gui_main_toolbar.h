@@ -194,7 +194,7 @@ void GuiMainToolbar(GuiMainToolbarState *state)
 
     // Edit options
     //GuiLabel((Rectangle){ state->anchorEdit.x + 10, 8, 35, 24 }, "State:");
-    if (GuiDropdownBox((Rectangle){ state->anchorEdit.x + 10, 8, 108, 24 }, "Windows;Favicon;Android;iOS", &state->platformActive, state->platformEditMode)) state->platformEditMode = !state->platformEditMode;
+    if (GuiDropdownBox((Rectangle){ state->anchorEdit.x + 10, 8, 108, 24 }, "Windows;macOS;favicon;Android;iOS", &state->platformActive, state->platformEditMode)) state->platformEditMode = !state->platformEditMode;
 
     // Tool options
     //...
