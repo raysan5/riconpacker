@@ -12,11 +12,12 @@
 *       - WEB: Download exported images as a .zip file
 * 
 *   LIMITATIONS:
-*       - Supporting only .ico/.icns files containing .png image data (import/export)
-*       - Supporting only several OSTypes for .icns image files
+*       - Supports only .ico/.icns files containing .png image data (import/export)
+*       - Supports only several OSTypes for .icns image files (modern OSTypes)
 *
 *   POSSIBLE IMPROVEMENTS:
 *       - Support any-size input images, scaled to closest size
+*       - Support icon pack movement between platforms
 *       - CLI: Support custom text per icon
 *
 *   CONFIGURATION:
@@ -30,7 +31,13 @@
 *   VERSIONS HISTORY:
 *       3.0  (xx-May-2023)  ADDED: New platform template: macOS
 *                           ADDED: Support for load/save .icns files
-*                           ADDED: Icon-poem window on icon loading
+*                           TODO: ---> ADDED: Icon-poem window on icon loading
+*                           ADDED: SaveImages() to export .png image pack
+*                           REMOVED: Input file format .jpg 
+*                           REVIEWED: Updated UI to raygui 4.0-dev
+*                           REVIEWED: SaveICO(), avoid ico/image export at one
+*                           REVIEWED: Image packaging into a single .zip not default
+*                           REVIEWED: Command-line interface
 *                           Updated to raylib 4.6-dev and raygui 4.0-dev
 * 
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
@@ -665,13 +672,43 @@ int main(int argc, char *argv[])
 
             if (sizeListActive == 0)
             {
-                for (int i = 0; i < packs[mainToolbarState.platformActive].count; i++) DrawTexture(packs[mainToolbarState.platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
+                // macOS supports icns up to 1024x1024 and 512x512, bigger sizes are not drawn on ALL icons mode
+                for (int i = ((mainToolbarState.platformActive == ICON_PLATFORM_MACOS)? 2: 0); i < packs[mainToolbarState.platformActive].count; i++) DrawTexture(packs[mainToolbarState.platformActive].icons[i].texture, (int)anchorMain.x + 135, (int)anchorMain.y + 52, WHITE);
             }
             else if (sizeListActive > 0)
             {
-                DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
+                if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS)
+                {
+                    // macOS supports icns up to 1024x1024 and 512x512, those sizes require a special drawing
+                    if (sizeListActive == 1)        // 1024x1024
+                    {
+                        DrawTextureEx(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
+                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width*0.25f/2),
+                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height*0.25f/2) }, 0.0f, 0.25f, WHITE);
+                    
+                        DrawText("SCALE: 1/4", (int)anchorMain.x + 135 + 10, (int)anchorMain.y + 52 + 256 - 24, 20, GREEN);
+                    }
+                    else if (sizeListActive == 2)   // 512x512
+                    {
+                        DrawTextureEx(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
+                            (Vector2){ anchorMain.x + 135 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width*0.5f/2),
+                                       anchorMain.y + 52 + 128 - (packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height*0.5f/2) }, 0.0f, 0.5f, WHITE);
+                    
+                        DrawText("SCALE: 1/2", (int)anchorMain.x + 135 + 10, (int)anchorMain.y + 52 + 256 - 24, 20, GREEN);
+                    }
+                    else
+                    {
+                        DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
                             (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width/2,
                             (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                    }
+                }
+                else
+                {
+                    DrawTexture(packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture,
+                        (int)anchorMain.x + 135 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.width/2,
+                        (int)anchorMain.y + 52 + 128 - packs[mainToolbarState.platformActive].icons[sizeListActive - 1].texture.height/2, WHITE);
+                }
             }
 
             // Clear/generate selected icon image level
