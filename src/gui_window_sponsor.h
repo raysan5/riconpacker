@@ -132,13 +132,13 @@ GuiWindowSponsorState InitGuiWindowSponsor(void)
 {
     GuiWindowSponsorState state = { 0 };
 
-    state.windowActive = true;
-    state.welcomeMode = true;
+    state.windowActive = false;
+    state.welcomeMode = false;
     state.supportDrag = false;
     state.borderless = false;
     
     int windowWidth = MAX_SPONSOR_SLOTS*128 + MAX_SPONSOR_SLOTS*2 + 24 + (MAX_SPONSOR_SLOTS - 1)*8;    // Logo size (3*128) + button border (2) + margin + button spacing
-    state.windowBounds = (Rectangle){ GetScreenWidth()/2 - windowWidth/2, GetScreenHeight()/2 - 394/2, windowWidth, 394 };
+    state.windowBounds = (Rectangle){ GetScreenWidth()/2 - windowWidth/2, GetScreenHeight()/2 - 278/2, windowWidth, 278 };
     state.panOffset = (Vector2){ 0, 0 };
     state.dragMode = false;
 
@@ -175,8 +175,8 @@ void GuiWindowSponsor(GuiWindowSponsorState *state)
     {
         // Update window dragging
         //----------------------------------------------------------------------------------------
-        if (state->welcomeMode) state->windowBounds.height = 394;
-        else state->windowBounds.height = 394 - 116;
+        //if (state->welcomeMode) state->windowBounds.height = 394;
+        //else state->windowBounds.height = 394 - 116;
 
         if (state->supportDrag)
         {
