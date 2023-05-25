@@ -122,6 +122,7 @@ static const char *helpLines[] = {
     "SUP - Remove selected icon image",
     "LCTRL + G - Generate selected icon image",
     "-Tool Visuals",
+    "LCTRL + P - Show full icon-poem",
     "RIGHT - Select style template",
     "-",
     "ESCAPE - Close Window/Exit",
@@ -217,12 +218,14 @@ void GuiWindowHelp(GuiWindowHelpState *state)
         nextLineY += (GUIHELPWINDOW_LINE_HEIGHT + 4);
 
         // Draw scroll panel considering window bounds and content size
-        Rectangle scissor = GuiScrollPanel((Rectangle){ state->windowBounds.x, state->windowBounds.y + GUIHELPWINDOW_LINE_HEIGHT - 1, state->windowBounds.width, state->windowBounds.height - 24 + 1 }, NULL,
-                                           (Rectangle){ state->windowBounds.x, state->windowBounds.y + GUIHELPWINDOW_LINE_HEIGHT, state->windowBounds.width - 16, state->contentHeight }, &state->scrollPanelOffset);
+        Rectangle view = { 0 };
+        GuiScrollPanel((Rectangle){ state->windowBounds.x, state->windowBounds.y + GUIHELPWINDOW_LINE_HEIGHT - 1, state->windowBounds.width, state->windowBounds.height - 24 + 1 }, NULL,
+                       (Rectangle){ state->windowBounds.x, state->windowBounds.y + GUIHELPWINDOW_LINE_HEIGHT, state->windowBounds.width - 16, state->contentHeight }, 
+                       &state->scrollPanelOffset, &view);
 
         // Draw help info and separation lines
         // WARNING: We only scissor if scrolling is required, scissor mode forces a new draw call
-        if (state->contentHeight > (state->windowBounds.height - 24)) BeginScissorMode(scissor.x, scissor.y, scissor.width + 2, scissor.height);
+        if (state->contentHeight > (state->windowBounds.height - 24)) BeginScissorMode(view.x, view.y, view.width + 2, view.height);
 
             for (int i = 0; i < GUIHELPWINDOW_MAX_LINES; i++)
             {
