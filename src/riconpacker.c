@@ -29,7 +29,8 @@
 *           NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
-*       3.0  (xx-May-2023)  ADDED: New platform template: macOS
+*       3.0  (xx-May-2023)  ADDED: Support macOS builds (x86_64 + arm64)
+*                           ADDED: New platform template: macOS
 *                           ADDED: Support for load/save .icns files
 *                           ADDED: Icon-poem window on icon text loading
 *                           ADDED: SaveImages() to export .png image pack
@@ -38,7 +39,7 @@
 *                           REVIEWED: SaveICO(), avoid ico/image export at one
 *                           REVIEWED: Image packaging into a single .zip not default
 *                           REVIEWED: Command-line interface
-*                           Updated to raylib 4.6-dev and raygui 4.0-dev
+*                           REDESIGNED: Using raygui 4.0-dev
 * 
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
 *                           REDESIGNED: Main toolbar to add tooltips
@@ -63,7 +64,7 @@
 *       raylib 4.6-dev          - Windowing/input management and drawing
 *       raygui 4.0-dev          - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.0                - PNG chunks management
-*       tinyfiledialogs 3.12.0  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
+*       tinyfiledialogs 3.13.1  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
 *   BUILDING:
@@ -468,16 +469,24 @@ int main(int argc, char *argv[])
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) showLoadFileDialog = true;
 
         // Show dialog: save icon file (.ico, .icns)
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E))
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) || mainToolbarState.btnExportFilePressed)
         {
             if (validCount > 0)
             {
                 memset(outFileName, 0, 512);
 
-                if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS) strcpy(outFileName, "icon.icns");
-                else strcpy(outFileName, "icon.ico");
+                if (mainToolbarState.platformActive == ICON_PLATFORM_MACOS)
+                {
+                    exportFormatActive = 2;
+                    strcpy(outFileName, "icon.icns\0");
+                }
+                else
+                {
+                    exportFormatActive = 0;
+                    strcpy(outFileName, "icon.ico\0");
+                }
 
-                showExportFileDialog = true;
+                windowExportActive = true;
             }
         }
 
@@ -576,7 +585,6 @@ int main(int argc, char *argv[])
             exportTextChunkChecked = true;
             showExportFileDialog = true;
         }
-        else if (mainToolbarState.btnExportFilePressed) windowExportActive = true;
 
         // Visual options logic
         if (mainToolbarState.btnStylePressed)
@@ -850,12 +858,11 @@ int main(int argc, char *argv[])
                 GuiComboBox((Rectangle){ messageBox.x + 12 + 88, messageBox.y + 12 + 24, 136, 24 }, (mainToolbarState.platformActive == 1)? "Icon (.ico);Images (.png);Icns (.icns)" : "Icon (.ico);Images (.png)", &exportFormatActive);
 
                 // WARNING: exportTextChunkChecked is used as a global variable required by SaveICO() and SaveICNS() funtions
-                GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Embed image text as rIPt chunk", &exportTextChunkChecked);
+                GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export text poem with icon", &exportTextChunkChecked);
 
                 if (result == 1)    // Export button pressed
                 {
                     windowExportActive = false;
-                    strcpy(outFileName, "icon.ico");
                     showExportFileDialog = true;
                 }
                 else if (result == 0) windowExportActive = false;
@@ -917,11 +924,11 @@ int main(int argc, char *argv[])
                 if (result == 1)
                 {
                     // Check for valid extension and make sure it is
-                    if ((GetFileExtension(outFileName) == NULL) && !IsFileExtension(outFileName, ".ico;.icns;.png")) 
+                    if (GetFileExtension(outFileName) == NULL)
                     {
-                        if (exportFormatActive == 0) strcat(outFileName, ".ico\0");
-                        else if (exportFormatActive == 1) strcat(outFileName, ".png\0");
-                        else if (exportFormatActive == 2) strcat(outFileName, ".icns\0");
+                        if ((exportFormatActive == 0) && !IsFileExtension(outFileName, ".ico")) strcat(outFileName, ".ico\0");
+                        else if ((exportFormatActive == 1) && !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
+                        else if ((exportFormatActive == 2) && !IsFileExtension(outFileName, ".icns")) strcat(outFileName, ".icns\0");
                     }
 
                     // Save into icon file provided pack entries
@@ -1821,31 +1828,34 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                 fread(&sizeBE, sizeof(unsigned int), 1, icnsFile);
                 icnSize = SWAP_INT32(sizeBE);
 
+                processedSize += 8;     // IcnType an IcnSize parameters
+                icnSize -= 8;           // IcnSize also considers type and size parameters, we must subtract them to get actual data size
+
                 // We have next icn type and size, now we must check if it's a supported format to load it
-                LOG("INFO: [%s] ICNS OSType: %s [%i bites]\n", GetFileName(fileName), icnType, icnSize);
+                LOG("INFO: [%s] ICNS OSType: %c%c%c%c [%i bites]\n", GetFileName(fileName), icnType[0], icnType[1], icnType[2], icnType[3], icnSize);
 
                 // NOTE: Only supported formats including PNG data
-                if (((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = 'p') && (icnType[3] = '4')) ||   // 16x16, icp4, not properly displayed on .app
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '0') && (icnType[3] = '4')) ||   // 16x16, ic04
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = 's') && (icnType[3] = 'b')) ||   // 18x18, icsb
-                    ((icnType[0] = 's') && (icnType[1] = 'b') && (icnType[2] = '2') && (icnType[3] = '4')) ||   // 24x24, sb24
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = 'p') && (icnType[3] = '5')) ||   // 32x32, icp5, not properly displayed on .app
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '0') && (icnType[3] = '5')) ||   // 32x32, ic05 (16x16@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '1') && (icnType[3] = '1')) ||   // 32x32, ic11 (16x16@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = 's') && (icnType[3] = 'B')) ||   // 36x36, icsB (18x18@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = 'p') && (icnType[3] = '6')) ||   // 48x48, icp6, not properly displayed on .app
-                    ((icnType[0] = 'S') && (icnType[1] = 'B') && (icnType[2] = '2') && (icnType[3] = '4')) ||   // 48x48, SB24 (24x24@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '1') && (icnType[3] = '2')) ||   // 64x64, ic12 (32x32@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '0') && (icnType[3] = '7')) ||   // 128x128, ic07
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '0') && (icnType[3] = '8')) ||   // 256x256, ic08
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '1') && (icnType[3] = '3')) ||   // 256x256, ic13 (128x128@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '0') && (icnType[3] = '9')) ||   // 512x512, ic09
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '1') && (icnType[3] = '4')) ||   // 512x512, ic14 (256x256@2x "retina")
-                    ((icnType[0] = 'i') && (icnType[1] = 'c') && (icnType[2] = '1') && (icnType[3] = '0')))     // 1024x1024, ic10 (512x512@2x "retina")
+                if (((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '4')) ||   // 16x16, icp4, not properly displayed on .app
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '4')) ||   // 16x16, ic04
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 's') && (icnType[3] == 'b')) ||   // 18x18, icsb
+                    ((icnType[0] == 's') && (icnType[1] == 'b') && (icnType[2] == '2') && (icnType[3] == '4')) ||   // 24x24, sb24
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '5')) ||   // 32x32, icp5, not properly displayed on .app
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '5')) ||   // 32x32, ic05 (16x16@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '1') && (icnType[3] == '1')) ||   // 32x32, ic11 (16x16@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 's') && (icnType[3] == 'B')) ||   // 36x36, icsB (18x18@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '6')) ||   // 48x48, icp6, not properly displayed on .app
+                    ((icnType[0] == 'S') && (icnType[1] == 'B') && (icnType[2] == '2') && (icnType[3] == '4')) ||   // 48x48, SB24 (24x24@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '1') && (icnType[3] == '2')) ||   // 64x64, ic12 (32x32@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '7')) ||   // 128x128, ic07
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '8')) ||   // 256x256, ic08
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '1') && (icnType[3] == '3')) ||   // 256x256, ic13 (128x128@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '9')) ||   // 512x512, ic09
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '1') && (icnType[3] == '4')) ||   // 512x512, ic14 (256x256@2x "retina")
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '1') && (icnType[3] == '0')))     // 1024x1024, ic10 (512x512@2x "retina")
                 {
                     // NOTE: We only support loading PNG data, JPEG2000 and ARGB data not supported
 
-                    char *incData = (char *)RL_CALLOC(icnSize, 1);
+                    unsigned char *incData = (unsigned char *)RL_CALLOC(icnSize, 1);
                     fread(incData, 1, icnSize, icnsFile);
 
                     // Verify PNG signature for loaded image data
@@ -1865,7 +1875,7 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 
                         // Read custom rIconPacker text chunk from PNG
                         rpng_chunk chunk = rpng_chunk_read_from_memory(incData, "rIPt");
-                        memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+                        memcpy(entries[imageCounter].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
                         RPNG_FREE(chunk.data);
 
                         imageCounter++;
@@ -1886,10 +1896,15 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                     // Return value is in format:  0xBBGGRRAA   -> ARGB?
                     */
 
-                    processedSize += (8 + icnSize);
-
                     RL_FREE(incData);
                 }
+                else
+                {
+                    // In case OSType is not supported we just skip the required size
+                    fseek(icnsFile, icnSize, SEEK_CUR);
+                }
+
+                processedSize += icnSize;
             }
 
             LOG("INFO: Total images extracted from ICNS file: %i\n", imageCounter);
@@ -1939,7 +1954,6 @@ static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const cha
         else if ((entries[i].image.width == 1024) && (entries[i].image.height == 1024)) { validIndex[validCount] = i; validCount++; }
     }
 */
-
     // Compress provided images into PNG data
     char **pngDataPtrs = (char **)RL_CALLOC(validCount, sizeof(char *));     // Pointers array to PNG image data
     unsigned int *pngDataSizes = (unsigned int *)RL_CALLOC(validCount, sizeof(unsigned int));   // PNG data size
@@ -1957,7 +1971,7 @@ static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const cha
             else if (entries[i].image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) colorChannels = 4;
 
             // NOTE: Memory is allocated internally using RPNG_MALLOC(), must be freed with RPNG_FREE()
-            pngDataPtrs[k] = rpng_save_image_to_memory(entries[i].image.data, entries[i].image.width, entries[i].image.height, colorChannels, 8, &pngDataSizes[i]);
+            pngDataPtrs[k] = rpng_save_image_to_memory(entries[i].image.data, entries[i].image.width, entries[i].image.height, colorChannels, 8, &pngDataSizes[k]);
 
             k++;
         }
@@ -2016,26 +2030,26 @@ static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const cha
             {
                 switch (entries[i].image.width)
                 {
-                case 16: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '4'; } break;     // icp4, not properly displayed on .app
-                    //case 32: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '5'; } break;     // icp5, not properly displayed on .app
-                case 32: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '1'; } break;     // ic11 (16x16@2x "retina")
-                    //case 48: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '6'; } break;     // icp6, not properly displayed on .app
-                case 48: { icnType[0] = 'S'; icnType[1] = 'B'; icnType[2] = '2'; icnType[3] = '4'; } break;     // SB24 (24x24@2x "retina")
-                case 64: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '2'; } break;     // ic12 (32x32@2x "retina")
-                case 128: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '7'; } break;    // ic07
-                    //case 256: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '8'; } break;    // ic08
-                case 256: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '3'; } break;    // ic13 (128x128@2x "retina")
-                    //case 512: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '9'; } break;    // ic09
-                case 512: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '4'; } break;    // ic14 (256x256@2x "retina")
-                case 1024: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '0'; } break;   // ic10 (512x512@2x "retina")
-                default: LOG("WARNING: Image size for ICNS generation not supported!\n"); break;
+                    case 16:   { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '4'; } break;   // icp4, not properly displayed on .app
+                    //case 32: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '5'; } break;   // icp5, not properly displayed on .app
+                    case 32:   { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '1'; } break;   // ic11 (16x16@2x "retina")
+                    //case 48: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = 'p'; icnType[3] = '6'; } break;   // icp6, not properly displayed on .app
+                    case 48:   { icnType[0] = 'S'; icnType[1] = 'B'; icnType[2] = '2'; icnType[3] = '4'; } break;   // SB24 (24x24@2x "retina")
+                    case 64:   { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '2'; } break;   // ic12 (32x32@2x "retina")
+                    case 128:  { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '7'; } break;   // ic07
+                   //case 256: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '8'; } break;   // ic08
+                    case 256:  { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '3'; } break;   // ic13 (128x128@2x "retina")
+                   //case 512: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '0'; icnType[3] = '9'; } break;   // ic09
+                    case 512:  { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '4'; } break;   // ic14 (256x256@2x "retina")
+                    case 1024: { icnType[0] = 'i'; icnType[1] = 'c'; icnType[2] = '1'; icnType[3] = '0'; } break;   // ic10 (512x512@2x "retina")
+                    default: LOG("WARNING: Image size for ICNS generation not supported!\n"); break;
                 }
 
                 // Write entry type
                 fwrite(icnType, 1, 4, icnsFile);
 
                 // Write entry size (Big endian)
-                unsigned int size = pngDataSizes[i] + 8;   // Size must include type and length size
+                unsigned int size = pngDataSizes[k] + 8;   // Size must include type and length size
                 sizeBE[0] = (size >> 24) & 0xFF;
                 sizeBE[1] = (size >> 16) & 0xFF;
                 sizeBE[2] = (size >> 8) & 0xFF;
