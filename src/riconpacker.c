@@ -191,11 +191,11 @@ typedef struct {
     Image image;                // Icon image
     Texture texture;            // Icon texture
     char text[MAX_IMAGE_TEXT_SIZE]; // Text to be embedded in the image
-} IconPackEntry;
+} IconEntry;
 
 // Icon pack (platform specific)
 typedef struct {
-    IconPackEntry *entries;     // Pack entries
+    IconEntry *entries;         // Pack entries
     unsigned int *sizes;        // Platform sizes pointer
     int count;                  // Pack entries count
 } IconPack;
@@ -204,7 +204,7 @@ typedef struct {
 // NOTE: All loaded icons go into the bucket before
 // being copied into platform icon pack
 typedef struct {
-    IconPackEntry *entries;     // Bucket entries
+    IconEntry *entries;         // Bucket entries
     unsigned int *sizes;        // Bucket entries sizes
     int count;                  // Bucket entries count
 } IconBucket;
@@ -261,13 +261,13 @@ static char *GetTextIconSizes(IconPack pack);   // Get sizes as a text array sep
 #endif
 
 // Load/Save/Export data functions
-static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count);                    // Load icon pack from .ico file
-static void SaveIconPackToICO(IconPackEntry *entries, int entryCount, const char *fileName);    // Save icon pack to.ico file
+static IconEntry *LoadIconPackFromICO(const char *fileName, int *count);                    // Load icon pack from .ico file
+static void SaveIconPackToICO(IconEntry *entries, int entryCount, const char *fileName);    // Save icon pack to.ico file
 
-static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const char *fileName); // Export icon pack to multiple .png images
+static void ExportIconPackImages(IconEntry *entries, int entryCount, const char *fileName); // Export icon pack to multiple .png images
 
-static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count);                   // Load icon pack from .icns file
-static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
+static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count);                   // Load icon pack from .icns file
+static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
 
 // Misc functions
 const char **GetIconPackTextLines(IconPack pack, int *count);      // Get text lines available on icon pack
@@ -1216,7 +1216,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
         #define MAX_ICONS_PACK      64
 
-        IconPackEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon entries array
+        IconEntry inputPack[MAX_ICONS_PACK] = { 0 }; // Icon entries array
         int inputPackCount = 0;                          // Icon entries array counter
 
         printf(" > PROCESSING INPUT FILES\n");
@@ -1225,7 +1225,7 @@ static void ProcessCommandLine(int argc, char *argv[])
         for (int i = 0; i < inputFilesCount; i++)
         {
             int imCount = 0;
-            IconPackEntry *entries = NULL;
+            IconEntry *entries = NULL;
 
             // Load all available entries in current file
             if (IsFileExtension(inputFiles[i], ".ico")) entries = LoadIconPackFromICO(inputFiles[i], &imCount);
@@ -1233,7 +1233,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             else if (IsFileExtension(inputFiles[i], ".png;.bmp;.qoi"))
             {
                 imCount = 1;
-                entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
+                entries = (IconEntry *)RL_CALLOC(imCount, sizeof(IconEntry));
                 entries[0].image = LoadImage(inputFiles[i]);
             }
 
@@ -1308,7 +1308,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             default: return;
         }
 
-        IconPackEntry *outPack = NULL;
+        IconEntry *outPack = NULL;
         int outPackCount = 0;
 
         if (outSizesCount > 0)
@@ -1319,7 +1319,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
             // Generate custom sizes if required, use biggest available input size and use provided scale algorythm
             outPackCount = outSizesCount;
-            outPack = (IconPackEntry *)RL_CALLOC(outPackCount, sizeof(IconPackEntry));
+            outPack = (IconEntry *)RL_CALLOC(outPackCount, sizeof(IconEntry));
 
             // Copy from inputPack or generate if required
             for (int i = 0; i < outPackCount; i++)
@@ -1432,7 +1432,7 @@ static IconPack InitIconPack(int platform)
         default: break;
     }
 
-    pack.entries = (IconPackEntry *)RL_CALLOC(pack.count, sizeof(IconPackEntry));
+    pack.entries = (IconEntry *)RL_CALLOC(pack.count, sizeof(IconEntry));
 
     // Generate placeholder entries
     for (int i = 0; i < pack.count; i++)
@@ -1467,7 +1467,7 @@ static void CloseIconPack(IconPack *pack)
 static void LoadIconToPack(IconPack *pack, const char *fileName)
 {
     int imCount = 0;
-    IconPackEntry *entries = NULL;
+    IconEntry *entries = NULL;
 
     // Load all available entries
     if (IsFileExtension(fileName, ".ico")) entries = LoadIconPackFromICO(fileName, &imCount);
@@ -1475,7 +1475,7 @@ static void LoadIconToPack(IconPack *pack, const char *fileName)
     else if (IsFileExtension(fileName, ".png;.bmp;.qoi"))
     {
         imCount = 1;
-        entries = (IconPackEntry *)RL_CALLOC(imCount, sizeof(IconPackEntry));
+        entries = (IconEntry *)RL_CALLOC(imCount, sizeof(IconEntry));
         entries[0].image = LoadImage(fileName);
     }
 
@@ -1587,9 +1587,9 @@ typedef struct {
 } IcoDirEntry;
 
 // Icon data loader
-static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
+static IconEntry *LoadIconPackFromICO(const char *fileName, int *count)
 {
-    IconPackEntry *entries = NULL;
+    IconEntry *entries = NULL;
 
     FILE *icoFile = fopen(fileName, "rb");
 
@@ -1599,7 +1599,7 @@ static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
         IcoHeader icoHeader = { 0 };
         fread(&icoHeader, sizeof(IcoHeader), 1, icoFile);
 
-        entries = (IconPackEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IconPackEntry));
+        entries = (IconEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IconEntry));
         *count = icoHeader.imageCount;
 
         IcoDirEntry *icoDirEntry = (IcoDirEntry *)RL_CALLOC(icoHeader.imageCount, sizeof(IcoDirEntry));
@@ -1649,7 +1649,7 @@ static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
 
 // Save icon (.ico)
 // NOTE: Make sure entries array sizes are valid!
-static void SaveIconPackToICO(IconPackEntry *entries, int entryCount, const char *fileName)
+static void SaveIconPackToICO(IconEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
@@ -1733,7 +1733,7 @@ static void SaveIconPackToICO(IconPackEntry *entries, int entryCount, const char
 }
 
 // Save images as .png
-static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const char *fileName)
+static void ExportIconPackImages(IconEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
@@ -1797,13 +1797,13 @@ static void ExportIconPackImages(IconPackEntry *entries, int entryCount, const c
 
 // Icns data loader
 // NOTE: ARGB and JPEG2000 image data formats not supported, only PNG
-static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
+static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 {
     #define MAX_ICNS_IMAGE_SUPPORTED    32
 
     #define SWAP_INT32(x) (((x) >> 24) | (((x) & 0x00ff0000) >> 8) | (((x) & 0x0000ff00) << 8) | ((x) << 24))
 
-    IconPackEntry *entries = NULL;
+    IconEntry *entries = NULL;
     unsigned int imageCounter = 0;
 
     FILE *icnsFile = fopen(fileName, "rb");
@@ -1825,7 +1825,7 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
             // NOTE: Only the valid loaded images will be filled, some entries will be empty,
             // but the returned entries count will refer to the loaded images
             // There shouldn't be any problem when freeing the pointer...
-            entries = (IconPackEntry *)RL_CALLOC(MAX_ICNS_IMAGE_SUPPORTED, sizeof(IconPackEntry));
+            entries = (IconEntry *)RL_CALLOC(MAX_ICNS_IMAGE_SUPPORTED, sizeof(IconEntry));
 
             unsigned int processedSize = 8;
 
@@ -1845,6 +1845,8 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 
                 // NOTE: Only supported formats including PNG data
                 if (((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '4')) ||   // 16x16, icp4, not properly displayed on .app
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '5')) ||   // 32x32, icp5, not properly displayed on .app
+                    ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '6')) ||   // 48x48, icp6, not properly displayed on .app
                     ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == '0') && (icnType[3] == '4')) ||   // 16x16, ic04
                     ((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 's') && (icnType[3] == 'b')) ||   // 18x18, icsb
                     ((icnType[0] == 's') && (icnType[1] == 'b') && (icnType[2] == '2') && (icnType[3] == '4')) ||   // 24x24, sb24
@@ -1935,7 +1937,7 @@ static IconPackEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 //  - No TOC or additional chunks supported
 //  - Main focus on .app package icns generation
 // REF: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-static void SaveIconPackToICNS(IconPackEntry *entries, int entryCount, const char *fileName)
+static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
     int validCount = 0;
