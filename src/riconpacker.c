@@ -181,27 +181,6 @@ bool __stdcall FreeConsole(void);           // Close console from code (kernel32
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
-// Icon File Header (6 bytes)
-typedef struct {
-    unsigned short reserved;    // Must always be 0.
-    unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
-    unsigned short imageCount;  // Specifies number of entries in the file.
-} IcoHeader;
-
-// Icon Entry info (16 bytes)
-typedef struct {
-    unsigned char width;        // Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels.
-    unsigned char height;       // Specifies image height in pixels. Can be any number between 0 and 255. Value 0 means image height is 256 pixels.
-    unsigned char colpalette;   // Specifies number of colors in the color palette. Should be 0 if the image does not use a color palette.
-    unsigned char reserved;     // Reserved. Should be 0.
-    unsigned short planes;      // In ICO format: Specifies color planes. Should be 0 or 1.
-                                // In CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
-    unsigned short bpp;         // In ICO format: Specifies bits per pixel. [Notes 4]
-                                // In CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
-    unsigned int size;          // Specifies the size of the image's data in bytes
-    unsigned int offset;        // Specifies the offset of BMP or PNG data from the beginning of the ICO/CUR file
-} IcoDirEntry;
-
 // NOTE: All image data referenced by entries in the image directory proceed directly after the image directory.
 // It is customary practice to store them in the same order as defined in the image directory.
 
@@ -214,12 +193,21 @@ typedef struct {
     char text[MAX_IMAGE_TEXT_SIZE]; // Text to be embedded in the image
 } IconPackEntry;
 
-// Icon pack
+// Icon pack (platform specific)
 typedef struct {
     IconPackEntry *entries;     // Pack entries
-    unsigned int *sizes;        // Icon sizes pointer
+    unsigned int *sizes;        // Platform sizes pointer
     int count;                  // Pack entries count
 } IconPack;
+
+// Icon bucket (platform-independant)
+// NOTE: All loaded icons go into the bucket before
+// being copied into platform icon pack
+typedef struct {
+    IconPackEntry *entries;     // Bucket entries
+    unsigned int *sizes;        // Bucket entries sizes
+    int count;                  // Bucket entries count
+} IconBucket;
 
 // Icon platform type
 typedef enum {
@@ -1576,6 +1564,27 @@ static char *GetTextIconSizes(IconPack pack)
     return buffer;
 }
 #endif      // !COMMAND_LINE_ONLY
+
+// Icon File Header (6 bytes)
+typedef struct {
+    unsigned short reserved;    // Must always be 0.
+    unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
+    unsigned short imageCount;  // Specifies number of entries in the file.
+} IcoHeader;
+
+// Icon Entry info (16 bytes)
+typedef struct {
+    unsigned char width;        // Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels.
+    unsigned char height;       // Specifies image height in pixels. Can be any number between 0 and 255. Value 0 means image height is 256 pixels.
+    unsigned char colpalette;   // Specifies number of colors in the color palette. Should be 0 if the image does not use a color palette.
+    unsigned char reserved;     // Reserved. Should be 0.
+    unsigned short planes;      // In ICO format: Specifies color planes. Should be 0 or 1.
+    // In CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
+    unsigned short bpp;         // In ICO format: Specifies bits per pixel. [Notes 4]
+    // In CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
+    unsigned int size;          // Specifies the size of the image's data in bytes
+    unsigned int offset;        // Specifies the offset of BMP or PNG data from the beginning of the ICO/CUR file
+} IcoDirEntry;
 
 // Icon data loader
 static IconPackEntry *LoadIconPackFromICO(const char *fileName, int *count)
