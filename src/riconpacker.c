@@ -274,7 +274,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count);       
 static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
 
 // Misc functions
-const char **GetIconPackTextLines(IconPack pack, int *count);      // Get text lines available on icon pack
+const int CountIconPackTextLines(IconPack pack);      // Count text lines available on icon pack
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -396,14 +396,6 @@ int main(int argc, char *argv[])
 
         // Update current pack with bucket data
         UpdateIconPackFromBucket(&currentPack, bucket);
-
-        if (IsFileExtension(inFileName, ".ico;.icns"))
-        {
-            // Check if loaded icon contains a poem!
-            int textLinesCount = 0;
-            GetIconPackTextLines(currentPack, &textLinesCount);
-            if (textLinesCount > 0) windowIconPoemActive = true;
-        }
     }
 
     SetTargetFPS(60);       // Set our game frames-per-second
@@ -434,14 +426,6 @@ int main(int argc, char *argv[])
 
                     // Update current pack with bucket data
                     UpdateIconPackFromBucket(&currentPack, bucket);
-
-                    if (IsFileExtension(droppedFiles.paths[i], ".ico;.icns"))
-                    {
-                        // Check if loaded icon contains a poem!
-                        int textLinesCount = 0;
-                        GetIconPackTextLines(currentPack, &textLinesCount);
-                        if (textLinesCount > 0) windowIconPoemActive = true;
-                    }
                 }
             }
 
@@ -566,7 +550,7 @@ int main(int argc, char *argv[])
         }
 
         // Change current style template
-        if (IsKeyPressed(KEY_RIGHT)) mainToolbarState.btnStylePressed = true;
+        //if (IsKeyPressed(KEY_RIGHT)) mainToolbarState.btnStylePressed = true;
         //----------------------------------------------------------------------------------
 
         // Main toolbar logic
@@ -834,22 +818,29 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (windowIconPoemActive)
             {
-                int textLinesCount = 0;
-                const char **textLines = GetIconPackTextLines(currentPack, &textLinesCount);
-                Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 160/2 };
-                windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 + textLinesCount*20 }, "#10#Found Icon Poem!");
+                unsigned int textLinesCount = CountIconPackTextLines(currentPack);
 
-                GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
-                for (int i = 0; i < textLinesCount; i++)
+                if (textLinesCount > 0)
                 {
-                    GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 60, 260 - 24, 20 }, textLines[i]);
-                }
-                GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
+                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 160/2 };
+                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 + textLinesCount*20 }, "#10#Icon Poem Found!");
 
-                if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 110, 240, 30 }, "#10#Love it!"))
-                {
-                    windowExportActive = false;
+                    GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
+                    for (int i = 0; i < currentPack.count; i++)
+                    {
+                        if (currentPack.entries[i].valid && (currentPack.entries[i].text[0] != '\0'))
+                        {
+                            GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 60 + 20*i, 260 - 24, 20 }, TextFormat("[%i] %s", currentPack.entries[i].size, currentPack.entries[i].text));
+                        }
+                    }
+                    GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
+
+                    if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 110, 240, 30 }, "#186#I love it!"))
+                    {
+                        windowIconPoemActive = false;
+                    }
                 }
+                else windowIconPoemActive = false;
             }
             //----------------------------------------------------------------------------------------
 
@@ -918,14 +909,6 @@ int main(int argc, char *argv[])
 
                     // Update current pack with bucket data
                     UpdateIconPackFromBucket(&currentPack, bucket);
-
-                    if (IsFileExtension(inFileName, ".ico;.icns"))
-                    {
-                        // Check if loaded icon contains a poem!
-                        int textLinesCount = 0;
-                        GetIconPackTextLines(currentPack, &textLinesCount);
-                        if (textLinesCount > 0) windowIconPoemActive = true;
-                    }
                 }
 
                 if (result >= 0) showLoadFileDialog = false;
@@ -1712,7 +1695,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                 icnSize -= 8;           // IcnSize also considers type and size parameters, we must subtract them to get actual data size
 
                 // We have next icn type and size, now we must check if it's a supported format to load it
-                LOG("INFO: [%s] ICNS OSType: %c%c%c%c [%i bites]\n", GetFileName(fileName), icnType[0], icnType[1], icnType[2], icnType[3], icnSize);
+                LOG("INFO: [%s] ICNS OSType: %c%c%c%c [%i bytes]\n", GetFileName(fileName), icnType[0], icnType[1], icnType[2], icnType[3], icnSize);
 
                 // NOTE: Only supported formats including PNG data
                 if (((icnType[0] == 'i') && (icnType[1] == 'c') && (icnType[2] == 'p') && (icnType[3] == '4')) ||   // 16x16, icp4, not properly displayed on .app
@@ -1737,26 +1720,39 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                 {
                     // NOTE: We only support loading PNG data, JPEG2000 and ARGB data not supported
 
-                    unsigned char *incData = (unsigned char *)RL_CALLOC(icnSize, 1);
-                    fread(incData, 1, icnSize, icnsFile);
+                    unsigned char *icnImageData = (unsigned char *)RL_CALLOC(icnSize, 1);
+                    fread(icnImageData, 1, icnSize, icnsFile);
 
                     // Verify PNG signature for loaded image data
-                    if ((incData[0] == 0x89) &&
-                        (incData[1] == 0x50) &&
-                        (incData[2] == 0x4e) &&
-                        (incData[3] == 0x47) &&
-                        (incData[4] == 0x0d) &&
-                        (incData[5] == 0x0a) &&
-                        (incData[6] == 0x1a) &&
-                        (incData[7] == 0x0a))
+                    if ((icnImageData[0] == 0x89) &&
+                        (icnImageData[1] == 0x50) &&
+                        (icnImageData[2] == 0x4e) &&
+                        (icnImageData[3] == 0x47) &&
+                        (icnImageData[4] == 0x0d) &&
+                        (icnImageData[5] == 0x0a) &&
+                        (icnImageData[6] == 0x1a) &&
+                        (icnImageData[7] == 0x0a))
                     {
                         // Data contains a valid PNG file, we can load it
-                        entries[imageCounter].image = LoadImageFromMemory(".png", incData, icnSize);
+                        /*
+                        int colors, bits;
+                        int width, height;
+                        char *data = rpng_load_image_from_memory(icnImageData, &width, &height, &colors, &bits);
+                        Image image = {
+                            .width = width,
+                            .height = height,
+                            .mipmaps = 1,
+                            .data = data,
+                            .format = 7
+                        };
+                        */
+                        entries[imageCounter].image = LoadImageFromMemory(".png", icnImageData, icnSize);
                         entries[imageCounter].size = entries[imageCounter].image.width;   // Icon size (expected squared)
                         entries[imageCounter].valid = false;    // Not valid until it is checked against the current package (sizes)
+                        entries[imageCounter].generated = false;
 
                         // Read custom rIconPacker text chunk from PNG
-                        rpng_chunk chunk = rpng_chunk_read_from_memory(incData, "rIPt");
+                        rpng_chunk chunk = rpng_chunk_read_from_memory(icnImageData, "rIPt");
                         memcpy(entries[imageCounter].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
                         RPNG_FREE(chunk.data);
 
@@ -1778,7 +1774,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                     // Return value is in format:  0xBBGGRRAA   -> ARGB?
                     */
 
-                    RL_FREE(incData);
+                    RL_FREE(icnImageData);
                 }
                 else
                 {
@@ -1814,7 +1810,6 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
     int packValidCount = 0;
     for (int i = 0; i < entryCount; i++) if (entries[i].valid) packValidCount++;
     if (packValidCount == 0) return;
-
 /*
     // NOTE: This validation is not required because it is already done when
     // adding icons from input files into icon package entries
@@ -1957,23 +1952,21 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
 
 // Get text lines available on icon pack
 // NOTE: Only valid icons considered
-const char **GetIconPackTextLines(IconPack pack, int *count)
+const unsigned int CountIconPackTextLines(IconPack pack)
 {
-    static const char *textLines[16] = { 0 }; // Pointers array to possible text lines
-
-    int counter = 0;
+    //static const char *textLines[12] = { 0 }; // Pointers array to possible text lines
+    unsigned int counter = 0;
 
     for (int i = 0; i < pack.count; i++)
     {
         if (pack.entries[i].valid && (strlen(pack.entries[i].text) > 0))
         {
-            textLines[counter] = pack.entries[i].text;
+            //textLines[counter] = pack.entries[i].text;
             counter++;
         }
     }
 
-    *count = counter;
-    return textLines;
+    return counter;
 }
 
 static void AddIconToBucket(IconBucket *bucket, const char *fileName)
@@ -1995,6 +1988,15 @@ static void AddIconToBucket(IconBucket *bucket, const char *fileName)
             entries = (IconEntry *)RL_CALLOC(imageCount, sizeof(IconEntry));
             entries[0].image = image;
             entries[0].size = image.width;
+
+            // Try to find rIPt text lines
+            if (IsFileExtension(fileName, ".png"))
+            {
+                // Read custom rIconPacker text chunk from PNG
+                rpng_chunk chunk = rpng_chunk_read(fileName, "rIPt");
+                if (chunk.length > 0) memcpy(entries[0].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+                RPNG_FREE(chunk.data);
+            }
         }
         else UnloadImage(image);
     }
@@ -2091,7 +2093,7 @@ static void ResetIconPack(IconPack *pack, int platform)
     }
 
     // Reset to required platform
-    int *platformSizes = NULL;
+    unsigned int *platformSizes = NULL;
     switch (platform)
     {
         case ICON_PLATFORM_WINDOWS: pack->count = 8; platformSizes = icoSizesWindows; break;
