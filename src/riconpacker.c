@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v3.0 - A simple and easy-to-use icons packer
+*   rIconPacker v3.0 - A simple and easy-to-use icons packer and extractor
 *
 *   FEATURES:
 *       - Pack icon images into icon file (.ico, .icns)
@@ -105,7 +105,8 @@
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
 #define TOOL_VERSION            "3.0"
-#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer"
+#define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer and extractor"
+#define TOOL_DESCRIPTION_BREAK  "A simple and easy-to-use\nicons packer and extractor"
 #define TOOL_RELEASE_DATE       "May.2023"
 #define TOOL_LOGO_COLOR         0xffc800ff
 

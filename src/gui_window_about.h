@@ -248,9 +248,9 @@ void GuiWindowAbout(GuiWindowAboutState *state)
         GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
         DrawTechIcon((int)state->windowBounds.x + 10, (int)state->windowBounds.y + 35, 64, TOOL_SHORT_NAME, 20, true, GetColor(TOOL_LOGO_COLOR));
         
-        bool singleLine = true;
+        bool singleLine = false;
         GuiLabel((Rectangle){ state->windowBounds.x + 85, state->windowBounds.y + (singleLine? 55 : 35), 200, 30 }, TextFormat("%s %s (%s)", TOOL_NAME, TOOL_VERSION, TOOL_RELEASE_DATE));
-        GuiLabel((Rectangle){ state->windowBounds.x + 85, state->windowBounds.y + (singleLine? 78 : 64), (float)state->windowBounds.width, 40 }, singleLine? TOOL_DESCRIPTION : TOOL_DESCRIPTION_BREAK);
+        GuiLabel((Rectangle){ state->windowBounds.x + 85, state->windowBounds.y + (singleLine? 68 : 64), (float)state->windowBounds.width, 40 }, singleLine? TOOL_DESCRIPTION : TOOL_DESCRIPTION_BREAK);
 
         // Draw a background rectangle for convenience
         DrawRectangle((int)state->windowBounds.x + 1, (int)state->windowBounds.y + 110, state->windowBounds.width - 2, 100, FADE(GetColor(GuiGetStyle(DEFAULT, BASE_COLOR_NORMAL)), 0.5f));

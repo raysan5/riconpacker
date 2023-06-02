@@ -10,7 +10,7 @@ BEGIN
     BLOCK "040904E4"	// English US
     BEGIN
 	  VALUE "CompanyName", "raylib technologies"
-      VALUE "FileDescription", "rIconPacker - A simple and easy-to-use icons packer"
+      VALUE "FileDescription", "rIconPacker - A simple and easy-to-use icons packer and extractor"
       VALUE "FileVersion", "3.0"
       VALUE "InternalName", "riconpacker"
       VALUE "LegalCopyright", "(c) 2023 raylib technologies (@raylibtech)"
