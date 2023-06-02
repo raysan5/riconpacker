@@ -275,7 +275,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count);       
 static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
 
 // Misc functions
-const int CountIconPackTextLines(IconPack pack);      // Count text lines available on icon pack
+static unsigned int CountIconPackTextLines(IconPack pack);  // Count text lines available on icon pack
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -2032,7 +2032,7 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
 
 // Get text lines available on icon pack
 // NOTE: Only valid icons considered
-const unsigned int CountIconPackTextLines(IconPack pack)
+static unsigned int CountIconPackTextLines(IconPack pack)
 {
     //static const char *textLines[MAX_PACK_ELEMENTS] = { 0 }; // Pointers array to possible text lines
     unsigned int counter = 0;
