@@ -2157,8 +2157,6 @@ static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket)
             }
         }
     }
-
-    return pack;
 }
 
 static void ResetIconPack(IconPack *pack, int platform)
