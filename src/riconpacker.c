@@ -491,7 +491,7 @@ int main(int argc, char *argv[])
         }
 
         // Show window: icon poem
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_SPACE))
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_SPACE) && (CountIconPackTextLines(currentPack) > 0))
         {
             windowIconPoemActive = !windowIconPoemActive;
         }
@@ -510,7 +510,7 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_F3)) windowSponsorState.windowActive = !windowSponsorState.windowActive;
 
         // Delete selected icon from list
-        if (IsKeyPressed(KEY_DELETE) || btnClearIconImagePressed)
+        if ((IsKeyPressed(KEY_DELETE) && !iconTextEditMode) || btnClearIconImagePressed)
         {
             if (sizeListActive == 0)
             {
@@ -832,8 +832,11 @@ int main(int argc, char *argv[])
 
             // GUI: Status bar
             //----------------------------------------------------------------------------------------
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 130, 24 }, (sizeListActive == 0) ? "IMAGE: ALL" : TextFormat("IMAGE: %ix%i", currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size));
-            GuiStatusBar((Rectangle){ anchorMain.x + 130 - 1, GetScreenHeight() - 24, screenWidth - 129, 24 }, (sizeListActive > 0)? TextFormat("IMAGE TEXT LENGTH: %i/%i", strlen(currentPack.entries[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
+            GuiSetStyle(STATUSBAR, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 136, 24 }, TextFormat("BUCKET COUNT: %i", bucket.count));
+            GuiStatusBar((Rectangle){ anchorMain.x + 136 - 1, GetScreenHeight() - 24, 120, 24 }, TextFormat("PACK COUNT: %i", currentPack.count));
+            GuiStatusBar((Rectangle){ anchorMain.x + 256 - 2, GetScreenHeight() - 24, screenWidth - 252 - 2, 24 }, (sizeListActive > 0)? TextFormat("ICON TEXT: %i/%i", strlen(currentPack.entries[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
+            GuiSetStyle(STATUSBAR, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
             //----------------------------------------------------------------------------------------
 
             // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
@@ -850,20 +853,21 @@ int main(int argc, char *argv[])
 
                 if (textLinesCount > 0)
                 {
-                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 320/2, GetScreenHeight()/2 - (168 + textLinesCount*20)/2 };
-                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 168 + textLinesCount*20 }, "#10#Icon poem found!");
+                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 320/2, GetScreenHeight()/2 - (88 + 50 + textLinesCount*20)/2 };
+                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 24 + 12 + textLinesCount*24 + 12 + 28 + 12 }, "#10#Icon poem found!");
 
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
-                    for (int i = 0; i < currentPack.count; i++)
+                    for (int i = 0, k = 0; i < currentPack.count; i++)
                     {
                         if (currentPack.entries[i].valid && (currentPack.entries[i].text[0] != '\0'))
                         {
-                            GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 40 + 30*i, 320 - 24, 20 }, TextFormat("%s", currentPack.entries[i].text));
+                            GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 24 + 12 + 24*k, 320 - 24, 24 }, TextFormat("%s", currentPack.entries[i].text));
+                            k++;
                         }
                     }
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
 
-                    if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 128 + textLinesCount*20, 320 - 24, 28 }, "#186#I love it!"))
+                    if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 24 + 12 + textLinesCount*24 + 12, 320 - 24, 28 }, "#186#I love it!"))
                     {
                         windowIconPoemActive = false;
                     }
@@ -891,7 +895,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (windowExportActive)
             {
-                Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 200/2, 248, 140 };
+                Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 200/2, 248, 112 };
                 int result = GuiMessageBox(messageBox, "#7#Export Icon File", " ", "#7#Export Icon");
 
                 GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 24, 106, 24 }, "Icon Format:");
@@ -900,7 +904,7 @@ int main(int argc, char *argv[])
                 GuiComboBox((Rectangle){ messageBox.x + 12 + 88, messageBox.y + 12 + 24, 136, 24 }, (mainToolbarState.platformActive == 1)? "Icon (.ico);Images (.png);Icns (.icns)" : "Icon (.ico);Images (.png)", &exportFormatActive);
 
                 // WARNING: exportTextChunkChecked is used as a global variable required by SaveICO() and SaveICNS() funtions
-                GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export text poem with icon", &exportTextChunkChecked);
+                //GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export text poem with icon", &exportTextChunkChecked);
 
                 if (result == 1)    // Export button pressed
                 {
@@ -973,16 +977,53 @@ int main(int argc, char *argv[])
                     else if (exportFormatActive == 1) ExportIconPackImages(currentPack.entries, currentPack.count, outFileName);
                     else if (exportFormatActive == 2) SaveIconPackToICNS(currentPack.entries, currentPack.count, outFileName);
 
+                    /*
+                    // Testing packaging exported icons into a .zip file -> WORKS
+                    if (exportFormatActive == 1)
+                    {
+                        // Package all created image files (in browser File-System) into a .zip to be exported
+                        mz_zip_archive zip = { 0 };
+                        mz_bool mz_ret = mz_zip_writer_init_file(&zip, TextFormat("%s.zip", outFileName), 0);
+                        if (!mz_ret) printf("Could not initialize zip archive\n");
+
+                        for (int i = 0; i < currentPack.count; i++)
+                        {
+                            if (currentPack.entries[i].valid)
+                            {
+                                mz_ret = mz_zip_writer_add_file(&zip, 
+                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                    TextFormat("%s/%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                    "Comment", (mz_uint16)strlen("Comment"), MZ_BEST_SPEED);
+                                if (!mz_ret) printf("Could not add file to zip archive\n");
+                            }
+                        }
+
+                        mz_ret = mz_zip_writer_finalize_archive(&zip);
+                        if (!mz_ret) printf("Could not finalize zip archive\n");
+
+                        mz_ret = mz_zip_writer_end(&zip);
+                        if (!mz_ret) printf("Could not finalize zip writer\n");
+                    }
+                    */
                 #if defined(PLATFORM_WEB)
                     if (exportFormatActive == 1)
                     {
                         // Package all created image files (in browser File-System) into a .zip to be exported
                         mz_zip_archive zip = { 0 };
-                        mz_bool mz_ret = mz_zip_writer_init_file(&zip, TextFormat("%s.zip", fileName), 0);
+                        mz_bool mz_ret = mz_zip_writer_init_file(&zip, TextFormat("%s.zip", outFileName), 0);
                         if (!mz_ret) printf("Could not initialize zip archive\n");
 
-                        mz_ret = mz_zip_writer_add_file(&zip, TextFormat("%s.zip", fileName), TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(fileName), entries[i].image.width, entries[i].image.height), NULL, 0, MZ_BEST_SPEED);
-                        if (!mz_ret) printf("Could not add file to zip archive\n");
+                        for (int i = 0; i < currentPack.count; i++)
+                        {
+                            if (currentPack.entries[i].valid)
+                            {
+                                mz_ret = mz_zip_writer_add_file(&zip, 
+                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                    TextFormat("%s\\%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                    "Comment", (mz_uint16)strlen("Comment"), MZ_BEST_SPEED);
+                                if (!mz_ret) printf("Could not add file to zip archive\n");
+                            }
+                        }
 
                         mz_ret = mz_zip_writer_finalize_archive(&zip);
                         if (!mz_ret) printf("Could not finalize zip archive\n");
@@ -1670,7 +1711,7 @@ static void ExportIconPackImages(IconEntry *entries, int entryCount, const char 
             if (!status) LOG("WARNING: Zip accumulation process failed\n");
 #else
             // Save every PNG file individually
-            SaveFileData(TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(fileName), entries[i].image.width, entries[i].image.height), pngDataPtrs[i], fileSize);
+            SaveFileData(TextFormat("%s/%s_%ix%i.png", GetDirectoryPath(fileName), GetFileNameWithoutExt(fileName), entries[i].image.width, entries[i].image.height), pngDataPtrs[i], fileSize);
 #endif
             k++;
         }
