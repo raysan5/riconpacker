@@ -178,6 +178,7 @@ bool __stdcall FreeConsole(void);           // Close console from code (kernel32
 #endif
 
 #define MAX_ICON_BUCKET_SIZE    64          // Maximum icon image entries in the bucket
+#define MAX_PACK_ELEMENTS       12          // Maximum elements in pack
 
 #define MAX_IMAGE_TEXT_SIZE     48          // Maximum image text size for text poem lines
 
@@ -207,9 +208,9 @@ typedef struct {
 
 // Icon pack (platform specific)
 typedef struct {
-    IconEntry entries[12];      // Pack entries (capacity = 12, not all used)
-    Texture2D textures[12];     // Pack textures
-    unsigned int count;         // Pack entries count, only used ones by platform!
+    IconEntry entries[MAX_PACK_ELEMENTS];   // Pack entries (fixed capacity)
+    Texture2D textures[MAX_PACK_ELEMENTS];  // Pack textures
+    unsigned int count;                     // Pack entries count, only used ones by platform!
 } IconPack;
 
 // Icon platform type
@@ -612,23 +613,23 @@ int main(int argc, char *argv[])
         packValidCount = 0;
         for (int i = 0; i < currentPack.count; i++) if (currentPack.entries[i].valid) packValidCount++;
 
-        // TODO: Generate new icon image (using biggest available image)
+        // Generate new icon image, using inmmediately bigger available image in the pack
         if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_G)) || btnGenIconImagePressed)
         {
-            // Get bigger available input image in bucket
-            int biggerSizeIndex = 0;
-            int biggerSize = bucket.entries[0].size;
-            for (int i = 1; i < bucket.count; i++)
-            {
-                if (bucket.entries[i].size > biggerSize)
-                {
-                    biggerSize = bucket.entries[i].size;
-                    biggerSizeIndex = i;
-                }
-            }
-
             if (sizeListActive == 0)
             {
+                // Get bigger available input image in bucket
+                int biggerSizeIndex = 0;
+                int biggerSize = bucket.entries[0].size;
+                for (int i = 1; i < bucket.count; i++)
+                {
+                    if (bucket.entries[i].size > biggerSize)
+                    {
+                        biggerSize = bucket.entries[i].size;
+                        biggerSizeIndex = i;
+                    }
+                }
+
                 // Generate all missing entries in the series
                 for (int i = 0; i < currentPack.count; i++)
                 {
@@ -636,10 +637,14 @@ int main(int argc, char *argv[])
                     {
                         if (currentPack.entries[i].generated) UnloadImage(currentPack.entries[i].image);
                         else currentPack.entries[i].image = (Image){ 0 };   // Unlink from bucket image
-                        currentPack.entries[i].image = ImageCopy(bucket.entries[biggerSizeIndex].image);
+                        //currentPack.entries[i].image = ImageCopy(bucket.entries[biggerSizeIndex].image);
 
-                        if (scaleAlgorythmActive == 0) ImageResizeNN(&currentPack.entries[i].image, currentPack.entries[i].size, currentPack.entries[i].size);
-                        else if (scaleAlgorythmActive == 1) ImageResize(&currentPack.entries[i].image, currentPack.entries[i].size, currentPack.entries[i].size);
+                        Image newImage = ImageCopy(bucket.entries[biggerSizeIndex].image);
+
+                        if (scaleAlgorythmActive == 0) ImageResizeNN(&newImage, currentPack.entries[i].size, currentPack.entries[i].size);
+                        else if (scaleAlgorythmActive == 1) ImageResize(&newImage, currentPack.entries[i].size, currentPack.entries[i].size);
+
+                        currentPack.entries[i].image = newImage;
 
                         UnloadTexture(currentPack.textures[i]);
                         currentPack.textures[i] = LoadTextureFromImage(currentPack.entries[i].image);
@@ -651,15 +656,36 @@ int main(int argc, char *argv[])
             }
             else
             {
+                // Get inmmediately bigger available image in the pack
+                int biggerSizeIndex = 0;
+                int biggerSize = 0;
+                for (int i = currentPack.count; i >= 0; i--)
+                {
+                    if (currentPack.entries[i].valid)
+                    {
+                        biggerSize = currentPack.entries[i].size;
+
+                        if (biggerSize > currentPack.entries[sizeListActive - 1].size)
+                        {
+                            biggerSizeIndex = i;
+                            break;
+                        }
+                    }
+                }
+
                 // Generate only selected missing size
                 if (!currentPack.entries[sizeListActive - 1].valid)
                 {
                     if (currentPack.entries[sizeListActive - 1].generated) UnloadImage(currentPack.entries[sizeListActive - 1].image);
                     else currentPack.entries[sizeListActive - 1].image = (Image){ 0 };   // Unlink from bucket image
-                    currentPack.entries[sizeListActive - 1].image = ImageCopy(bucket.entries[biggerSizeIndex].image);
+                    //currentPack.entries[sizeListActive - 1].image = ImageCopy(bucket.entries[biggerSizeIndex].image);
 
-                    if (scaleAlgorythmActive == 0) ImageResizeNN(&currentPack.entries[sizeListActive - 1].image, currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size);
-                    else if (scaleAlgorythmActive == 1) ImageResize(&currentPack.entries[sizeListActive - 1].image, currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size);
+                    Image newImage = ImageCopy(currentPack.entries[biggerSizeIndex].image);
+
+                    if (scaleAlgorythmActive == 0) ImageResizeNN(&newImage, currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size);
+                    else if (scaleAlgorythmActive == 1) ImageResize(&newImage, currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size);
+
+                    currentPack.entries[sizeListActive - 1].image = newImage;
 
                     UnloadTexture(currentPack.textures[sizeListActive - 1]);
                     currentPack.textures[sizeListActive - 1] = LoadTextureFromImage(currentPack.entries[sizeListActive - 1].image);
@@ -763,6 +789,8 @@ int main(int argc, char *argv[])
                             anchorMain.y + 52 + 128 - currentPack.entries[sizeListActive - 1].size*scaling/2, 
                             currentPack.entries[sizeListActive - 1].size*scaling, currentPack.entries[sizeListActive - 1].size*scaling }, NULL);
                     }
+
+                    if (scaling < 1.0f) DrawText(TextFormat("SCALE: %0.2f", scaling), (int)anchorMain.x + 135 + 10, (int)anchorMain.y + 52 + 256 - 24, 20, GREEN);
                 }
                 else
                 {
@@ -822,20 +850,20 @@ int main(int argc, char *argv[])
 
                 if (textLinesCount > 0)
                 {
-                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 260/2, GetScreenHeight()/2 - 160/2 };
-                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 260, 150 + textLinesCount*20 }, "#10#Icon Poem Found!");
+                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 320/2, GetScreenHeight()/2 - (168 + textLinesCount*20)/2 };
+                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 168 + textLinesCount*20 }, "#10#Icon poem found!");
 
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
                     for (int i = 0; i < currentPack.count; i++)
                     {
                         if (currentPack.entries[i].valid && (currentPack.entries[i].text[0] != '\0'))
                         {
-                            GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 60 + 20*i, 260 - 24, 20 }, TextFormat("[%i] %s", currentPack.entries[i].size, currentPack.entries[i].text));
+                            GuiLabel((Rectangle){ windowIconPoemOffset.x + 12, windowIconPoemOffset.y + 40 + 30*i, 320 - 24, 20 }, TextFormat("%s", currentPack.entries[i].text));
                         }
                     }
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
 
-                    if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 110, 240, 30 }, "#186#I love it!"))
+                    if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 128 + textLinesCount*20, 320 - 24, 28 }, "#186#I love it!"))
                     {
                         windowIconPoemActive = false;
                     }
@@ -1478,15 +1506,19 @@ static IconEntry *LoadIconPackFromICO(const char *fileName, int *count)
                 //  - PNG format, stored in its entirety
                 // NOTE: We are only supporting the PNG format, not BMP data
                 entries[i].image = LoadImageFromMemory(".png", icoImageData, icoDirEntry[i].size);
-                entries[i].size = entries[i].image.width;   // Icon size (expected squared)
-                entries[i].valid = false;                   // Not valid until it is checked against the current package (sizes)
 
-                // Read custom rIconPacker text chunk from PNG
-                rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
-                memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
-                RPNG_FREE(chunk.data);
+                if ((entries[i].image.data != NULL) && (entries[i].image.width != 0))
+                {
+                    entries[i].size = entries[i].image.width;   // Icon size (expected squared)
+                    entries[i].valid = false;                   // Not valid until it is checked against the current package (sizes)
 
-                imageCounter++;
+                    // Read custom rIconPacker text chunk from PNG
+                    rpng_chunk chunk = rpng_chunk_read_from_memory(icoImageData, "rIPt");
+                    memcpy(entries[i].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+                    RPNG_FREE(chunk.data);
+
+                    imageCounter++;
+                }
             }
 
             RL_FREE(icoImageData);
@@ -1737,26 +1769,33 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                         /*
                         int colors, bits;
                         int width, height;
-                        char *data = rpng_load_image_from_memory(icnImageData, &width, &height, &colors, &bits);
+                        char *data = rpng_load_image_from_memory(icnImageData, &width, &height, &colors, &bits); // Image loaded successfully
                         Image image = {
                             .width = width,
                             .height = height,
                             .mipmaps = 1,
                             .data = data,
-                            .format = 7
+                            .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
                         };
+                        entries[imageCounter].image = image;
+                        //if (image.width == 512) ExportImage(image, "D:\\testing_512x512.png");    // Image saved successfully, no lost pixels
                         */
+                        
                         entries[imageCounter].image = LoadImageFromMemory(".png", icnImageData, icnSize);
-                        entries[imageCounter].size = entries[imageCounter].image.width;   // Icon size (expected squared)
-                        entries[imageCounter].valid = false;    // Not valid until it is checked against the current package (sizes)
-                        entries[imageCounter].generated = false;
 
-                        // Read custom rIconPacker text chunk from PNG
-                        rpng_chunk chunk = rpng_chunk_read_from_memory(icnImageData, "rIPt");
-                        memcpy(entries[imageCounter].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
-                        RPNG_FREE(chunk.data);
+                        if ((entries[imageCounter].image.data != NULL) && (entries[imageCounter].image.width != 0))
+                        {
+                            entries[imageCounter].size = entries[imageCounter].image.width;   // Icon size (expected squared)
+                            entries[imageCounter].valid = false;    // Not valid until it is checked against the current package (sizes)
+                            entries[imageCounter].generated = false;
 
-                        imageCounter++;
+                            // Read custom rIconPacker text chunk from PNG
+                            rpng_chunk chunk = rpng_chunk_read_from_memory(icnImageData, "rIPt");
+                            memcpy(entries[imageCounter].text, chunk.data, (chunk.length < MAX_IMAGE_TEXT_SIZE)? chunk.length : MAX_IMAGE_TEXT_SIZE - 1);
+                            RPNG_FREE(chunk.data);
+
+                            imageCounter++;
+                        }
                     }
                     else LOG("WARNING: ICNS data format not supported\n");
 
@@ -1954,7 +1993,7 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
 // NOTE: Only valid icons considered
 const unsigned int CountIconPackTextLines(IconPack pack)
 {
-    //static const char *textLines[12] = { 0 }; // Pointers array to possible text lines
+    //static const char *textLines[MAX_PACK_ELEMENTS] = { 0 }; // Pointers array to possible text lines
     unsigned int counter = 0;
 
     for (int i = 0; i < pack.count; i++)
@@ -2065,10 +2104,13 @@ static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket)
             if (bucket.entries[i].size == pack->entries[k].size)
             {
                 if (pack->entries[k].generated) UnloadImage(pack->entries[k].image);
-                if (pack->entries[k].valid) UnloadTexture(pack->textures[k]);
-
+                
                 pack->entries[k] = bucket.entries[i];
-                pack->textures[k] = LoadTextureFromImage(bucket.entries[i].image);
+
+                UnloadTexture(pack->textures[k]); 
+                pack->textures[k] = (Texture2D){ 0 };
+                pack->textures[k] = LoadTextureFromImage(pack->entries[k].image);
+
                 pack->entries[k].valid = true;
                 pack->entries[k].generated = false;
             }
@@ -2080,12 +2122,15 @@ static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket)
 
 static void ResetIconPack(IconPack *pack, int platform)
 {
-    // Clear current pack
-    for (int i = 0; i < pack->count; i++)
+    // Clear full pack
+    for (int i = 0; i < MAX_PACK_ELEMENTS; i++)
     {
         if (pack->entries[i].generated) UnloadImage(pack->entries[i].image);
         else pack->entries[i].image = (Image){ 0 };      // Remove bucket image (not unload)
+        
         UnloadTexture(pack->textures[i]);
+        pack->textures[i] = (Texture2D){ 0 };
+
         memset(pack->entries[i].text, 0, MAX_IMAGE_TEXT_SIZE);
         pack->entries[i].generated = false;
         pack->entries[i].valid = false;
