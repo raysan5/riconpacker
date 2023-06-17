@@ -11,7 +11,7 @@
 *       - Define custom text data per icon image: icon-poems
 *       - Extract and export icon images as .png files
 *       - WEB: Download exported images as a .zip file
-* 
+*
 *   LIMITATIONS:
 *       - Supports only .ico/.icns files containing .png image data (import/export)
 *       - Supports only several OSTypes for .icns image files (modern OSTypes)
@@ -34,14 +34,14 @@
 *                           ADDED: Support for load/save .icns files
 *                           ADDED: Icon-poem window on icon text loading
 *                           ADDED: SaveImages() to export .png image pack
-*                           REMOVED: Input file format .jpg 
+*                           REMOVED: Input file format .jpg
 *                           REVIEWED: Updated UI to raygui 4.0-dev
 *                           REVIEWED: SaveICO(), avoid ico/image export at one
 *                           REVIEWED: Image packaging into a single .zip not default
 *                           REVIEWED: Command-line interface, using icon bucket
 *                           REDESIGNED: Structure to support icon bucket
 *                           REDESIGNED: Using raygui 4.0-dev
-* 
+*
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
 *                           REDESIGNED: Main toolbar to add tooltips
 *                           REVIEWED: Help window implementation
@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
     bool showLoadFileDialog = false;
     bool showExportFileDialog = false;
     //bool showExportImageDialog = false;
-     
+
     bool windowIconPoemActive = false;
     //-----------------------------------------------------------------------------------
 
@@ -786,8 +786,8 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        GuiPanel((Rectangle){ anchorMain.x + 135 + 128 - currentPack.entries[sizeListActive - 1].size*scaling/2, 
-                            anchorMain.y + 52 + 128 - currentPack.entries[sizeListActive - 1].size*scaling/2, 
+                        GuiPanel((Rectangle){ anchorMain.x + 135 + 128 - currentPack.entries[sizeListActive - 1].size*scaling/2,
+                            anchorMain.y + 52 + 128 - currentPack.entries[sizeListActive - 1].size*scaling/2,
                             currentPack.entries[sizeListActive - 1].size*scaling, currentPack.entries[sizeListActive - 1].size*scaling }, NULL);
                     }
 
@@ -803,8 +803,8 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        GuiPanel((Rectangle){ anchorMain.x + 135 + 128 - currentPack.entries[sizeListActive - 1].size/2, 
-                            anchorMain.y + 52 + 128 - currentPack.entries[sizeListActive - 1].size/2, 
+                        GuiPanel((Rectangle){ anchorMain.x + 135 + 128 - currentPack.entries[sizeListActive - 1].size/2,
+                            anchorMain.y + 52 + 128 - currentPack.entries[sizeListActive - 1].size/2,
                             currentPack.entries[sizeListActive - 1].size, currentPack.entries[sizeListActive - 1].size }, NULL);
                     }
                 }
@@ -904,7 +904,7 @@ int main(int argc, char *argv[])
                 // NOTE: If current platform is macOS, we support .icns file export
                 GuiComboBox((Rectangle){ messageBox.x + 12 + 88, messageBox.y + 12 + 24, 136, 24 }, (mainToolbarState.platformActive == 1)? "Icon (.ico);Images (.png);Icns (.icns)" : "Icon (.ico);Images (.png)", &exportFormatActive);
 
-                // WARNING: exportTextChunkChecked is used as a global variable required by SaveICO() and SaveICNS() funtions
+                // WARNING: exportTextChunkChecked is used as a global variable required by SaveICO() and SaveICNS() functions
                 //GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 48 + 24, 16, 16 }, "Export text poem with icon", &exportTextChunkChecked);
 
                 if (result == 1)    // Export button pressed
@@ -991,9 +991,9 @@ int main(int argc, char *argv[])
                         {
                             if (currentPack.entries[i].valid)
                             {
-                                mz_ret = mz_zip_writer_add_file(&zip, 
-                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
-                                    TextFormat("%s/%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                mz_ret = mz_zip_writer_add_file(&zip,
+                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height),
+                                    TextFormat("%s/%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height),
                                     "Comment", (mz_uint16)strlen("Comment"), MZ_BEST_SPEED);
                                 if (!mz_ret) printf("Could not add file to zip archive\n");
                             }
@@ -1018,9 +1018,9 @@ int main(int argc, char *argv[])
                         {
                             if (currentPack.entries[i].valid)
                             {
-                                mz_ret = mz_zip_writer_add_file(&zip, 
-                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
-                                    TextFormat("%s\\%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height), 
+                                mz_ret = mz_zip_writer_add_file(&zip,
+                                    TextFormat("%s_%ix%i.png", GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height),
+                                    TextFormat("%s\\%s_%ix%i.png", GetDirectoryPath(outFileName), GetFileNameWithoutExt(outFileName), currentPack.entries[i].image.width, currentPack.entries[i].image.height),
                                     "Comment", (mz_uint16)strlen("Comment"), MZ_BEST_SPEED);
                                 if (!mz_ret) printf("Could not add file to zip archive\n");
                             }
@@ -1311,7 +1311,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 
         printf(" > PROCESSING INPUT FILES\n");
 
-        // Load input files (all of them) into bucket, 
+        // Load input files (all of them) into bucket,
         // NOTE: If one size has been previously loaded, it is overriden
         for (int i = 0; i < inputFilesCount; i++)
         {
@@ -1822,7 +1822,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                         entries[imageCounter].image = image;
                         //if (image.width == 512) ExportImage(image, "D:\\testing_512x512.png");    // Image saved successfully, no lost pixels
                         */
-                        
+
                         entries[imageCounter].image = LoadImageFromMemory(".png", icnImageData, icnSize);
 
                         if ((entries[imageCounter].image.data != NULL) && (entries[imageCounter].image.width != 0))
@@ -1877,7 +1877,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 }
 
 // Save icns file (Apple)
-// LIMITATIONS: 
+// LIMITATIONS:
 //  - Supported OS Version: >=10.7
 //  - Supported PNG compressed images only
 //  - Supported OSTypes [8]: ic11, SB24, ic12, ic07, ic13, ic14, ic10
@@ -1965,8 +1965,8 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
         // unsigned char icnsId[4] = { 0x69, 0x63, 0x6e, 0x73 };     // "icns"
         fwrite("icns", 1, 4, icnsFile);
 
-        // ICNS file size, all file including header, 
-        // We init it with expected chunck size but 
+        // ICNS file size, all file including header,
+        // We init it with expected chunck size but
         // we need to accumulate every generated PNG size
         unsigned int icnsFileSize = 8 + 8*packValidCount;
         for (int i = 0; i < packValidCount; i++) icnsFileSize += pngDataSizes[i];
@@ -2146,10 +2146,10 @@ static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket)
             if (bucket.entries[i].size == pack->entries[k].size)
             {
                 if (pack->entries[k].generated) UnloadImage(pack->entries[k].image);
-                
+
                 pack->entries[k] = bucket.entries[i];
 
-                UnloadTexture(pack->textures[k]); 
+                UnloadTexture(pack->textures[k]);
                 pack->textures[k] = (Texture2D){ 0 };
                 pack->textures[k] = LoadTextureFromImage(pack->entries[k].image);
 
@@ -2167,7 +2167,7 @@ static void ResetIconPack(IconPack *pack, int platform)
     {
         if (pack->entries[i].generated) UnloadImage(pack->entries[i].image);
         else pack->entries[i].image = (Image){ 0 };      // Remove bucket image (not unload)
-        
+
         UnloadTexture(pack->textures[i]);
         pack->textures[i] = (Texture2D){ 0 };
 
