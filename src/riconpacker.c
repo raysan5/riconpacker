@@ -47,7 +47,7 @@
 *                           REVIEWED: Help window implementation
 *
 *       2.1  (10-Oct-2022)  ADDED: Sponsor window for tools support
-*                           Updated to raylib 4.5-dev and raygui 3.5-dev
+*                           UPDATED: Using 4.5-dev and raygui 3.5-dev
 *
 *       2.0  (04-Oct-2022)  ADDED: Support text info data for every icon image
 *                           ADDED: Export icon images as a .zip package
@@ -55,10 +55,10 @@
 *                           ADDED: Help window with keyboard shortcuts info
 *                           ADDED: Multiple new gui styles
 *                           REDESIGNED: UI to follow raylibtech UI conventions
-*                           Updated to raylib 4.2 and raygui 3.2
+*                           UPDATED: Using 4.2 and raygui 3.2
 *                           Source code re-licensed to open-source
 *
-*       1.5  (30-Dec-2021)  Updated to raylib 4.0 and raygui 3.1
+*       1.5  (30-Dec-2021)  UPDATED: Using 4.0 and raygui 3.1
 *       1.0  (23-Mar-2019)  First release
 *
 *   DEPENDENCIES:
