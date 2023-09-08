@@ -35,12 +35,12 @@
 *                           ADDED: Icon-poem window on icon text loading
 *                           ADDED: SaveImages() to export .png image pack
 *                           REMOVED: Input file format .jpg
-*                           REVIEWED: Updated UI to raygui 4.0-dev
+*                           REVIEWED: Updated UI to raygui 4.0    
 *                           REVIEWED: SaveICO(), avoid ico/image export at one
 *                           REVIEWED: Image packaging into a single .zip not default
 *                           REVIEWED: Command-line interface, using icon bucket
 *                           REDESIGNED: Structure to support icon bucket
-*                           REDESIGNED: Using raygui 4.0-dev
+*                           REDESIGNED: Using raygui 4.0    
 *
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
 *                           REDESIGNED: Main toolbar to add tooltips
@@ -63,9 +63,9 @@
 *
 *   DEPENDENCIES:
 *       raylib 4.6-dev          - Windowing/input management and drawing
-*       raygui 4.0-dev          - Immediate-mode GUI controls with custom styling and icons
-*       rpng 1.0                - PNG chunks management
-*       tinyfiledialogs 3.13.1  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
+*       raygui 4.0              - Immediate-mode GUI controls with custom styling and icons
+*       rpng 1.1                - PNG chunks management
+*       tinyfiledialogs 3.13.3  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
 *   BUILDING:
