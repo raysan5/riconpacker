@@ -399,6 +399,8 @@ int main(int argc, char *argv[])
         // Update current pack with bucket data
         UpdateIconPackFromBucket(&currentPack, bucket);
     }
+    RenderTexture2D screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    //SetTextureFilter(screenTarget.texture, TEXTURE_FILTER_POINT); unsure whether this is needed                                                
 
     SetTargetFPS(60);       // Set our game frames-per-second
     //--------------------------------------------------------------------------------------
@@ -499,7 +501,7 @@ int main(int argc, char *argv[])
 
 #if defined(PLATFORM_DESKTOP)
         // Toggle screen size (x2) mode
-        //if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
 #endif
         // Toggle window: help
         if (IsKeyPressed(KEY_F1)) windowHelpState.windowActive = !windowHelpState.windowActive;
@@ -712,7 +714,7 @@ int main(int argc, char *argv[])
 
         // Screen scale logic (x2) -> Not used in this tool
         //----------------------------------------------------------------------------------
-        /*
+        
         if (screenSizeActive)
         {
             // Screen size x2
@@ -731,7 +733,7 @@ int main(int argc, char *argv[])
                 SetMouseScale(1.0f, 1.0f);
             }
         }
-        */
+        
         //----------------------------------------------------------------------------------
 
 
@@ -748,7 +750,7 @@ int main(int argc, char *argv[])
 
         // Draw
         //----------------------------------------------------------------------------------
-        BeginDrawing();
+        BeginTextureMode(screenTarget);
 
             ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
@@ -834,13 +836,13 @@ int main(int argc, char *argv[])
             // GUI: Status bar
             //----------------------------------------------------------------------------------------
             GuiSetStyle(STATUSBAR, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
-            GuiStatusBar((Rectangle){ anchorMain.x + 0, GetScreenHeight() - 24, 136, 24 }, TextFormat("BUCKET COUNT: %i", bucket.count));
-            GuiStatusBar((Rectangle){ anchorMain.x + 136 - 1, GetScreenHeight() - 24, 120, 24 }, TextFormat("PACK COUNT: %i", currentPack.count));
-            GuiStatusBar((Rectangle){ anchorMain.x + 256 - 2, GetScreenHeight() - 24, screenWidth - 252 - 2, 24 }, (sizeListActive > 0)? TextFormat("ICON TEXT: %i/%i", strlen(currentPack.entries[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
+            GuiStatusBar((Rectangle){ anchorMain.x + 0, screenHeight - 24, 136, 24 }, TextFormat("BUCKET COUNT: %i", bucket.count));
+            GuiStatusBar((Rectangle){ anchorMain.x + 136 - 1, screenHeight - 24, 120, 24 }, TextFormat("PACK COUNT: %i", currentPack.count));
+            GuiStatusBar((Rectangle){ anchorMain.x + 256 - 2, screenHeight - 24, screenWidth - 252 - 2, 24 }, (sizeListActive > 0)? TextFormat("ICON TEXT: %i/%i", strlen(currentPack.entries[sizeListActive - 1].text), MAX_IMAGE_TEXT_SIZE - 1) : NULL);
             GuiSetStyle(STATUSBAR, TEXT_ALIGNMENT, TEXT_ALIGN_LEFT);
             //----------------------------------------------------------------------------------------
 
-            // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle
+            // NOTE: If some overlap window is open and main window is locked, we draw a background rectangle, probably too big in 2x mode
             if (GuiIsLocked()) DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)), 0.85f));
 
             // WARNING: Before drawing the windows, we unlock them
@@ -879,16 +881,22 @@ int main(int argc, char *argv[])
 
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
+            windowHelpState.windowBounds.x = (float)screenWidth/2 - windowHelpState.windowBounds.width/2;
+            windowHelpState.windowBounds.y = (float)screenHeight/2 - windowHelpState.windowBounds.height/2 - 20;
             GuiWindowHelp(&windowHelpState);
             //----------------------------------------------------------------------------------------
 
             // GUI: About Window
             //----------------------------------------------------------------------------------------
+            windowAboutState.windowBounds.x = (float)screenWidth/2 - windowAboutState.windowBounds.width/2;
+            windowAboutState.windowBounds.y = (float)screenHeight/2 - windowAboutState.windowBounds.height/2 - 20;
             GuiWindowAbout(&windowAboutState);
             //----------------------------------------------------------------------------------------
 
             // GUI: Sponsor Window
             //----------------------------------------------------------------------------------------
+            windowSponsorState.windowBounds.x = (float)screenWidth/2 - windowSponsorState.windowBounds.width/2;
+            windowSponsorState.windowBounds.y = (float)screenHeight/2 - windowSponsorState.windowBounds.height/2 - 20;
             GuiWindowSponsor(&windowSponsorState);
             //----------------------------------------------------------------------------------------
 
@@ -920,7 +928,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (windowExitActive)
             {
-                int result = GuiMessageBox((Rectangle){ GetScreenWidth()/2.0f - 125, GetScreenHeight()/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
+                int result = GuiMessageBox((Rectangle){ screenWidth/2.0f - 125, screenHeight/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
 
                 if ((result == 0) || (result == 2)) windowExitActive = false;
                 else if (result == 1) closeWindow = true;
@@ -1081,6 +1089,14 @@ int main(int argc, char *argv[])
             */
             //----------------------------------------------------------------------------------------
 
+        EndTextureMode();
+        
+        BeginDrawing();
+        
+            //texture created previously drawn on screen with right scale
+            if (screenSizeActive) DrawTexturePro(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Rectangle){ 0, 0, (float)screenTarget.texture.width*2, (float)screenTarget.texture.height*2 }, (Vector2){ 0, 0 }, 0.0f, WHITE);
+            else DrawTextureRec(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);            
+        
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
