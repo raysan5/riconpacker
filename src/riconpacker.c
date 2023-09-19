@@ -244,7 +244,7 @@ static unsigned int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 }; 
 static IconBucket bucket = { 0 };           // Icon image bucket
 
 static IconPack currentPack = { 0 };
-static int platform = ICON_PLATFORM_WINDOWS;
+//static int platform = ICON_PLATFORM_WINDOWS;
 static int *platformSizes = icoSizesWindows;
 static int platformSizeCount = 8;
 static int packValidCount = 0;              // Valid ico entries counter
@@ -2074,7 +2074,7 @@ static unsigned int CountIconPackTextLines(IconPack pack)
 static void AddIconToBucket(IconBucket *bucket, const char *fileName)
 {
     IconEntry *entries = NULL;
-    unsigned int imageCount = 0;
+    int imageCount = 0;
 
     // Load all available entries
     if (IsFileExtension(fileName, ".ico")) entries = LoadIconPackFromICO(fileName, &imageCount);
