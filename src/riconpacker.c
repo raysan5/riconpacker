@@ -29,6 +29,10 @@
 *           NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
+*       3.0  (19-Sep-2023)  **RE-RELEASE**
+*                           ADDED: Support screen scaling x2
+*                           UPDATED: Using raygui 4.0, latest GuiTextBox() features
+*                           
 *       3.0  (28-May-2023)  ADDED: Support macOS builds (x86_64 + arm64)
 *                           ADDED: New platform template: macOS
 *                           ADDED: Support for load/save .icns files
@@ -40,7 +44,7 @@
 *                           REVIEWED: Image packaging into a single .zip not default
 *                           REVIEWED: Command-line interface, using icon bucket
 *                           REDESIGNED: Structure to support icon bucket
-*                           REDESIGNED: Using raygui 4.0    
+*                           REDESIGNED: Using raygui 4.0-dev   
 *
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
 *                           REDESIGNED: Main toolbar to add tooltips
@@ -107,7 +111,7 @@
 #define TOOL_VERSION            "3.0"
 #define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer and extractor"
 #define TOOL_DESCRIPTION_BREAK  "A simple and easy-to-use\nicons packer and extractor"
-#define TOOL_RELEASE_DATE       "May.2023"
+#define TOOL_RELEASE_DATE       "Sep.2023"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
 #include "raylib.h"
