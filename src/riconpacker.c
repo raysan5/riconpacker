@@ -250,6 +250,8 @@ static int sizeListActive = 0;              // Current list text entry
 // WARNING: This global is required by export functions
 static bool exportTextChunkChecked = true;  // Flag to embed text as a PNG chunk (rIPt)
 
+static RenderTexture screenTarget = { 0 };
+
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
@@ -348,6 +350,9 @@ int main(int argc, char *argv[])
 
     bool iconTextEditMode = false;
     bool screenSizeActive = false;
+
+    screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    SetTextureFilter(screenTarget.texture, TEXTURE_FILTER_BILINEAR);                                           
     //-----------------------------------------------------------------------------------
 
     // GUI: Main toolbar panel (file and visualization)
@@ -399,8 +404,6 @@ int main(int argc, char *argv[])
         // Update current pack with bucket data
         UpdateIconPackFromBucket(&currentPack, bucket);
     }
-    RenderTexture2D screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-    //SetTextureFilter(screenTarget.texture, TEXTURE_FILTER_POINT); unsure whether this is needed                                                
 
     SetTargetFPS(60);       // Set our game frames-per-second
     //--------------------------------------------------------------------------------------
@@ -712,9 +715,8 @@ int main(int argc, char *argv[])
         }
         //----------------------------------------------------------------------------------
 
-        // Screen scale logic (x2) -> Not used in this tool
+        // Screen scale logic (x2)
         //----------------------------------------------------------------------------------
-        
         if (screenSizeActive)
         {
             // Screen size x2
@@ -733,7 +735,6 @@ int main(int argc, char *argv[])
                 SetMouseScale(1.0f, 1.0f);
             }
         }
-        
         //----------------------------------------------------------------------------------
 
 
@@ -856,7 +857,7 @@ int main(int argc, char *argv[])
 
                 if (textLinesCount > 0)
                 {
-                    Vector2 windowIconPoemOffset = (Vector2){ GetScreenWidth()/2 - 320/2, GetScreenHeight()/2 - (88 + 50 + textLinesCount*20)/2 };
+                    Vector2 windowIconPoemOffset = (Vector2){ (float)screenWidth/2 - 320/2, (float)screenHeight/2 - (88 + 50 + textLinesCount*20)/2 };
                     windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 24 + 12 + textLinesCount*24 + 12 + 28 + 12 }, "#10#Icon poem found!");
 
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
@@ -882,21 +883,21 @@ int main(int argc, char *argv[])
             // GUI: Help Window
             //----------------------------------------------------------------------------------------
             windowHelpState.windowBounds.x = (float)screenWidth/2 - windowHelpState.windowBounds.width/2;
-            windowHelpState.windowBounds.y = (float)screenHeight/2 - windowHelpState.windowBounds.height/2 - 20;
+            windowHelpState.windowBounds.y = (float)screenHeight/2 - windowHelpState.windowBounds.height/2;
             GuiWindowHelp(&windowHelpState);
             //----------------------------------------------------------------------------------------
 
             // GUI: About Window
             //----------------------------------------------------------------------------------------
             windowAboutState.windowBounds.x = (float)screenWidth/2 - windowAboutState.windowBounds.width/2;
-            windowAboutState.windowBounds.y = (float)screenHeight/2 - windowAboutState.windowBounds.height/2 - 20;
+            windowAboutState.windowBounds.y = (float)screenHeight/2 - windowAboutState.windowBounds.height/2;
             GuiWindowAbout(&windowAboutState);
             //----------------------------------------------------------------------------------------
 
             // GUI: Sponsor Window
             //----------------------------------------------------------------------------------------
             windowSponsorState.windowBounds.x = (float)screenWidth/2 - windowSponsorState.windowBounds.width/2;
-            windowSponsorState.windowBounds.y = (float)screenHeight/2 - windowSponsorState.windowBounds.height/2 - 20;
+            windowSponsorState.windowBounds.y = (float)screenHeight/2 - windowSponsorState.windowBounds.height/2;
             GuiWindowSponsor(&windowSponsorState);
             //----------------------------------------------------------------------------------------
 
@@ -1093,7 +1094,7 @@ int main(int argc, char *argv[])
         
         BeginDrawing();
         
-            //texture created previously drawn on screen with right scale
+            // Draw screen scaled if required
             if (screenSizeActive) DrawTexturePro(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Rectangle){ 0, 0, (float)screenTarget.texture.width*2, (float)screenTarget.texture.height*2 }, (Vector2){ 0, 0 }, 0.0f, WHITE);
             else DrawTextureRec(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);            
         

@@ -122,6 +122,9 @@ static const char *helpLines[] = {
     "DELETE - Remove selected icon image",
     "LCTRL + G - Generate selected icon image",
     "LCTRL + SPACE - Show icon-poem (if available)",
+#if defined(PLATFORM_DESKTOP)
+    "LCTRL + F - Toggle screen size x2",
+#endif
     "-",
     "ESCAPE - Close Window/Exit",
     NULL
