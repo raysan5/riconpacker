@@ -32,19 +32,19 @@
 *       3.0  (19-Sep-2023)  **RE-RELEASE**
 *                           ADDED: Support screen scaling x2
 *                           UPDATED: Using raygui 4.0, latest GuiTextBox() features
-*                           
+*
 *       3.0  (28-May-2023)  ADDED: Support macOS builds (x86_64 + arm64)
 *                           ADDED: New platform template: macOS
 *                           ADDED: Support for load/save .icns files
 *                           ADDED: Icon-poem window on icon text loading
 *                           ADDED: SaveImages() to export .png image pack
 *                           REMOVED: Input file format .jpg
-*                           REVIEWED: Updated UI to raygui 4.0    
+*                           REVIEWED: Updated UI to raygui 4.0
 *                           REVIEWED: SaveICO(), avoid ico/image export at one
 *                           REVIEWED: Image packaging into a single .zip not default
 *                           REVIEWED: Command-line interface, using icon bucket
 *                           REDESIGNED: Structure to support icon bucket
-*                           REDESIGNED: Using raygui 4.0-dev   
+*                           REDESIGNED: Using raygui 4.0-dev
 *
 *       2.2  (13-Dec-2022)  ADDED: Welcome window with sponsors info
 *                           REDESIGNED: Main toolbar to add tooltips
@@ -241,6 +241,10 @@ static unsigned int icoSizesFavicon[10] = { 228, 152, 144, 120, 96, 72, 64, 32, 
 static unsigned int icoSizesAndroid[10] = { 192, 144, 96, 72, 64, 48, 36, 32, 24, 16 };     // Android Launcher/Action/Dialog/Others icons, missing: 512
 static unsigned int icoSizesiOS[9] = { 180, 152, 120, 87, 80, 76, 58, 40, 29 };             // iOS App/Settings/Others icons, missing: 512, 1024
 
+// NOTE: Max length depends on OS, in Windows MAX_PATH = 256
+static char inFileName[512] = { 0 };        // Input file name (required in case of drag & drop over executable)
+static char outFileName[512] = { 0 };       // Output file name (required for file save/export)
+
 static IconBucket bucket = { 0 };           // Icon image bucket
 
 static IconPack currentPack = { 0 };
@@ -289,9 +293,6 @@ static unsigned int CountIconPackTextLines(IconPack pack);  // Count text lines 
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-    char inFileName[512] = { 0 };       // Input file name (required in case of drag & drop over executable)
-    char outFileName[512] = { 0 };      // Output file name (required for file save/export)
-
     bucket.entries = (IconEntry *)RL_CALLOC(MAX_ICON_BUCKET_SIZE, sizeof(IconEntry));
     bucket.capacity = MAX_ICON_BUCKET_SIZE;
 
@@ -356,7 +357,7 @@ int main(int argc, char *argv[])
     bool screenSizeActive = false;
 
     screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-    SetTextureFilter(screenTarget.texture, TEXTURE_FILTER_BILINEAR);                                           
+    SetTextureFilter(screenTarget.texture, TEXTURE_FILTER_BILINEAR);
     //-----------------------------------------------------------------------------------
 
     // GUI: Main toolbar panel (file and visualization)
@@ -1095,13 +1096,13 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
 
         EndTextureMode();
-        
+
         BeginDrawing();
-        
+
             // Draw screen scaled if required
             if (screenSizeActive) DrawTexturePro(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Rectangle){ 0, 0, (float)screenTarget.texture.width*2, (float)screenTarget.texture.height*2 }, (Vector2){ 0, 0 }, 0.0f, WHITE);
-            else DrawTextureRec(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);            
-        
+            else DrawTextureRec(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);
+
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
