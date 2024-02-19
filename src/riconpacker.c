@@ -742,7 +742,6 @@ int main(int argc, char *argv[])
         }
         //----------------------------------------------------------------------------------
 
-
         // WARNING: Some windows should lock the main screen controls when shown
         if (windowHelpState.windowActive ||
             windowAboutState.windowActive ||
