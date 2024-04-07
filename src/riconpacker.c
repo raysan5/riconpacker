@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   rIconPacker v3.0 - A simple and easy-to-use icons packer and extractor
+*   rIconPacker v3.1 - A simple and easy-to-use icons packer and extractor
 *
 *   FEATURES:
 *       - Pack icon images into icon file (.ico, .icns)
@@ -29,6 +29,11 @@
 *           NOTE: Avoids including tinyfiledialogs depencency library
 *
 *   VERSIONS HISTORY:
+*       3.1  (06-Apr-2024)  ADDED: Issue report window
+*                           REMOVED: Sponsors window
+*                           REVIEWED: Main toolbar and help window
+*                           UPDATED: Using raylib 5.1-dev and raygui 4.1-dev
+* 
 *       3.0  (19-Sep-2023)  **RE-RELEASE**
 *                           ADDED: Support screen scaling x2
 *                           UPDATED: Using raygui 4.0, latest GuiTextBox() features
@@ -66,8 +71,8 @@
 *       1.0  (23-Mar-2019)  First release
 *
 *   DEPENDENCIES:
-*       raylib 4.6-dev          - Windowing/input management and drawing
-*       raygui 4.0              - Immediate-mode GUI controls with custom styling and icons
+*       raylib 5.1-dev          - Windowing/input management and drawing
+*       raygui 4.1-dev          - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.1                - PNG chunks management
 *       tinyfiledialogs 3.13.3  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
@@ -108,10 +113,10 @@
 
 #define TOOL_NAME               "rIconPacker"
 #define TOOL_SHORT_NAME         "rIP"
-#define TOOL_VERSION            "3.0"
+#define TOOL_VERSION            "3.1"
 #define TOOL_DESCRIPTION        "A simple and easy-to-use icons packer and extractor"
 #define TOOL_DESCRIPTION_BREAK  "A simple and easy-to-use\nicons packer and extractor"
-#define TOOL_RELEASE_DATE       "Sep.2023"
+#define TOOL_RELEASE_DATE       "Apr.2024"
 #define TOOL_LOGO_COLOR         0xffc800ff
 
 #include "raylib.h"
@@ -134,9 +139,6 @@
 
 #define GUI_WINDOW_ABOUT_IMPLEMENTATION
 #include "gui_window_about.h"               // GUI: About Window
-
-#define GUI_WINDOW_SPONSOR_IMPLEMENTATION
-#include "gui_window_sponsor.h"             // GUI: Sponsor Window
 
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
@@ -375,21 +377,21 @@ int main(int argc, char *argv[])
     GuiWindowAboutState windowAboutState = InitGuiWindowAbout();
     //-----------------------------------------------------------------------------------
 
-    // GUI: Sponsor Window
+    // GUI: Issue Report Window
     //-----------------------------------------------------------------------------------
-    GuiWindowSponsorState windowSponsorState = InitGuiWindowSponsor();
+    bool showIssueReportWindow = false;
     //-----------------------------------------------------------------------------------
 
     // GUI: Export Window
     //-----------------------------------------------------------------------------------
-    bool windowExportActive = false;
+    bool showExportWindow = false;
     int exportFormatActive = 0;         // ComboBox file type selection (.ico, .png)
     //-----------------------------------------------------------------------------------
 
     // GUI: Exit Window
     //-----------------------------------------------------------------------------------
     bool closeWindow = false;
-    bool windowExitActive = false;
+    bool showExitWindow = false;
     //-----------------------------------------------------------------------------------
 
     // GUI: Custom file dialogs
@@ -398,7 +400,7 @@ int main(int argc, char *argv[])
     bool showExportFileDialog = false;
     //bool showExportImageDialog = false;
 
-    bool windowIconPoemActive = false;
+    bool showIconPoemWindow = false;
     //-----------------------------------------------------------------------------------
 
     // Check if an icon input file has been provided on command line
@@ -418,7 +420,7 @@ int main(int argc, char *argv[])
     {
         // WARNING: ASINCIFY requires this line,
         // it contains the call to emscripten_sleep() for PLATFORM_WEB
-        if (WindowShouldClose()) windowExitActive = true;
+        if (WindowShouldClose()) showExitWindow = true;
 
         // Dropped files logic
         //----------------------------------------------------------------------------------
@@ -477,7 +479,7 @@ int main(int argc, char *argv[])
                     strcpy(outFileName, "icon.ico\0");
                 }
 
-                windowExportActive = true;
+                showExportWindow = true;
             }
         }
 
@@ -504,7 +506,7 @@ int main(int argc, char *argv[])
         // Show window: icon poem
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_SPACE) && (CountIconPackTextLines(currentPack) > 0))
         {
-            windowIconPoemActive = !windowIconPoemActive;
+            showIconPoemWindow = !showIconPoemWindow;
         }
 
 #if defined(PLATFORM_DESKTOP)
@@ -517,8 +519,8 @@ int main(int argc, char *argv[])
         // Toggle window: about
         if (IsKeyPressed(KEY_F2)) windowAboutState.windowActive = !windowAboutState.windowActive;
 
-        // Toggle window: sponsor
-        if (IsKeyPressed(KEY_F3)) windowSponsorState.windowActive = !windowSponsorState.windowActive;
+        // Toggle window: issue report
+        if (IsKeyPressed(KEY_F3)) showIssueReportWindow = !showIssueReportWindow;
 
         // Delete selected icon from list
         if ((IsKeyPressed(KEY_DELETE) && !iconTextEditMode) || btnClearIconImagePressed)
@@ -550,11 +552,11 @@ int main(int argc, char *argv[])
         {
             if (windowHelpState.windowActive) windowHelpState.windowActive = false;
             else if (windowAboutState.windowActive) windowAboutState.windowActive = false;
-            else if (windowSponsorState.windowActive) windowSponsorState.windowActive = false;
-            else if (windowExportActive) windowExportActive = false;
-            else if (windowIconPoemActive) windowIconPoemActive = false;
+            else if (showIssueReportWindow) showIssueReportWindow = false;
+            else if (showIconPoemWindow) showIconPoemWindow = false;
+            else if (showExportWindow) showExportWindow = false;
         #if defined(PLATFORM_DESKTOP)
-            else windowExitActive = !windowExitActive;
+            else showExitWindow = !showExitWindow;
         #else
             else if (showLoadFileDialog) showLoadFileDialog = false;
             else if (showExportFileDialog) showExportFileDialog = false;
@@ -613,9 +615,9 @@ int main(int argc, char *argv[])
         }
 
         // Help options logic
-        if (mainToolbarState.btnHelpPressed) windowHelpState.windowActive = true;                   // Help button logic
-        if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true;     // About window button logic
-        if (mainToolbarState.btnSponsorPressed) windowSponsorState.windowActive = true; // User sponsor logic
+        if (mainToolbarState.btnHelpPressed) windowHelpState.windowActive = true;
+        if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true;
+        if (mainToolbarState.btnIssuePressed) showIssueReportWindow = true;
         //----------------------------------------------------------------------------------
 
         // Basic program flow logic
@@ -745,10 +747,10 @@ int main(int argc, char *argv[])
         // WARNING: Some windows should lock the main screen controls when shown
         if (windowHelpState.windowActive ||
             windowAboutState.windowActive ||
-            windowSponsorState.windowActive ||
-            windowIconPoemActive ||
-            windowExitActive ||
-            windowExportActive ||
+            showIssueReportWindow ||
+            showIconPoemWindow ||
+            showExitWindow ||
+            showExportWindow ||
             showLoadFileDialog ||
             showExportFileDialog) GuiLock();
         //----------------------------------------------------------------------------------
@@ -855,14 +857,14 @@ int main(int argc, char *argv[])
 
             // GUI: Icon poem Window
             //----------------------------------------------------------------------------------------
-            if (windowIconPoemActive)
+            if (showIconPoemWindow)
             {
                 unsigned int textLinesCount = CountIconPackTextLines(currentPack);
 
                 if (textLinesCount > 0)
                 {
                     Vector2 windowIconPoemOffset = (Vector2){ (float)screenWidth/2 - 320/2, (float)screenHeight/2 - (88 + 50 + textLinesCount*20)/2 };
-                    windowIconPoemActive = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 24 + 12 + textLinesCount*24 + 12 + 28 + 12 }, "#10#Icon poem found!");
+                    showIconPoemWindow = !GuiWindowBox((Rectangle){ windowIconPoemOffset.x, windowIconPoemOffset.y, 320, 24 + 12 + textLinesCount*24 + 12 + 28 + 12 }, "#10#Icon poem found!");
 
                     GuiSetStyle(LABEL, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
                     for (int i = 0, k = 0; i < currentPack.count; i++)
@@ -877,10 +879,10 @@ int main(int argc, char *argv[])
 
                     if (GuiButton((Rectangle){ windowIconPoemOffset.x + 10, windowIconPoemOffset.y + 24 + 12 + textLinesCount*24 + 12, 320 - 24, 28 }, "#186#I love it!"))
                     {
-                        windowIconPoemActive = false;
+                        showIconPoemWindow = false;
                     }
                 }
-                else windowIconPoemActive = false;
+                else showIconPoemWindow = false;
             }
             //----------------------------------------------------------------------------------------
 
@@ -898,16 +900,26 @@ int main(int argc, char *argv[])
             GuiWindowAbout(&windowAboutState);
             //----------------------------------------------------------------------------------------
 
-            // GUI: Sponsor Window
+            // GUI: Issue Report Window
             //----------------------------------------------------------------------------------------
-            windowSponsorState.windowBounds.x = (float)screenWidth/2 - windowSponsorState.windowBounds.width/2;
-            windowSponsorState.windowBounds.y = (float)screenHeight/2 - windowSponsorState.windowBounds.height/2;
-            GuiWindowSponsor(&windowSponsorState);
+            if (showIssueReportWindow)
+            {
+                Rectangle messageBox = { (float)screenWidth/2 - 300/2, (float)screenHeight/2 - 190/2 - 20, 300, 190 };
+                int result = GuiMessageBox(messageBox, "#220#Report Issue", 
+                    "Do you want to report any issue or\nfeature request for this program?\n\ngithub.com/raysan5/riconpacker", "#186#Report on GitHub");
+
+                if (result == 1)    // Report issue pressed
+                {
+                    OpenURL("https://github.com/raysan5/riconpacker/issues");
+                    showIssueReportWindow = false;
+                }
+                else if (result == 0) showIssueReportWindow = false;
+            }
             //----------------------------------------------------------------------------------------
 
             // GUI: Export Window
             //----------------------------------------------------------------------------------------
-            if (windowExportActive)
+            if (showExportWindow)
             {
                 Rectangle messageBox = { (float)screenWidth/2 - 248/2, (float)screenHeight/2 - 200/2, 248, 112 };
                 int result = GuiMessageBox(messageBox, "#7#Export Icon File", " ", "#7#Export Icon");
@@ -922,20 +934,20 @@ int main(int argc, char *argv[])
 
                 if (result == 1)    // Export button pressed
                 {
-                    windowExportActive = false;
+                    showExportWindow = false;
                     showExportFileDialog = true;
                 }
-                else if (result == 0) windowExportActive = false;
+                else if (result == 0) showExportWindow = false;
             }
             //----------------------------------------------------------------------------------
 
             // GUI: Exit Window
             //----------------------------------------------------------------------------------------
-            if (windowExitActive)
+            if (showExitWindow)
             {
                 int result = GuiMessageBox((Rectangle){ screenWidth/2.0f - 125, screenHeight/2.0f - 50, 250, 100 }, "#159#Closing rIconPacker", "Do you really want to exit?", "Yes;No");
 
-                if ((result == 0) || (result == 2)) windowExitActive = false;
+                if ((result == 0) || (result == 2)) showExitWindow = false;
                 else if (result == 1) closeWindow = true;
             }
             //----------------------------------------------------------------------------------------
