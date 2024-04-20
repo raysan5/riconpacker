@@ -768,7 +768,7 @@ int main(int argc, char *argv[])
             if (sizeListActive < 0) sizeListActive = 0;
 
             GuiDummyRec((Rectangle){ anchorMain.x + 135, anchorMain.y + 52, 256, 256 }, NULL);
-            DrawRectangleLines((int)anchorMain.x + 135, (int)anchorMain.y + 52, 256, 256, Fade(GRAY, 0.6f));
+            DrawRectangleLinesEx((Rectangle){ anchorMain.x + 135, anchorMain.y + 52, 256, 256 }, 1.0f, Fade(GRAY, 0.6f));
 
             if (sizeListActive == 0)
             {
