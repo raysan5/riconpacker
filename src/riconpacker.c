@@ -33,7 +33,7 @@
 *                           REMOVED: Sponsors window
 *                           REVIEWED: Main toolbar and help window
 *                           UPDATED: Using raylib 5.1-dev and raygui 4.1-dev
-* 
+*
 *       3.0  (19-Sep-2023)  **RE-RELEASE**
 *                           ADDED: Support screen scaling x2
 *                           UPDATED: Using raygui 4.0, latest GuiTextBox() features
@@ -905,7 +905,7 @@ int main(int argc, char *argv[])
             if (showIssueReportWindow)
             {
                 Rectangle messageBox = { (float)screenWidth/2 - 300/2, (float)screenHeight/2 - 190/2 - 20, 300, 190 };
-                int result = GuiMessageBox(messageBox, "#220#Report Issue", 
+                int result = GuiMessageBox(messageBox, "#220#Report Issue",
                     "Do you want to report any issue or\nfeature request for this program?\n\ngithub.com/raysan5/riconpacker", "#186#Report on GitHub");
 
                 if (result == 1)    // Report issue pressed
