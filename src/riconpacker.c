@@ -281,9 +281,7 @@ static char *GetTextIconSizes(IconPack pack);               // Get sizes as a te
 // Load/Save/Export data functions
 static IconEntry *LoadIconPackFromICO(const char *fileName, int *count);                    // Load icon pack from .ico file
 static void SaveIconPackToICO(IconEntry *entries, int entryCount, const char *fileName);    // Save icon pack to.ico file
-
 static void ExportIconPackImages(IconEntry *entries, int entryCount, const char *fileName); // Export icon pack to multiple .png images
-
 static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count);                   // Load icon pack from .icns file
 static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName);   // Save icon pack to .icns file
 
@@ -2083,6 +2081,7 @@ static unsigned int CountIconPackTextLines(IconPack pack)
     return counter;
 }
 
+// Add icon to bucket
 static void AddIconToBucket(IconBucket *bucket, const char *fileName)
 {
     IconEntry *entries = NULL;
@@ -2153,11 +2152,13 @@ static void AddIconToBucket(IconBucket *bucket, const char *fileName)
     RL_FREE(entries);
 }
 
+// Remove icon from bucket
 static void RemoveIconFromBucket(IconBucket *bucket, unsigned int size)
 {
     // TODO: Remove bucket icon... really required?
 }
 
+// Clear icon bucket
 static void ClearIconBucket(IconBucket *bucket)
 {
     for (int i = 0; i < bucket->count; i++)
@@ -2193,6 +2194,7 @@ static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket)
     }
 }
 
+// Reset icon pack data
 static void ResetIconPack(IconPack *pack, int platform)
 {
     // Clear full pack
