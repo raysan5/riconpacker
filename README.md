@@ -1,8 +1,8 @@
-# rIconPacker
+# `rIconPacker`
 
 A simple and easy-to-use icons packer and extractor.
 
-## What can I do with rIconPacker?
+## What can I do with `rIconPacker`?
 
 Pack/Unpack icon files, load .ico/.icns files and view all contained images, load individual .bmp/.png/.qoi images to create new icons.
 Select desired platform for automatic icon-sizes template, provide required icons or generate them from loaded sizes.
@@ -100,17 +100,17 @@ This tool has been created using the following open-source technologies:
 
 ## Handmade Software
 
-rIconPacker is handmade software, it has been meticulously developed using the C programming language, with great attention put on each line of code written.
+`rIconPacker` is handmade software, it has been meticulously developed using the C programming language, with great attention put on each line of code written.
 This approach usually results in highly optimized and efficient code, but it is also more time-consuming and require a higher level of technical skills.
 The result is great performance and small memory footprint.
 
-rIconpacker is self-contained in a single-executable of about **1 MB**, it could fit on a floppy disk.
-
-rIconpacker could be customized on demand for corporate users, if your company needs a custom version, just get in touch: ray[at]raylibtech.com
+`rIconPacker` is self-contained in a single-executable of about **1 MB**, it could fit on a floppy disk.
 
 ## Issues & Feedback
 
-You can report tool issues and feedback at https://github.com/raylibtech/rtools
+Note that the one-time-payment desktop version of `rIconPacker` comes with no support. Still, tool issues and feedback can be reported at https://github.com/raylibtech/rtools. They are reviewed with low-priority.
+
+For additional support, priority issues review or tool customization requirements, please contact `ray[at]raylibtech.com`
 
 ## License
 
