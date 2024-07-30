@@ -71,10 +71,10 @@
 *       1.0  (23-Mar-2019)  First release
 *
 *   DEPENDENCIES:
-*       raylib 5.1-dev          - Windowing/input management and drawing
-*       raygui 4.1-dev          - Immediate-mode GUI controls with custom styling and icons
+*       raylib 5.5-dev          - Windowing/input management and drawing
+*       raygui 4.5-dev          - Immediate-mode GUI controls with custom styling and icons
 *       rpng 1.1                - PNG chunks management
-*       tinyfiledialogs 3.13.3  - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
+*       tinyfiledialogs 3.18    - Open/save file dialogs, it requires linkage with comdlg32 and ole32 libs
 *       miniz 2.2.0             - Save .zip package file (required for multiple images export)
 *
 *   BUILDING:
