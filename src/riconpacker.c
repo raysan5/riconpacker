@@ -1235,7 +1235,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             // Check for valid argument
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
-                const char **files = TextSplit(argv[i + 1], ',', &inputFilesCount);
+                char **files = TextSplit(argv[i + 1], ',', &inputFilesCount);
 
                 inputFiles = (char **)RL_CALLOC(inputFilesCount, sizeof(char *));
                 for (int j = 0; j < inputFilesCount; j++)
@@ -1267,7 +1267,7 @@ static void ProcessCommandLine(int argc, char *argv[])
             if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
             {
                 int numValues = 0;
-                const char **values = TextSplit(argv[i + 1], ',', &numValues);
+                char **values = TextSplit(argv[i + 1], ',', &numValues);
 
                 for (int j = 0; j < numValues; j++)
                 {
@@ -1312,7 +1312,7 @@ static void ProcessCommandLine(int argc, char *argv[])
                 extractSize = true;
 
                 int numValues = 0;
-                const char **values = TextSplit(argv[i + 1], ',', &numValues);
+                char **values = TextSplit(argv[i + 1], ',', &numValues);
 
                 for (int j = 0; j < numValues; j++)
                 {
