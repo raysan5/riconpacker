@@ -2004,10 +2004,10 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
         unsigned char sizeBE[4] = { 0 };
 
         // Write icns total data size (Big Endian)
-        sizeBE[0] = (icnsFileSize >> 24) & 0xFF;
-        sizeBE[1] = (icnsFileSize >> 16) & 0xFF;
-        sizeBE[2] = (icnsFileSize >> 8) & 0xFF;
-        sizeBE[3] = icnsFileSize & 0xFF;
+        sizeBE[0] = (icnsFileSize >> 24) & 0xff;
+        sizeBE[1] = (icnsFileSize >> 16) & 0xff;
+        sizeBE[2] = (icnsFileSize >> 8) & 0xff;
+        sizeBE[3] = icnsFileSize & 0xff;
         fwrite(sizeBE, 1, 4, icnsFile);
 
         unsigned char icnType[4] = { 0 };
@@ -2039,10 +2039,10 @@ static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *f
 
                 // Write entry size (Big endian)
                 unsigned int size = pngDataSizes[k] + 8;   // Size must include type and length size
-                sizeBE[0] = (size >> 24) & 0xFF;
-                sizeBE[1] = (size >> 16) & 0xFF;
-                sizeBE[2] = (size >> 8) & 0xFF;
-                sizeBE[3] = size & 0xFF;
+                sizeBE[0] = (size >> 24) & 0xff;
+                sizeBE[1] = (size >> 16) & 0xff;
+                sizeBE[2] = (size >> 8) & 0xff;
+                sizeBE[3] = size & 0xff;
                 fwrite(sizeBE, 1, 4, icnsFile);
 
                 // Write entry PNG icon data
