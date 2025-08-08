@@ -87,7 +87,7 @@
 *           -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 *
 *   DEVELOPERS:
-*       Ramon Santamaria (@raysan5):   Developer, supervisor, updater and maintainer.
+*       Ramon Santamaria (@raysan5):   Developer, supervisor, updater and maintainer
 *
 *
 *   LICENSE: zlib/libpng
@@ -192,8 +192,8 @@ bool __stdcall FreeConsole(void);           // Close console from code (kernel32
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
-// NOTE: All image data referenced by entries in the image directory proceed directly after the image directory.
-// It is customary practice to store them in the same order as defined in the image directory.
+// NOTE: All image data referenced by entries in the image directory proceed directly after the image directory
+// It is customary practice to store them in the same order as defined in the image directory
 
 // One image entry for ico
 typedef struct {
@@ -1519,19 +1519,19 @@ static char *GetTextIconSizes(IconPack pack)
 
 // Icon File Header (6 bytes)
 typedef struct {
-    unsigned short reserved;    // Must always be 0.
-    unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
-    unsigned short imageCount;  // Specifies number of entries in the file.
+    unsigned short reserved;    // Must always be 0
+    unsigned short imageType;   // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid
+    unsigned short imageCount;  // Specifies number of entries in the file
 } IcoHeader;
 
 // Icon Entry info (16 bytes)
 typedef struct {
-    unsigned char width;        // Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels.
-    unsigned char height;       // Specifies image height in pixels. Can be any number between 0 and 255. Value 0 means image height is 256 pixels.
-    unsigned char colpalette;   // Specifies number of colors in the color palette. Should be 0 if the image does not use a color palette.
-    unsigned char reserved;     // Reserved. Should be 0.
-    unsigned short planes;      // In ICO format: Specifies color planes. Should be 0 or 1.
-    // In CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
+    unsigned char width;        // Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels
+    unsigned char height;       // Specifies image height in pixels. Can be any number between 0 and 255. Value 0 means image height is 256 pixels
+    unsigned char colpalette;   // Specifies number of colors in the color palette. Should be 0 if the image does not use a color palette
+    unsigned char reserved;     // Reserved. Should be 0
+    unsigned short planes;      // In ICO format: Specifies color planes; should be 0 or 1
+    // In CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left
     unsigned short bpp;         // In ICO format: Specifies bits per pixel. [Notes 4]
     // In CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
     unsigned int size;          // Specifies the size of the image's data in bytes
