@@ -383,7 +383,6 @@ int main(int argc, char *argv[])
     // GUI: Export Window
     //-----------------------------------------------------------------------------------
     bool showExportWindow = false;
-    int exportFormatActive = 0;         // ComboBox file type selection (.ico, .png)
     //-----------------------------------------------------------------------------------
 
     // GUI: Exit Window
@@ -1107,6 +1106,7 @@ int main(int argc, char *argv[])
         EndTextureMode();
 
         BeginDrawing();
+            ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
             // Draw screen scaled if required
             if (screenSizeActive) DrawTexturePro(screenTarget.texture, (Rectangle){ 0, 0, (float)screenTarget.texture.width, -(float)screenTarget.texture.height }, (Rectangle){ 0, 0, (float)screenTarget.texture.width*2, (float)screenTarget.texture.height*2 }, (Vector2){ 0, 0 }, 0.0f, WHITE);
