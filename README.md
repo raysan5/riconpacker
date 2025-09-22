@@ -125,4 +125,4 @@ Check included `End User License Agreement` document for details (EULA.txt).
 
 In any case, consider some donation to help the author keep working on useful software development.
 
-*Copyright (c) 2018-2025 raylib technologies ([@raylibtech](https://twitter.com/raylibtech)) | Ramon Santamaria ([@raysan5](https://twitter.com/raysan5))*
+*Copyright (c) 2018-2025 raylib technologies ([@raylibtech](https://github.com/raylibtech)) | Ramon Santamaria ([@raysan5](https://github.com/raysan5))*
