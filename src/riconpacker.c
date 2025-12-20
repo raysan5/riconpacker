@@ -1840,8 +1840,10 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
                     {
                         // Data contains a valid PNG file, we can load it
                         /*
-                        int colors, bits;
-                        int width, height;
+                        int colors = 0;
+                        int bits = 0;
+                        int width = 0;
+                        int height = 0;
                         char *data = rpng_load_image_from_memory(icnImageData, &width, &height, &colors, &bits); // Image loaded successfully
                         Image image = {
                             .width = width,
@@ -1915,7 +1917,7 @@ static IconEntry *LoadIconPackFromICNS(const char *fileName, int *count)
 //  - Supported image sizes [8]: 32, 48, 64, 128, 256, 512, 1024
 //  - No TOC or additional chunks supported
 //  - Main focus on .app package icns generation
-// Ref: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
+// REF: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
 static void SaveIconPackToICNS(IconEntry *entries, int entryCount, const char *fileName)
 {
     // Verify icon pack valid entries (not placeholder ones)
