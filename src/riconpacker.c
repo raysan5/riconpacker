@@ -272,7 +272,7 @@ static void ProcessCommandLine(int argc, char *argv[]);     // Process command l
 #endif
 
 static void AddIconToBucket(IconBucket *bucket, const char *fileName);      // Add icon images from input file to bucket
-static void RemoveIconFromBucket(IconBucket *bucket, unsigned int size);    // TODO: Remove icon from bucket -NOT USED-
+static void RemoveIconFromBucket(IconBucket *bucket, unsigned int size);    // Remove icon from bucket -NOT USED-
 static void UpdateIconPackFromBucket(IconPack *pack, IconBucket bucket);    // Update icon pack with icon bucket data
 static void ClearIconBucket(IconBucket *bucket);                            // Clear icon bucket, unload all contained images
 
